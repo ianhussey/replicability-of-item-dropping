@@ -171,7 +171,7 @@ if(file.exists("../../data/results/results_nested.rds")){
 #   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
 
 results_nested |>
-  select(scale, results) |>
+  select(scale, results_100) |>
   unnest(results_100) |>
   summarize(mean = mean(proportion_agreement),
             sd = sd(proportion_agreement),
@@ -189,7 +189,7 @@ results_nested |>
 ```{r}
 
 results_nested |>
-  select(scale, results) |>
+  select(scale, results_200) |>
   unnest(results_200) |>
   summarize(mean = mean(proportion_agreement),
             sd = sd(proportion_agreement),
@@ -206,7 +206,7 @@ results_nested |>
 
 ```{r}
 results_nested |>
-  select(scale, results) |>
+  select(scale, results_300) |>
   unnest(results_300) |>
   summarize(mean = mean(proportion_agreement),
             sd = sd(proportion_agreement),
