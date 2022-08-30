@@ -133,7 +133,7 @@ if(file.exists("../../data/results/results_nested.rds")){
   }
   
   # run analyses using the data 
-  results_nested <- data_nested %>% 
+  results_nested <- data_nested_single_timepoint %>% 
     mutate(results_100 = furrr::future_map(data, 
                                            alpha_by_split_replicate, 
                                            subset_n_per_split = 100, 
