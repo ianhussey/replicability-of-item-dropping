@@ -1,0 +1,180 @@
+---
+title: "Replicability of item dropping"
+author: "Ian Hussey"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    highlight: haddock
+    theme: flatly
+    toc: yes
+    toc_float: yes
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(message=FALSE,
+                      warning=FALSE,
+                      cache=TRUE,
+                      cache.lazy=TRUE)
+```
+
+```{r}
+
+# dependencies
+library(tidyverse)
+library(lavaan)
+library(semTools)
+library(knitr)
+library(kableExtra)
+library(moments)
+library(plotrix)
+library(lubridate)
+library(psych)
+
+# functions
+# rounds all numeric variables in a dataframe to the desired number of places. Non-numeric variables will be ignored.
+round_df <- function(df, digits) {
+  mutate_if(df, is.numeric, janitor::round_half_up, digits = 2)
+}
+
+# set seed for reproducability
+set.seed(42)
+
+```
+
+# Data
+
+## Data for first completion per user per scale
+
+```{r}
+
+# get data
+load("../../data/intermediary/trimmed_data.RData")
+
+# trim to include only the first timepoint per user_id per scale
+# ie exclude repeat participations on the same scale
+data_first_timepoint <- trimmed_data %>%
+  arrange(user_id, individual_differences_measure, datetime_ymdhms) %>%
+  mutate(combined_var = paste0(user_id, individual_differences_measure)) %>%
+  filter(combined_var != lag(combined_var)) %>%
+  dplyr::select(-combined_var) %>%
+  rename(nfc_1 = nfc1, 
+         nfc_2 = nfc2, 
+         nfc_3 = nfc3, 
+         nfc_4 = nfc4, 
+         nfc_5 = nfc5, 
+         nfc_6 = nfc6, 
+         nfc_7 = nfc7, 
+         nfc_8 = nfc8, 
+         nfc_9 = nfc9, 
+         nfc_10 = nfc10, 
+         nfc_11 = nfc11, 
+         nfc_12 = nfc12, 
+         nfc_13 = nfc13, 
+         nfc_14 = nfc14, 
+         nfc_15 = nfc15, 
+         nfc_16 = nfc16, 
+         nfc_17 = nfc17, 
+         nfc_18 = nfc18)
+
+# # manually compiled data on k items, k factors, and changes made to scales compared to original publications.
+# additional_scale_data <- read.csv("../data/additional_scale_data.csv")
+
+```
+
+## Nest item level data
+
+```{r}
+
+subset_data <- function(data, string){
+  data |> 
+    select(starts_with(string), -contains("subscale")) |> 
+    drop_na()
+}
+
+data_bfi_o    <- subset_data(data_first_timepoint, "bfi_o")
+data_bfi_c    <- subset_data(data_first_timepoint, "bfi_c")
+data_bfi_e    <- subset_data(data_first_timepoint, "bfi_e")
+data_bfi_a    <- subset_data(data_first_timepoint, "bfi_a")
+data_bfi_n    <- subset_data(data_first_timepoint, "bfi_n")
+data_bidr_im  <- subset_data(data_first_timepoint, "bidr_im")
+data_bidr_sde <- subset_data(data_first_timepoint, "bidr_sde")
+data_bjw      <- subset_data(data_first_timepoint, "bjw")
+data_brs      <- subset_data(data_first_timepoint, "brs")
+data_he       <- subset_data(data_first_timepoint, "he")
+data_nfc      <- subset_data(data_first_timepoint, "nfc_")
+data_nfcc_p   <- subset_data(data_first_timepoint, "nfcc_p")
+data_nfcc_d   <- subset_data(data_first_timepoint, "nfcc_d")
+data_nfcc_c   <- subset_data(data_first_timepoint, "nfcc_c")
+data_nfcc_a   <- subset_data(data_first_timepoint, "nfcc_a")
+data_nfcc_o   <- subset_data(data_first_timepoint, "nfcc_o")
+data_pe       <- subset_data(data_first_timepoint, "pe")
+data_pns      <- subset_data(data_first_timepoint, "pns")
+data_rse      <- subset_data(data_first_timepoint, "rse")
+data_rwa      <- subset_data(data_first_timepoint, "rwa")
+data_sdo      <- subset_data(data_first_timepoint, "sdo")
+data_sm       <- subset_data(data_first_timepoint, "sm")
+data_soc_ic   <- subset_data(data_first_timepoint, "soc_ic")
+data_soc_pe   <- subset_data(data_first_timepoint, "soc_pe")
+
+data_nested_single_timepoint <- 
+  bind_rows(nest(data_bfi_o,    data = everything()),
+            nest(data_bfi_c,    data = everything()),
+            nest(data_bfi_e,    data = everything()),
+            nest(data_bfi_a,    data = everything()),
+            nest(data_bfi_n,    data = everything()),
+            nest(data_bidr_im,  data = everything()),
+            nest(data_bidr_sde, data = everything()),
+            nest(data_bjw,      data = everything()),
+            nest(data_brs,      data = everything()),
+            nest(data_he,       data = everything()),
+            nest(data_nfc,      data = everything()),
+            nest(data_nfcc_p,   data = everything()),
+            nest(data_nfcc_d,   data = everything()),
+            nest(data_nfcc_c,   data = everything()),
+            nest(data_nfcc_a,   data = everything()),
+            nest(data_nfcc_o,   data = everything()),
+            nest(data_pe,       data = everything()),
+            nest(data_pns,      data = everything()),
+            nest(data_rse,      data = everything()),
+            nest(data_rwa,      data = everything()),
+            nest(data_sdo,      data = everything()),
+            nest(data_sm,       data = everything()),
+            nest(data_soc_ic,   data = everything()),
+            nest(data_soc_pe,   data = everything())) |>
+  # mutate(scale = c("bfi_o", "bfi_c", "bfi_e", "bfi_a", "bfi_n", "bidr_im", "bidr_sde", 
+  #                  "bjw", "brs", "he", "nfc", "nfcc_p", "nfcc_d", "nfcc_c", "nfcc_a", 
+  #                  "nfcc_o", "pe", "pns", "rse", "rwa", "sdo", "sm", "soc_ic", "soc_pe")) |>
+  mutate(scale = c("Big5 - Openness", "Big5 - Conscientiousness", "Big5 - Extroversion", "Big5 - Agreeableness", "Big5 - Neuroticism", 
+                   "Desirable responding - Impression Management", "Desirable responding - Self-Deception", 
+                   "Belief in a Just World", "Bayesian Racism", "Humanitarianism-Egalitarianism", "Need for Cognition", 
+                   "Need for Cognitive Closure - Predictability", 
+                   "Need for Cognitive Closure - Decisiveness", 
+                   "Need for Cognitive Closure - Closed-Mindedness", 
+                   "Need for Cognitive Closure - Avoidance of Ambiguity", 
+                   "Need for Cognitive Closure - Order", 
+                   "Protestant Work Ethic", "Personal Need for Structure", "Rosenberg Self-Esteem", "Right-Wing Authoritarianism", 
+                   "Social Dominance Orientation", 
+                   "Self-Monitoring", 
+                   "Spheres of Control - Interpersonal Control",
+                   "Spheres of Control - Personal Efficacy")) |>
+  select(scale, data)
+
+```
+
+# Write to disk
+
+```{r}
+
+write_rds(data_first_timepoint, "../../data/processed/data_first_timepoint.rds", compress = "gz")
+write_rds(data_nested_single_timepoint, "../../data/processed/data_nested_single_timepoint.rds")
+
+```
+
+# Session info
+
+```{r}
+
+sessionInfo()
+
+```

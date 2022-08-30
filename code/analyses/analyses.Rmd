@@ -1,0 +1,231 @@
+---
+title: "Assessing the replicability of item dropping"
+author: "Ian Hussey"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    highlight: haddock
+    theme: flatly
+    toc: yes
+    toc_float: yes
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(message=FALSE,
+                      warning=FALSE)
+```
+
+```{r}
+
+# dependencies
+library(tidyverse)
+#library(lavaan)
+#library(semTools)
+library(knitr)
+library(kableExtra)
+#library(moments)
+#library(plotrix)
+#library(lubridate)
+library(psych)
+library(furrr)
+
+# create necessary directories
+dir.create("../../data/results")
+
+# functions
+# rounds all numeric variables in a dataframe to the desired number of places. Non-numeric variables will be ignored.
+round_df <- function(df, digits) {
+  mutate_if(df, is.numeric, janitor::round_half_up, digits = 2)
+}
+
+# set up parallel processing
+future::plan(multisession)
+
+# set seed for reproducibility
+set.seed(42)
+
+```
+
+# Data
+
+```{r}
+
+#data_first_timepoint <- read_rds("../../data/processed/data_first_timepoint.rds")
+data_nested_single_timepoint <- read_rds("../../data/processed/data_nested_single_timepoint.rds")
+
+```
+
+# Internal consistency
+
+## Analysis
+
+```{r}
+
+if(file.exists("../../data/results/results_nested.rds")){
+  
+  results_nested <- read_rds("../../data/results/results_nested.rds")
+  
+} else {
+  
+  # assess which item, if dropped, would result in the highest alpha in the remaining items
+  item_to_delete_to_max_alpha <- function(data){
+    
+    res <- psych::alpha(data)
+    
+    alpha_full_scale <- as.numeric(res$total["raw_alpha"])
+    
+    res$alpha.drop |>
+      as_tibble(rownames = "item") |>
+      filter(raw_alpha == max(raw_alpha)) |>
+      select(item_to_drop = item, alpha_if_droppped = raw_alpha) |>
+      mutate(alpha_full_scale = alpha_full_scale)
+  }
+  
+  # apply item_to_delete_to_max_alpha to each half of (a subset of) a data set
+  # optionally first sample just a subset of participants
+  # then split in half and calculate the item to be dropped for each half
+  # returns comparison of whether the item drop recommendation was the same in both halves
+  alpha_by_split <- function(data = data, subset_n_per_split = NULL){
+    
+    dat <- data |>
+      rownames_to_column(var = "id")
+    
+    if(is.numeric(subset_n_per_split)){
+      data_split_1 <- dat |>
+        sample_n(size = subset_n_per_split*2) |>
+        sample_frac(size = 0.5)
+    } else {
+      data_split_1 <- dat |>
+        sample_frac(size = 0.5)
+    }
+    
+    split_2 <- anti_join(dat, data_split_1, by = "id") |>
+      select(-id) |>
+      item_to_delete_to_max_alpha() %>%
+      rename(split_2_item_to_drop = item_to_drop,
+             split_2_alpha_if_droppped = alpha_if_droppped,
+             split_2_alpha_full_scale = alpha_full_scale)
+    
+    split_1 <- data_split_1 |>
+      select(-id) |>
+      item_to_delete_to_max_alpha() %>%
+      rename(split_1_item_to_drop = item_to_drop,
+             split_1_alpha_if_droppped = alpha_if_droppped,
+             split_1_alpha_full_scale = alpha_full_scale)
+    
+    res <- bind_cols(split_1, split_2) |>
+      mutate(match = split_1_item_to_drop == split_2_item_to_drop,
+             alpha_diff_full_scale = split_1_alpha_full_scale - split_2_alpha_full_scale)
+    
+    return(res)
+  }
+  
+  # apply alpha_by_split() to nested data
+  # apply it n_replications of times to each cell (i.e., nest)
+  # summarize the proportion of replications in which the recommendation agreed between samples
+  alpha_by_split_replicate <- function(data, subset_n_per_split, n_replications, ...){
+    tibble(
+      proportion_agreement = mean(replicate(n = n_replications, alpha_by_split(data = data, subset_n_per_split = subset_n_per_split)$match)),
+      subset_n_per_split = subset_n_per_split,
+      n_replications = n_replications
+    )
+  }
+  
+  # run analyses using the data 
+  results_nested <- data_nested %>% 
+    mutate(results_100 = furrr::future_map(data, 
+                                           alpha_by_split_replicate, 
+                                           subset_n_per_split = 100, 
+                                           n_replications = 1000,
+                                           .options = furrr_options(seed = TRUE)),
+           results_200 = furrr::future_map(data, 
+                                           alpha_by_split_replicate, 
+                                           subset_n_per_split = 200, 
+                                           n_replications = 1000,
+                                           .options = furrr_options(seed = TRUE)),
+           results_300 = furrr::future_map(data, 
+                                           alpha_by_split_replicate, 
+                                           subset_n_per_split = 300, 
+                                           n_replications = 1000,
+                                           .options = furrr_options(seed = TRUE)))
+  
+  # save to disk
+  write_rds(results_nested, "../../data/results/results_nested.rds")
+  
+}
+
+```
+
+## Results
+
+100 participants per sample
+
+```{r}
+
+# print results
+# results_nested |>
+#   select(scale, results) |>
+#   unnest(results) |>
+#   kable() |>
+#   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+results_nested |>
+  select(scale, results) |>
+  unnest(results_100) |>
+  summarize(mean = mean(proportion_agreement),
+            sd = sd(proportion_agreement),
+            min = min(proportion_agreement),
+            max = max(proportion_agreement)) |>
+  gather() |>
+  round_df(2) |>
+  kable() |>
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
+200 participants per sample
+
+```{r}
+
+results_nested |>
+  select(scale, results) |>
+  unnest(results_200) |>
+  summarize(mean = mean(proportion_agreement),
+            sd = sd(proportion_agreement),
+            min = min(proportion_agreement),
+            max = max(proportion_agreement)) |>
+  gather() |>
+  round_df(2) |>
+  kable() |>
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
+300 participants per sample
+
+```{r}
+results_nested |>
+  select(scale, results) |>
+  unnest(results_300) |>
+  summarize(mean = mean(proportion_agreement),
+            sd = sd(proportion_agreement),
+            min = min(proportion_agreement),
+            max = max(proportion_agreement)) |>
+  gather() |>
+  round_df(2) |>
+  kable() |>
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
+# Session info
+
+```{r}
+
+sessionInfo()
+
+```
+
+
+
