@@ -58,6 +58,28 @@ data_nested_single_timepoint <- read_rds("../../data/processed/data_nested_singl
 
 # Internal consistency
 
+## Check full sample metrics
+
+```{r}
+
+cronbachs_alpha <- function(data){
+  psych::alpha(data)$total["raw_alpha"]
+}
+
+results_overall <- data_nested_single_timepoint %>% 
+  mutate(results = furrr::future_map(data, 
+                                     cronbachs_alpha, 
+                                     .options = furrr_options(seed = TRUE))) |>
+  unnest(results)
+
+results_overall |>
+  select(scale, alpha = raw_alpha) |>
+  round_df(2) |>
+  kable() |>
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
 ## Analysis
 
 ```{r}
@@ -125,16 +147,30 @@ if(file.exists("../../data/results/results_nested.rds")){
   # apply it n_replications of times to each cell (i.e., nest)
   # summarize the proportion of replications in which the recommendation agreed between samples
   alpha_by_split_replicate <- function(data, subset_n_per_split, n_replications, ...){
-    tibble(
-      proportion_agreement = mean(replicate(n = n_replications, alpha_by_split(data = data, subset_n_per_split = subset_n_per_split)$match)),
-      subset_n_per_split = subset_n_per_split,
-      n_replications = n_replications
-    )
+    
+    replications <- 
+      replicate(n = n_replications, 
+                alpha_by_split(data = data, subset_n_per_split = subset_n_per_split)$match)
+    
+    tibble(proportion         = mean(replications),
+           variance           = var(replications),
+           subset_n_per_split = subset_n_per_split,
+           n_replications     = n_replications)
   }
   
   # run analyses using the data 
   results_nested <- data_nested_single_timepoint %>% 
-    mutate(results_100 = furrr::future_map(data, 
+    mutate(results_25 = furrr::future_map(data, 
+                                           alpha_by_split_replicate, 
+                                           subset_n_per_split = 25, 
+                                           n_replications = 1000,
+                                           .options = furrr_options(seed = TRUE)),
+           results_50 = furrr::future_map(data, 
+                                           alpha_by_split_replicate, 
+                                           subset_n_per_split = 50, 
+                                           n_replications = 1000,
+                                           .options = furrr_options(seed = TRUE)),
+           results_100 = furrr::future_map(data, 
                                            alpha_by_split_replicate, 
                                            subset_n_per_split = 100, 
                                            n_replications = 1000,
@@ -152,67 +188,39 @@ if(file.exists("../../data/results/results_nested.rds")){
   
   # save to disk
   write_rds(results_nested, "../../data/results/results_nested.rds")
-  
 }
 
 ```
 
 ## Results
 
-100 participants per sample
-
 ```{r}
 
-# print results
-# results_nested |>
-#   select(scale, results) |>
-#   unnest(results) |>
-#   kable() |>
-#   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+reshaped <- results_nested |>
+  unnest(results_25, results_50, results_100, results_200, results_300) |>
+  select(scale, 
+         N_25 = proportion, 
+         N_50 = proportion1, 
+         N_100 = proportion2, 
+         N_200 = proportion3, 
+         N_300 = proportion4) |>
+  gather(n_participants, proportion, c("N_25", "N_50", "N_100", "N_200", "N_300")) |>
+  mutate(n_participants = as.numeric(str_remove(n_participants, "N_")))
 
-results_nested |>
-  select(scale, results_100) |>
-  unnest(results_100) |>
-  summarize(mean = mean(proportion_agreement),
-            sd = sd(proportion_agreement),
-            min = min(proportion_agreement),
-            max = max(proportion_agreement)) |>
-  gather() |>
-  round_df(2) |>
-  kable() |>
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-
-```
-
-200 participants per sample
-
-```{r}
-
-results_nested |>
-  select(scale, results_200) |>
-  unnest(results_200) |>
-  summarize(mean = mean(proportion_agreement),
-            sd = sd(proportion_agreement),
-            min = min(proportion_agreement),
-            max = max(proportion_agreement)) |>
-  gather() |>
-  round_df(2) |>
-  kable() |>
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-
-```
-
-300 participants per sample
-
-```{r}
-results_nested |>
-  select(scale, results_300) |>
-  unnest(results_300) |>
-  summarize(mean = mean(proportion_agreement),
-            sd = sd(proportion_agreement),
-            min = min(proportion_agreement),
-            max = max(proportion_agreement)) |>
-  gather() |>
+reshaped |>
+  ggplot(aes(n_participants, proportion)) +
+  geom_point(aes(color = scale)) +
+  geom_line(aes(color = scale)) +
+  geom_smooth(method = "lm") +
+  theme(legend.position = "none") +
+  ylim(0,1)
+  
+reshaped |>
+  group_by(n_participants) |>
+  summarize(mean = mean(proportion),
+            sd = sd(proportion),
+            min = min(proportion),
+            max = max(proportion)) |>
   round_df(2) |>
   kable() |>
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
