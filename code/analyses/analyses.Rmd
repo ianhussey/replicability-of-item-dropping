@@ -29,6 +29,12 @@ library(kableExtra)
 #library(lubridate)
 library(psych)
 library(furrr)
+library(lme4)
+library(sjPlot)
+library(emmeans)
+#library(ggstance)
+library(janitor)
+library(boot)
 
 # create necessary directories
 dir.create("../../data/results")
@@ -66,7 +72,7 @@ cronbachs_alpha <- function(data){
   psych::alpha(data)$total["raw_alpha"]
 }
 
-results_overall <- data_nested_single_timepoint %>% 
+results_overall <- data_nested_single_timepoint |> 
   mutate(results = furrr::future_map(data, 
                                      cronbachs_alpha, 
                                      .options = furrr_options(seed = TRUE))) |>
@@ -114,29 +120,30 @@ if(file.exists("../../data/results/results_nested.rds")){
       rownames_to_column(var = "id")
     
     if(is.numeric(subset_n_per_split)){
-      data_split_1 <- dat |>
-        sample_n(size = subset_n_per_split*2) |>
-        sample_frac(size = 0.5)
-    } else {
-      data_split_1 <- dat |>
-        sample_frac(size = 0.5)
-    }
+      dat <- dat |>
+        sample_n(size = subset_n_per_split*2)
+    } 
     
-    split_2 <- anti_join(dat, data_split_1, by = "id") |>
-      select(-id) |>
-      item_to_delete_to_max_alpha() %>%
-      rename(split_2_item_to_drop = item_to_drop,
-             split_2_alpha_if_droppped = alpha_if_droppped,
-             split_2_alpha_full_scale = alpha_full_scale)
+    data_split_1 <- dat |>
+        sample_frac(size = 0.5)
     
-    split_1 <- data_split_1 |>
+    data_split_2 <- anti_join(dat, data_split_1, by = "id")
+    
+    item_drop_split_1 <- data_split_1 |>
       select(-id) |>
-      item_to_delete_to_max_alpha() %>%
-      rename(split_1_item_to_drop = item_to_drop,
+      item_to_delete_to_max_alpha() |>
+      rename(split_1_item_to_drop      = item_to_drop,
              split_1_alpha_if_droppped = alpha_if_droppped,
-             split_1_alpha_full_scale = alpha_full_scale)
+             split_1_alpha_full_scale  = alpha_full_scale)
     
-    res <- bind_cols(split_1, split_2) |>
+    item_drop_split_2 <- data_split_2 |>
+      select(-id) |>
+      item_to_delete_to_max_alpha() |>
+      rename(split_2_item_to_drop      = item_to_drop,
+             split_2_alpha_if_droppped = alpha_if_droppped,
+             split_2_alpha_full_scale  = alpha_full_scale)
+
+    res <- bind_cols(item_drop_split_1, item_drop_split_2) |>
       mutate(match = split_1_item_to_drop == split_2_item_to_drop,
              alpha_diff_full_scale = split_1_alpha_full_scale - split_2_alpha_full_scale)
     
@@ -148,8 +155,8 @@ if(file.exists("../../data/results/results_nested.rds")){
   # summarize the proportion of replications in which the recommendation agreed between samples
   alpha_by_split_replicate <- function(data, subset_n_per_split, n_replications, ...){
     
-    replications <- 
-      replicate(n = n_replications, 
+    replications <-
+      replicate(n = n_replications,
                 alpha_by_split(data = data, subset_n_per_split = subset_n_per_split)$match)
     
     tibble(proportion         = mean(replications),
@@ -158,32 +165,34 @@ if(file.exists("../../data/results/results_nested.rds")){
            n_replications     = n_replications)
   }
   
-  # run analyses using the data 
-  results_nested <- data_nested_single_timepoint %>% 
-    mutate(results_25 = furrr::future_map(data, 
-                                           alpha_by_split_replicate, 
-                                           subset_n_per_split = 25, 
-                                           n_replications = 1000,
+  n_replications <- 1000
+  
+  # run analyses using the data
+  results_nested <- data_nested_single_timepoint |>
+    mutate(results_25 = furrr::future_map(data,
+                                          alpha_by_split_replicate,
+                                          subset_n_per_split = 25,
+                                          n_replications = n_replications,
+                                          .options = furrr_options(seed = TRUE)),
+           results_50 = furrr::future_map(data,
+                                          alpha_by_split_replicate,
+                                          subset_n_per_split = 50,
+                                          n_replications = n_replications,
+                                          .options = furrr_options(seed = TRUE)),
+           results_100 = furrr::future_map(data,
+                                           alpha_by_split_replicate,
+                                           subset_n_per_split = 100,
+                                           n_replications = n_replications,
                                            .options = furrr_options(seed = TRUE)),
-           results_50 = furrr::future_map(data, 
-                                           alpha_by_split_replicate, 
-                                           subset_n_per_split = 50, 
-                                           n_replications = 1000,
+           results_200 = furrr::future_map(data,
+                                           alpha_by_split_replicate,
+                                           subset_n_per_split = 200,
+                                           n_replications = n_replications,
                                            .options = furrr_options(seed = TRUE)),
-           results_100 = furrr::future_map(data, 
-                                           alpha_by_split_replicate, 
-                                           subset_n_per_split = 100, 
-                                           n_replications = 1000,
-                                           .options = furrr_options(seed = TRUE)),
-           results_200 = furrr::future_map(data, 
-                                           alpha_by_split_replicate, 
-                                           subset_n_per_split = 200, 
-                                           n_replications = 1000,
-                                           .options = furrr_options(seed = TRUE)),
-           results_300 = furrr::future_map(data, 
-                                           alpha_by_split_replicate, 
-                                           subset_n_per_split = 300, 
-                                           n_replications = 1000,
+           results_300 = furrr::future_map(data,
+                                           alpha_by_split_replicate,
+                                           subset_n_per_split = 300,
+                                           n_replications = n_replications,
                                            .options = furrr_options(seed = TRUE)))
   
   # save to disk
@@ -196,16 +205,107 @@ if(file.exists("../../data/results/results_nested.rds")){
 
 ```{r}
 
-reshaped <- results_nested |>
+data_reshaped <- results_nested |>
   unnest(results_25, results_50, results_100, results_200, results_300) |>
-  select(scale, 
-         N_25 = proportion, 
-         N_50 = proportion1, 
-         N_100 = proportion2, 
-         N_200 = proportion3, 
-         N_300 = proportion4) |>
-  gather(n_participants, proportion, c("N_25", "N_50", "N_100", "N_200", "N_300")) |>
-  mutate(n_participants = as.numeric(str_remove(n_participants, "N_")))
+  select(scale,
+         proportion_25  = proportion,
+         proportion_50  = proportion1,
+         proportion_100 = proportion2,
+         proportion_200 = proportion3,
+         proportion_300 = proportion4,
+         variance_25    = variance,
+         variance_50    = variance1,
+         variance_100   = variance2,
+         variance_200   = variance3,
+         variance_300   = variance4) |>
+  pivot_longer(names_to = c("type", "n_participants"), 
+               names_pattern = "(.*)_(.*)",
+               values_to = c("value"),
+               cols = c("proportion_25", 
+                        "proportion_50", 
+                        "proportion_100", 
+                        "proportion_200", 
+                        "proportion_300",
+                        "variance_25",
+                        "variance_50",
+                        "variance_100",
+                        "variance_200",
+                        "variance_300")) |>
+  pivot_wider(names_from = "type", 
+              values_from = "value") |>
+  # offset problematic values, logit transform
+  mutate(proportion = case_when(proportion == 0 ~ 0.001,
+                                proportion == 1 ~ 0.999,
+                                TRUE ~ proportion),
+         proportion_logit = boot::logit(proportion),
+         variance = ifelse(variance == 0, 0.001, variance)) |>
+  # order factors
+  mutate(n_participants = fct_reorder(n_participants, as.numeric(n_participants)))
+
+```
+
+## Meta
+
+```{r}
+
+# fit model
+fit <-
+  lmer(proportion_logit ~ 1 + n_participants + (1 | scale),
+       weights = 1/variance,
+       data = data_reshaped)
+
+# extract re Tau
+results_re_tau <- fit |>
+  merTools::REsdExtract() |>
+  as_tibble(rownames = "scale") |>
+  rename(tau = value)
+
+# extract marginal means
+results <-
+  summary(emmeans(fit, ~ n_participants)) |>
+  dplyr::select(n_participants, estimate = emmean, se = SE, 
+                ci_lower = lower.CL, ci_upper = upper.CL) |>
+  mutate(pi_lower = estimate - (1.96 * sqrt(se^2 + results_re_tau$tau^2)),
+         pi_upper = estimate + (1.96 * sqrt(se^2 + results_re_tau$tau^2))) |>
+  select(-se) |>
+  mutate_if(is.numeric, boot::inv.logit)
+
+# plot
+p_meta <-
+  ggplot(results, aes(estimate, fct_rev(n_participants))) +
+  geom_linerange(aes(xmin = pi_lower, xmax = pi_upper), size = 0.5, linetype = "dotted") +
+  geom_linerange(aes(xmin = ci_lower, xmax = ci_upper)) +
+  geom_point(size = 2.5) +
+  mdthemes::md_theme_linedraw() +
+  scale_x_continuous(breaks = c(0, .25, .5, .75, 1), 
+                     labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)")) +
+  labs(x = "Proportion replicated",
+       y = "") +
+  #theme(legend.position = "none") +
+  xlim(0, 1)
+
+p_meta
+
+results |>
+  round_df(2) |>
+  kable() |>
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+# # tests
+# data_emms <- emmeans(fit, list(pairwise ~ n_participants), adjust = "holm")
+# 
+# summary(data_emms)$`pairwise differences of n_participants` |>
+#   as.data.frame() |>
+#   select(comparison = 1, p.value) |>
+#   mutate(p.value = ifelse(p.value < .001, "< .001", round_half_up(p.value, 3))) |>
+#   kable() |>
+#   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
+# other
+
+```{r}
 
 reshaped |>
   ggplot(aes(n_participants, proportion)) +
@@ -214,7 +314,7 @@ reshaped |>
   geom_smooth(method = "lm") +
   theme(legend.position = "none") +
   ylim(0,1)
-  
+
 reshaped |>
   group_by(n_participants) |>
   summarize(mean = mean(proportion),
