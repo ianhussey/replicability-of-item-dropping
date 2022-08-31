@@ -159,8 +159,8 @@ if(file.exists("../../data/results/results_nested.rds")){
       replicate(n = n_replications,
                 alpha_by_split(data = data, subset_n_per_split = subset_n_per_split)$match)
     
-    tibble(proportion         = mean(replications),
-           variance           = var(replications),
+    tibble(proportion         = mean(replications, na.rm = TRUE),
+           variance           = possibly(var, otherwise = NA_real_)(replications),
            subset_n_per_split = subset_n_per_split,
            n_replications     = n_replications)
   }
