@@ -64,7 +64,9 @@ data_nested_single_timepoint <- read_rds("../../data/processed/data_nested_singl
 
 # Internal consistency
 
-## Check full sample metrics
+## Full sample metrics
+
+These are already established scales, many of which are well known, with a reasonable range of Cronbach's $\alpha$ values when calculated in a large sample. The subsequent assessment of the replicability of item-dropping recommendations is therefore likely generalizable. 
 
 ```{r}
 
@@ -76,15 +78,34 @@ results_overall <- data_nested_single_timepoint |>
   mutate(results = furrr::future_map(data, 
                                      cronbachs_alpha, 
                                      .options = furrr_options(seed = TRUE))) |>
-  unnest(results)
+  unnest(results) |> 
+  mutate(n = furrr::future_map(data, nrow, .options = furrr_options(seed = TRUE))) |>
+  unnest(n)
 
 results_overall |>
-  select(scale, alpha = raw_alpha) |>
+  select(scale, alpha = raw_alpha, n) |>
   round_df(2) |>
   kable() |>
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
 
+results_overall |>
+  select(scale, alpha = raw_alpha, n) |>
+  summarize(k_scales = n(),
+            N_participants = sum(n),
+            alpha_min = min(alpha),
+            alpha_max = max(alpha),
+            alpha_mean = mean(alpha),
+            alpha_sd = sd(alpha)) |>
+  round_df(2) |>
+  kable() |>
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+# lm(raw_alpha ~ 1, weights = n, data = results_overall)
+weighted_average <- janitor::round_half_up(weighted.mean(results_overall$raw_alpha), 2)
+
 ```
+
+Weighted average $\alpha$ = `r weighted_average`.
 
 ## Analysis
 
@@ -242,6 +263,12 @@ data_reshaped <- results_nested |>
   # order factors
   mutate(n_participants = fct_reorder(n_participants, as.numeric(n_participants)))
 
+data_reshaped |>
+  select(scale, n_participants, proportion) |>
+  round_df(2) |>
+  kable() |>
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
 ```
 
 ## Meta
@@ -279,8 +306,8 @@ p_meta <-
   mdthemes::md_theme_linedraw() +
   scale_x_continuous(breaks = c(0, .25, .5, .75, 1), 
                      labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)")) +
-  labs(x = "Proportion replicated",
-       y = "") +
+  labs(x = "Proportion of cases where<br/>item-dropping recommendation replicated",
+       y = "N participants in each sample") +
   #theme(legend.position = "none") +
   xlim(0, 1)
 
@@ -300,30 +327,6 @@ results |>
 #   mutate(p.value = ifelse(p.value < .001, "< .001", round_half_up(p.value, 3))) |>
 #   kable() |>
 #   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-
-```
-
-# other
-
-```{r}
-
-reshaped |>
-  ggplot(aes(n_participants, proportion)) +
-  geom_point(aes(color = scale)) +
-  geom_line(aes(color = scale)) +
-  geom_smooth(method = "lm") +
-  theme(legend.position = "none") +
-  ylim(0,1)
-
-reshaped |>
-  group_by(n_participants) |>
-  summarize(mean = mean(proportion),
-            sd = sd(proportion),
-            min = min(proportion),
-            max = max(proportion)) |>
-  round_df(2) |>
-  kable() |>
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
 
 ```
 
