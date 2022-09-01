@@ -4,3 +4,4 @@
 old/*
 data/results/data_drop_decisions.rds
 data/intermediary/data_replications.rds
+data/results/data_drop_decisions_no_data.rds
