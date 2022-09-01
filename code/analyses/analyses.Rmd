@@ -195,7 +195,7 @@ if(file.exists("../../data/intermediary/data_replications.rds")){
 
 ```
 
-# Calcualte alpha and drop decisions for each sample
+# Calculate alpha and drop decisions for each sample
 
 ```{r}
 
@@ -241,6 +241,27 @@ if(file.exists("../../data/results/data_drop_decisions.rds")){
   write_rds(data_drop_decisions, "../../data/results/data_drop_decisions.rds")
   
 }
+
+  
+alpha_if_given_item_dropped <- function(data, item_to_drop){
+  
+  res <- data |>
+    select(-{{item_to_drop}}) |>
+    psych::alpha()
+  
+  alpha <- as.numeric(res$total["raw_alpha"])
+  
+  return(alpha)
+}
+
+data_drop_decisions2 <- data_drop_decisions |>
+  mutate(alpha_if_a_recommendation_dropped_b = furrr::future_map2(data_subset_b, 
+                                                                  item_to_drop_a,
+                                                                  alpha_if_given_item_dropped,
+                                                                  .options = furrr_options(seed = TRUE)))
+
+write_rds(data_drop_decisions2, "../../data/results/data_drop_decisions2.rds")
+
 
 ```
 
