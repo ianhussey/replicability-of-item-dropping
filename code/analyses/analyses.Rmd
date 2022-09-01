@@ -133,31 +133,51 @@ if(file.exists("../../data/intermediary/data_replications.rds")){
   }
   
   data_nested_single_timepoint_25 <- data_nested_single_timepoint |>
-    mutate(replications = furrr::future_map(data, generate_replications, n_replications = 1000, subset_n_per_split = 25),
+    mutate(replications = furrr::future_map(data, 
+                                            generate_replications, 
+                                            n_replications = 1000, 
+                                            subset_n_per_split = 25,
+                                            .options = furrr_options(seed = TRUE)),
            subset_n_per_split = 25) |>
     select(-data) |>
     unnest(replications)
   
   data_nested_single_timepoint_50 <- data_nested_single_timepoint |>
-    mutate(replications = furrr::future_map(data, generate_replications, n_replications = 1000, subset_n_per_split = 50),
+    mutate(replications = furrr::future_map(data, 
+                                            generate_replications, 
+                                            n_replications = 1000, 
+                                            subset_n_per_split = 50,
+                                            .options = furrr_options(seed = TRUE)),
            subset_n_per_split = 50) |>
     select(-data) |>
     unnest(replications)
   
   data_nested_single_timepoint_100 <- data_nested_single_timepoint |>
-    mutate(replications = furrr::future_map(data, generate_replications, n_replications = 1000, subset_n_per_split = 100),
+    mutate(replications = furrr::future_map(data, 
+                                            generate_replications,
+                                            n_replications = 1000,
+                                            subset_n_per_split = 100,
+                                            .options = furrr_options(seed = TRUE)),
            subset_n_per_split = 100) |>
     select(-data) |>
     unnest(replications)
   
   data_nested_single_timepoint_250 <- data_nested_single_timepoint |>
-    mutate(replications = furrr::future_map(data, generate_replications, n_replications = 1000, subset_n_per_split = 250),
+    mutate(replications = furrr::future_map(data, 
+                                            generate_replications,
+                                            n_replications = 1000,
+                                            subset_n_per_split = 250,
+                                            .options = furrr_options(seed = TRUE)),
            subset_n_per_split = 250) |>
     select(-data) |>
     unnest(replications)
   
   data_nested_single_timepoint_500 <- data_nested_single_timepoint |>
-    mutate(replications = furrr::future_map(data, generate_replications, n_replications = 1000, subset_n_per_split = 500),
+    mutate(replications = furrr::future_map(data, 
+                                            generate_replications,
+                                            n_replications = 1000, 
+                                            subset_n_per_split = 500,
+                                            .options = furrr_options(seed = TRUE)),
            subset_n_per_split = 500) |>
     select(-data) |>
     unnest(replications)
