@@ -238,7 +238,12 @@ if(file.exists("../../data/results/data_drop_decisions.rds")){
     mutate(match_item_if_dropped = item_to_drop_a == item_to_drop_b,
            match_item_if_dropped_or_none = item_to_drop_or_none_a == item_to_drop_or_none_b)
   
-  write_rds(data_drop_decisions, "../../data/results/data_drop_decisions.rds")
+  write_rds(data_drop_decisions, "../../data/results/data_drop_decisions.rds", compress = "gz")
+  
+  data_drop_decisions_no_data <- data_drop_decisions |>
+    select(-data_subset_a, -data_subset_b)
+  
+  write_rds(data_drop_decisions_no_data, "../../data/results/data_drop_decisions_no_data.rds", compress = "gz")
   
 }
 
@@ -248,14 +253,14 @@ if(file.exists("../../data/results/data_drop_decisions.rds")){
 
 ```{r}
 
-data_drop_decisions_summary <- data_drop_decisions %>%
-  group_by(scale) |>
+data_drop_decisions_summary <- data_drop_decisions_no_data %>%
+  group_by(scale, subset_n_per_split) |>
   summarize(proportion_match_item_if_dropped = mean(match_item_if_dropped, na.rm = TRUE),
             variance_match_item_if_dropped = possibly(var, otherwise = NA_real_)(match_item_if_dropped),
             proportion_match_item_if_dropped_or_none = mean(match_item_if_dropped_or_none, na.rm = TRUE),
             variance_match_item_if_dropped_or_none = possibly(var, otherwise = NA_real_)(match_item_if_dropped_or_none),
             #subset_n_per_split = subset_n_per_split,
-            n_replications     = max(replication))
+            n_replications = max(replication))
 
 ```
 
@@ -263,45 +268,24 @@ data_drop_decisions_summary <- data_drop_decisions %>%
 
 ```{r}
 
-data_reshaped <- results_nested |>
-  unnest(results_25, results_50, results_100, results_200, results_300) |>
-  select(scale,
-         proportion_25  = proportion,
-         proportion_50  = proportion1,
-         proportion_100 = proportion2,
-         proportion_200 = proportion3,
-         proportion_300 = proportion4,
-         variance_25    = variance,
-         variance_50    = variance1,
-         variance_100   = variance2,
-         variance_200   = variance3,
-         variance_300   = variance4) |>
-  pivot_longer(names_to = c("type", "n_participants"), 
-               names_pattern = "(.*)_(.*)",
-               values_to = c("value"),
-               cols = c("proportion_25", 
-                        "proportion_50", 
-                        "proportion_100", 
-                        "proportion_200", 
-                        "proportion_300",
-                        "variance_25",
-                        "variance_50",
-                        "variance_100",
-                        "variance_200",
-                        "variance_300")) |>
-  pivot_wider(names_from = "type", 
-              values_from = "value") |>
+data_reshaped <- data_drop_decisions_summary |>
   # offset problematic values, logit transform
-  mutate(proportion = case_when(proportion == 0 ~ 0.001,
-                                proportion == 1 ~ 0.999,
-                                TRUE ~ proportion),
-         proportion_logit = boot::logit(proportion),
-         variance = ifelse(variance == 0, 0.001, variance)) |>
+  mutate(proportion_match_item_if_dropped = case_when(proportion_match_item_if_dropped == 0 ~ 0.001,
+                                                      proportion_match_item_if_dropped == 1 ~ 0.999,
+                                                      TRUE ~ proportion_match_item_if_dropped),
+         proportion_match_item_if_dropped_logit = boot::logit(proportion_match_item_if_dropped),
+         variance_match_item_if_dropped = ifelse(variance_match_item_if_dropped == 0, 0.001, variance_match_item_if_dropped),
+         proportion_match_item_if_dropped_or_none = case_when(proportion_match_item_if_dropped_or_none == 0 ~ 0.001,
+                                                              proportion_match_item_if_dropped_or_none == 1 ~ 0.999,
+                                                              TRUE ~ proportion_match_item_if_dropped_or_none),
+         proportion_match_item_if_dropped_or_none_logit = boot::logit(proportion_match_item_if_dropped_or_none),
+         variance_match_item_if_dropped_or_none = ifelse(variance_match_item_if_dropped_or_none == 0, 0.001, variance_match_item_if_dropped_or_none)) |>
   # order factors
-  mutate(n_participants = fct_reorder(n_participants, as.numeric(n_participants)))
+  mutate(n_participants = fct_reorder(as.factor(subset_n_per_split), as.numeric(subset_n_per_split)))
 
 data_reshaped |>
-  select(scale, n_participants, proportion) |>
+  select(scale, n_participants, 
+         proportion_match_item_if_dropped, proportion_match_item_if_dropped_or_none) |>
   round_df(2) |>
   kable() |>
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
@@ -314,8 +298,8 @@ data_reshaped |>
 
 # fit model
 fit <-
-  lmer(proportion_logit ~ 1 + n_participants + (1 | scale),
-       weights = 1/variance,
+  lmer(proportion_match_item_if_dropped_logit ~ 1 + n_participants + (1 | scale),
+       weights = 1/variance_match_item_if_dropped,
        data = data_reshaped)
 
 # extract re Tau
@@ -375,124 +359,3 @@ sessionInfo()
 
 ```
 
-# old Analysis
-
-```{r}
-
-if(file.exists("../../data/results/results_nested.rds")){
-  
-  results_nested <- read_rds("../../data/results/results_nested.rds")
-  
-} else {
-  
-  # assess which item, if dropped, would result in the highest alpha in the remaining items
-  item_to_delete_to_max_alpha <- function(data){
-    
-    res <- psych::alpha(data)
-    
-    alpha_full_scale <- as.numeric(res$total["raw_alpha"])
-    
-    res$alpha.drop |>
-      as_tibble(rownames = "item") |>
-      filter(raw_alpha == max(raw_alpha)) |>
-      select(item_to_drop = item, alpha_if_droppped = raw_alpha) |>
-      mutate(alpha_full_scale = alpha_full_scale)
-  }
-  
-  # apply item_to_delete_to_max_alpha to each half of (a subset of) a data set
-  # optionally first sample just a subset of participants
-  # then split in half and calculate the item to be dropped for each half
-  # returns comparison of whether the item drop recommendation was the same in both halves
-  alpha_by_split <- function(data = data, subset_n_per_split = NULL){
-    
-    dat <- data |>
-      rownames_to_column(var = "id")
-    
-    if(is.numeric(subset_n_per_split)){
-      dat <- dat |>
-        sample_n(size = subset_n_per_split*2)
-    } 
-    
-    data_split_1 <- dat |>
-      sample_frac(size = 0.5)
-    
-    data_split_2 <- anti_join(dat, data_split_1, by = "id")
-    
-    item_drop_split_1 <- data_split_1 |>
-      select(-id) |>
-      item_to_delete_to_max_alpha() |>
-      rename(split_1_item_to_drop      = item_to_drop,
-             split_1_alpha_if_droppped = alpha_if_droppped,
-             split_1_alpha_full_scale  = alpha_full_scale)
-    
-    item_drop_split_2 <- data_split_2 |>
-      select(-id) |>
-      item_to_delete_to_max_alpha() |>
-      rename(split_2_item_to_drop      = item_to_drop,
-             split_2_alpha_if_droppped = alpha_if_droppped,
-             split_2_alpha_full_scale  = alpha_full_scale)
-    
-    res <- bind_cols(item_drop_split_1, item_drop_split_2) |>
-      mutate(match = split_1_item_to_drop == split_2_item_to_drop,
-             alpha_diff_full_scale = split_1_alpha_full_scale - split_2_alpha_full_scale)
-    
-    return(res)
-  }
-  
-  # apply alpha_by_split() to nested data
-  # apply it n_replications of times to each cell (i.e., nest)
-  # summarize the proportion of replications in which the recommendation agreed between samples
-  alpha_by_split_replicate <- function(data, subset_n_per_split, n_replications, ...){
-    
-    replications <-
-      replicate(n = n_replications,
-                alpha_by_split(data = data, subset_n_per_split = subset_n_per_split)$match)
-    
-    tibble(proportion         = mean(replications, na.rm = TRUE),
-           variance           = possibly(var, otherwise = NA_real_)(replications),
-           subset_n_per_split = subset_n_per_split,
-           n_replications     = n_replications)
-  }
-  
-  n_replications <- 1000
-  
-  # run analyses using the data
-  results_nested <- data_nested_single_timepoint |>
-    mutate(results_25 = furrr::future_map(data,
-                                          alpha_by_split_replicate,
-                                          subset_n_per_split = 25,
-                                          n_replications = n_replications,
-                                          .options = furrr_options(seed = TRUE)),
-           results_50 = furrr::future_map(data,
-                                          alpha_by_split_replicate,
-                                          subset_n_per_split = 50,
-                                          n_replications = n_replications,
-                                          .options = furrr_options(seed = TRUE)),
-           results_100 = furrr::future_map(data,
-                                           alpha_by_split_replicate,
-                                           subset_n_per_split = 100,
-                                           n_replications = n_replications,
-                                           .options = furrr_options(seed = TRUE)),
-           results_200 = furrr::future_map(data,
-                                           alpha_by_split_replicate,
-                                           subset_n_per_split = 200,
-                                           n_replications = n_replications,
-                                           .options = furrr_options(seed = TRUE)),
-           results_300 = furrr::future_map(data,
-                                           alpha_by_split_replicate,
-                                           subset_n_per_split = 300,
-                                           n_replications = n_replications,
-                                           .options = furrr_options(seed = TRUE)))
-  
-  results_nested <- data_nested_single_timepoint |>
-    mutate(results_500 = furrr::future_map(data,
-                                           alpha_by_split_replicate,
-                                           subset_n_per_split = 500,
-                                           n_replications = n_replications,
-                                           .options = furrr_options(seed = TRUE)))
-  
-  # save to disk
-  write_rds(results_nested, "../../data/results/results_nested.rds")
-}
-
-```
