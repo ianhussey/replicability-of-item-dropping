@@ -37,7 +37,7 @@ round_df <- function(df, digits) {
   mutate_if(df, is.numeric, janitor::round_half_up, digits = 2)
 }
 
-# set seed for reproducability
+# set seed for reproducibility
 set.seed(42)
 
 ```
@@ -51,8 +51,8 @@ set.seed(42)
 # get data
 load("../../data/intermediary/trimmed_data.RData")
 
-# trim to include only the first timepoint per user_id per scale
-# ie exclude repeat participations on the same scale
+# trim to include only the first time point per user_id per scale
+# ie exclude repeat participation on the same scale
 data_first_timepoint <- trimmed_data %>%
   arrange(user_id, individual_differences_measure, datetime_ymdhms) %>%
   mutate(combined_var = paste0(user_id, individual_differences_measure)) %>%
