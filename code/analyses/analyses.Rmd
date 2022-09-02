@@ -199,9 +199,12 @@ if(file.exists("../../data/intermediary/data_replications.rds")){
 
 ```{r}
 
-if(file.exists("../../data/results/data_drop_decisions.rds")){
+if(file.exists("../../data/results/data_drop_decisions.rds") & 
+   file.exists("../../data/results/data_drop_decisions_no_data.rds")){
   
   data_drop_decisions <- read_rds("../../data/results/data_drop_decisions.rds")
+  data_drop_decisions_no_data <- read_rds("../../data/results/data_drop_decisions_no_data.rds")
+  
   
 } else {
   
@@ -252,7 +255,10 @@ if(file.exists("../../data/results/data_drop_decisions.rds")){
              furrr::future_map2(data_subset_b, 
                                 item_to_drop_a,
                                 alpha_if_given_item_dropped,
-                                .options = furrr_options(seed = TRUE)))
+                                .options = furrr_options(seed = TRUE))) |>
+    mutate(alpha_if_a_recommendation_dropped_b = as.numeric(alpha_if_a_recommendation_dropped_b),
+           alpha_b_diff = alpha_full_scale_b - alpha_if_a_recommendation_dropped_b,
+           alpha_b_improved = alpha_b_diff > 0)
   
   write_rds(data_drop_decisions, "../../data/results/data_drop_decisions.rds", compress = "gz")
   
@@ -265,125 +271,77 @@ if(file.exists("../../data/results/data_drop_decisions.rds")){
 
 ```
 
-# dev
+# Frequency of item drop recommendations
 
-```{r}
+```{r fig.height=12, fig.width=10}
 
-temp <- data_drop_decisions_no_data %>%
-  mutate(alpha_b_diff = alpha_full_scale_b - as.numeric(alpha_if_a_recommendation_dropped_b),
-         alpha_b_improved = alpha_b_diff > 0) %>%
+temp <- data_drop_decisions_no_data |>
   select(scale, replication, subset_n_per_split, 
-alpha_if_dropped_a, alpha_full_scale_a, item_to_drop_or_none_a, 
-alpha_full_scale_b, alpha_if_a_recommendation_dropped_b, alpha_b_diff, alpha_b_improved)
+         alpha_if_dropped_a, alpha_full_scale_a, item_to_drop_or_none_a, 
+         alpha_full_scale_b, alpha_if_a_recommendation_dropped_b, alpha_b_diff, alpha_b_improved)
 
-temp2 <- temp %>%
-  group_by(scale, subset_n_per_split) |>
-  summarize(proportion_improved = mean(alpha_b_improved, na.rm = TRUE),
-            variance_improved = possibly(var, otherwise = NA_real_)(alpha_b_improved),
-            #subset_n_per_split = subset_n_per_split,
-            n_replications = max(replication)) %>%
-  # offset problematic values, logit transform
-  mutate(proportion_improved = case_when(proportion_improved == 0 ~ 0.001,
-                                         proportion_improved == 1 ~ 0.999,
-                                         TRUE ~ proportion_improved),
-         proportion_improved_logit = boot::logit(proportion_improved),
-         variance_improved = ifelse(variance_improved == 0, 0.001, variance_improved)) |>
-  # order factors
-  mutate(n_participants = fct_reorder(as.factor(subset_n_per_split), as.numeric(subset_n_per_split)))
+data_n_items <- data_nested_single_timepoint |>
+  mutate(n_items_in_scale = as.numeric(map(data, ncol))) |>
+  select(-data)
 
-```
-
-```{r}
-
-# fit model
-fit <-
-  lmer(proportion_improved_logit ~ 1 + n_participants + (1 | scale),
-       weights = 1/variance_improved,
-       data = temp2)
-
-# extract re Tau
-results_re_tau <- fit |>
-  merTools::REsdExtract() |>
-  as_tibble(rownames = "scale") |>
-  rename(tau = value)
-
-# extract marginal means
-results <-
-  summary(emmeans(fit, ~ n_participants)) |>
-  dplyr::select(n_participants, estimate = emmean, se = SE, 
-                ci_lower = lower.CL, ci_upper = upper.CL) |>
-  mutate(pi_lower = estimate - (1.96 * sqrt(se^2 + results_re_tau$tau^2)),
-         pi_upper = estimate + (1.96 * sqrt(se^2 + results_re_tau$tau^2))) |>
-  select(-se) |>
-  mutate_if(is.numeric, boot::inv.logit)
-
-# plot
-p_meta <-
-  ggplot(results, aes(estimate, fct_rev(n_participants))) +
-  geom_linerange(aes(xmin = pi_lower, xmax = pi_upper), size = 0.5, linetype = "dotted") +
-  geom_linerange(aes(xmin = ci_lower, xmax = ci_upper)) +
-  geom_point(size = 2.5) +
-  mdthemes::md_theme_linedraw() +
-  scale_x_continuous(breaks = c(0, .25, .5, .75, 1), 
-                     labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)")) +
-  labs(x = "Proportion of cases where<br/>item-dropping recommendation replicated",
-       y = "N participants in each sample") +
-  #theme(legend.position = "none") +
-  xlim(0, 1)
-
-p_meta
-
-results |>
-  round_df(2) |>
+data_drop_decisions_no_data |>
+  distinct(scale, item_to_drop_a) |>
+  count(scale) |>
+  rename(n_distinct_items_with_drop_recommendations = n) |>
+  left_join(data_n_items, by = "scale") |>
   kable() |>
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
 
-# # tests
-# data_emms <- emmeans(fit, list(pairwise ~ n_participants), adjust = "holm")
-# 
-# summary(data_emms)$`pairwise differences of n_participants` |>
-#   as.data.frame() |>
-#   select(comparison = 1, p.value) |>
-#   mutate(p.value = ifelse(p.value < .001, "< .001", round_half_up(p.value, 3))) |>
-#   kable() |>
-#   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+data_drop_decisions_no_data |>
+  count(scale, item_to_drop_a) |>
+  arrange(scale, desc(n)) |>
+  group_by(scale) |>
+  mutate(item_rank = paste("ranked_item_", row_number(), sep = ""),
+         item_rank = fct_reorder(item_rank, n, .desc = TRUE)) |>
+  ungroup() |>
+  select(-item_to_drop_a) |>
+  # pivot_wider(values_from = n,
+  #             names_from = item_rank) |>
+  ggplot(aes(item_rank, n)) +
+  geom_bar(stat = "identity") +
+  scale_x_discrete(labels = seq(from = 1, to = max(data_n_items$n_items_in_scale), by = 1)) +
+  facet_wrap(~scale, ncol = 3) +
+  xlab("Item ranked by number of drop recommendations") +
+  ylab("Number of drop recommendations") +
+  theme_minimal()
 
 ```
 
+# Metas
 
-
-
-TODO add frequencies of item drop recommendations
-
-
-
-
-
-# Results
+## Proportion of pairs of samples with matching item-drop recommendation
 
 ```{r}
 
-data_drop_decisions_summary <- data_drop_decisions_no_data %>%
+data_drop_decisions_summary <- data_drop_decisions_no_data |>
   group_by(scale, subset_n_per_split) |>
-  summarize(proportion_match_item_if_dropped = mean(match_item_if_dropped, na.rm = TRUE),
-            variance_match_item_if_dropped = possibly(var, otherwise = NA_real_)(match_item_if_dropped),
-            proportion_match_item_if_dropped_or_none = mean(match_item_if_dropped_or_none, na.rm = TRUE),
-            variance_match_item_if_dropped_or_none = possibly(var, otherwise = NA_real_)(match_item_if_dropped_or_none),
-            #subset_n_per_split = subset_n_per_split,
-            n_replications = max(replication))
+  summarize(
+    proportion_match_item_if_dropped = mean(match_item_if_dropped, na.rm = TRUE),
+    variance_match_item_if_dropped = possibly(var, otherwise = NA_real_)(match_item_if_dropped),
+    proportion_match_item_if_dropped_or_none = mean(match_item_if_dropped_or_none, na.rm = TRUE),
+    variance_match_item_if_dropped_or_none = possibly(var, otherwise = NA_real_)(match_item_if_dropped_or_none),
+    n_replications = max(replication)
+  )
 
 data_reshaped <- data_drop_decisions_summary |>
   # offset problematic values, logit transform
-  mutate(proportion_match_item_if_dropped = case_when(proportion_match_item_if_dropped == 0 ~ 0.001,
-                                                      proportion_match_item_if_dropped == 1 ~ 0.999,
-                                                      TRUE ~ proportion_match_item_if_dropped),
-         proportion_match_item_if_dropped_logit = boot::logit(proportion_match_item_if_dropped),
-         variance_match_item_if_dropped = ifelse(variance_match_item_if_dropped == 0, 0.001, variance_match_item_if_dropped),
-         proportion_match_item_if_dropped_or_none = case_when(proportion_match_item_if_dropped_or_none == 0 ~ 0.001,
-                                                              proportion_match_item_if_dropped_or_none == 1 ~ 0.999,
-                                                              TRUE ~ proportion_match_item_if_dropped_or_none),
-         proportion_match_item_if_dropped_or_none_logit = boot::logit(proportion_match_item_if_dropped_or_none),
-         variance_match_item_if_dropped_or_none = ifelse(variance_match_item_if_dropped_or_none == 0, 0.001, variance_match_item_if_dropped_or_none)) |>
+  mutate(
+    proportion_match_item_if_dropped = case_when(proportion_match_item_if_dropped == 0 ~ 0.001,
+                                                 proportion_match_item_if_dropped == 1 ~ 0.999,
+                                                 TRUE ~ proportion_match_item_if_dropped),
+    proportion_match_item_if_dropped_logit = boot::logit(proportion_match_item_if_dropped),
+    variance_match_item_if_dropped = ifelse(variance_match_item_if_dropped == 0, 0.001, variance_match_item_if_dropped),
+    proportion_match_item_if_dropped_or_none = case_when(proportion_match_item_if_dropped_or_none == 0 ~ 0.001,
+                                                         proportion_match_item_if_dropped_or_none == 1 ~ 0.999,
+                                                         TRUE ~ proportion_match_item_if_dropped_or_none),
+    proportion_match_item_if_dropped_or_none_logit = boot::logit(proportion_match_item_if_dropped_or_none),
+    variance_match_item_if_dropped_or_none = ifelse(variance_match_item_if_dropped_or_none == 0, 0.001, variance_match_item_if_dropped_or_none),
+  ) |>
   # order factors
   mutate(n_participants = fct_reorder(as.factor(subset_n_per_split), as.numeric(subset_n_per_split)))
 
@@ -395,10 +353,6 @@ data_reshaped <- data_drop_decisions_summary |>
 #   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
 
 ```
-
-# Metas
-
-## proportion match item if dropped
 
 ```{r}
 
@@ -427,7 +381,7 @@ results <-
 # plot
 p_meta <-
   ggplot(results, aes(estimate, fct_rev(n_participants))) +
-  geom_linerange(aes(xmin = pi_lower, xmax = pi_upper), size = 0.5, linetype = "dotted") +
+  #geom_linerange(aes(xmin = pi_lower, xmax = pi_upper), size = 0.5, linetype = "dotted") +
   geom_linerange(aes(xmin = ci_lower, xmax = ci_upper)) +
   geom_point(size = 2.5) +
   mdthemes::md_theme_linedraw() +
@@ -457,8 +411,7 @@ results |>
 
 ```
 
-
-## proportion match item if dropped or nonr
+## Proportion of pairs of samples with matching item-drop-or-no-drop recommendation
 
 ```{r}
 
@@ -487,7 +440,7 @@ results <-
 # plot
 p_meta <-
   ggplot(results, aes(estimate, fct_rev(n_participants))) +
-  geom_linerange(aes(xmin = pi_lower, xmax = pi_upper), size = 0.5, linetype = "dotted") +
+  #geom_linerange(aes(xmin = pi_lower, xmax = pi_upper), size = 0.5, linetype = "dotted") +
   geom_linerange(aes(xmin = ci_lower, xmax = ci_upper)) +
   geom_point(size = 2.5) +
   mdthemes::md_theme_linedraw() +
@@ -517,6 +470,92 @@ results |>
 
 ```
 
+## Proportion of out of sample with improved alphas
+
+Only considering cases where an item drop was recommended.
+
+```{r}
+
+data_drop_decisions_no_data |>
+  group_by(subset_n_per_split) |>
+  summarize(prop_none = mean(item_to_drop_or_none_a == "none"))
+
+data_drop_decisions_summary <- data_drop_decisions_no_data |>
+  filter(item_to_drop_or_none_a != "none") |>
+  group_by(scale, subset_n_per_split) |>
+  summarize(
+    proportion_improved = mean(alpha_b_improved, na.rm = TRUE),
+    variance_improved = possibly(var, otherwise = NA_real_)(alpha_b_improved),
+    n_replications = max(replication)
+  )
+
+data_reshaped <- data_drop_decisions_summary |>
+  # offset problematic values, logit transform
+  mutate(
+    proportion_improved = case_when(proportion_improved == 0 ~ 0.001,
+                                    proportion_improved == 1 ~ 0.999,
+                                    TRUE ~ proportion_improved),
+    proportion_improved_logit = boot::logit(proportion_improved),
+    variance_improved = ifelse(variance_improved == 0, 0.001, variance_improved)
+  ) |>
+  # order factors
+  mutate(n_participants = fct_reorder(as.factor(subset_n_per_split), as.numeric(subset_n_per_split)))
+
+
+# fit model
+fit <-
+  lmer(proportion_improved_logit ~ 1 + n_participants + (1 | scale),
+       weights = 1/variance_improved,
+       data = data_reshaped)
+
+# extract re Tau
+results_re_tau <- fit |>
+  merTools::REsdExtract() |>
+  as_tibble(rownames = "scale") |>
+  rename(tau = value)
+
+# extract marginal means
+results <-
+  summary(emmeans(fit, ~ n_participants)) |>
+  dplyr::select(n_participants, estimate = emmean, se = SE, 
+                ci_lower = lower.CL, ci_upper = upper.CL) |>
+  mutate(pi_lower = estimate - (1.96 * sqrt(se^2 + results_re_tau$tau^2)),
+         pi_upper = estimate + (1.96 * sqrt(se^2 + results_re_tau$tau^2))) |>
+  select(-se) |>
+  mutate_if(is.numeric, boot::inv.logit)
+
+# plot
+p_meta <-
+  ggplot(results, aes(estimate, fct_rev(n_participants))) +
+  #geom_linerange(aes(xmin = pi_lower, xmax = pi_upper), size = 0.5, linetype = "dotted") +
+  geom_linerange(aes(xmin = ci_lower, xmax = ci_upper)) +
+  geom_point(size = 2.5) +
+  mdthemes::md_theme_linedraw() +
+  scale_x_continuous(breaks = c(0, .25, .5, .75, 1), 
+                     labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)")) +
+  labs(x = "Proportion of cases where<br/>item-dropping recommendation replicated",
+       y = "N participants in each sample") +
+  #theme(legend.position = "none") +
+  xlim(0, 1)
+
+p_meta
+
+results |>
+  round_df(2) |>
+  kable() |>
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+# # tests
+# data_emms <- emmeans(fit, list(pairwise ~ n_participants), adjust = "holm")
+# 
+# summary(data_emms)$`pairwise differences of n_participants` |>
+#   as.data.frame() |>
+#   select(comparison = 1, p.value) |>
+#   mutate(p.value = ifelse(p.value < .001, "< .001", round_half_up(p.value, 3))) |>
+#   kable() |>
+#   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
 
 # Session info
 
