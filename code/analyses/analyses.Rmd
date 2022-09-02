@@ -292,7 +292,8 @@ data_drop_decisions_no_data |>
   kable() |>
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
 
-data_drop_decisions_no_data |>
+p_freq <- 
+  data_drop_decisions_no_data |>
   count(scale, item_to_drop_a) |>
   arrange(scale, desc(n)) |>
   group_by(scale) |>
@@ -308,7 +309,17 @@ data_drop_decisions_no_data |>
   facet_wrap(~scale, ncol = 3) +
   xlab("Item ranked by number of drop recommendations") +
   ylab("Number of drop recommendations") +
-  theme_minimal()
+  theme_light()
+
+p_freq
+
+ggsave(filename  = "../plots/drop_recommendation_frequencies.pdf",
+       plot      = p_freq,
+       device    = "pdf",
+       units     = "in",
+       width     = 10,
+       height    = 12,
+       limitsize = TRUE)
 
 ```
 
@@ -352,9 +363,6 @@ data_reshaped <- data_drop_decisions_summary |>
 #   kable() |>
 #   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
 
-```
-
-```{r}
 
 # fit model
 fit <-
@@ -379,20 +387,27 @@ results <-
   mutate_if(is.numeric, boot::inv.logit)
 
 # plot
-p_meta <-
+p_meta_1 <-
   ggplot(results, aes(estimate, fct_rev(n_participants))) +
   #geom_linerange(aes(xmin = pi_lower, xmax = pi_upper), size = 0.5, linetype = "dotted") +
   geom_linerange(aes(xmin = ci_lower, xmax = ci_upper)) +
   geom_point(size = 2.5) +
-  mdthemes::md_theme_linedraw() +
   scale_x_continuous(breaks = c(0, .25, .5, .75, 1), 
-                     labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)")) +
+                     labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)"),
+                     limits = c(0,1)) +
   labs(x = "Proportion of cases where<br/>item-dropping recommendation replicated",
        y = "N participants in each sample") +
-  #theme(legend.position = "none") +
-  xlim(0, 1)
+  mdthemes::md_theme_linedraw() 
 
-p_meta
+p_meta_1
+
+ggsave(filename  = "../plots/meta_analyses_1.pdf",
+       plot      = p_meta_1,
+       device    = "pdf",
+       units     = "in",
+       width     = 5,
+       height    = 3,
+       limitsize = TRUE)
 
 results |>
   round_df(2) |>
@@ -438,20 +453,27 @@ results <-
   mutate_if(is.numeric, boot::inv.logit)
 
 # plot
-p_meta <-
+p_meta_2 <-
   ggplot(results, aes(estimate, fct_rev(n_participants))) +
   #geom_linerange(aes(xmin = pi_lower, xmax = pi_upper), size = 0.5, linetype = "dotted") +
   geom_linerange(aes(xmin = ci_lower, xmax = ci_upper)) +
   geom_point(size = 2.5) +
-  mdthemes::md_theme_linedraw() +
   scale_x_continuous(breaks = c(0, .25, .5, .75, 1), 
-                     labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)")) +
+                     labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)"),
+                     limits = c(0,1)) +
   labs(x = "Proportion of cases where<br/>item-dropping recommendation replicated",
        y = "N participants in each sample") +
-  #theme(legend.position = "none") +
-  xlim(0, 1)
+  mdthemes::md_theme_linedraw() 
 
-p_meta
+p_meta_2
+
+ggsave(filename  = "../plots/meta_analyses_2.pdf",
+       plot      = p_meta_2,
+       device    = "pdf",
+       units     = "in",
+       width     = 5,
+       height    = 3,
+       limitsize = TRUE)
 
 results |>
   round_df(2) |>
@@ -525,20 +547,27 @@ results <-
   mutate_if(is.numeric, boot::inv.logit)
 
 # plot
-p_meta <-
+p_meta_3 <-
   ggplot(results, aes(estimate, fct_rev(n_participants))) +
   #geom_linerange(aes(xmin = pi_lower, xmax = pi_upper), size = 0.5, linetype = "dotted") +
   geom_linerange(aes(xmin = ci_lower, xmax = ci_upper)) +
   geom_point(size = 2.5) +
-  mdthemes::md_theme_linedraw() +
   scale_x_continuous(breaks = c(0, .25, .5, .75, 1), 
-                     labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)")) +
+                     labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)"),
+                     limits = c(0,1)) +
   labs(x = "Proportion of cases where<br/>item-dropping recommendation replicated",
        y = "N participants in each sample") +
-  #theme(legend.position = "none") +
-  xlim(0, 1)
+  mdthemes::md_theme_linedraw() 
 
-p_meta
+p_meta_3
+
+ggsave(filename  = "../plots/meta_analyses_3.pdf",
+       plot      = p_meta_3,
+       device    = "pdf",
+       units     = "in",
+       width     = 5,
+       height    = 3,
+       limitsize = TRUE)
 
 results |>
   round_df(2) |>
