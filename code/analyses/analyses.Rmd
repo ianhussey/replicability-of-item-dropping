@@ -1,5 +1,5 @@
 ---
-title: "Assessing the replicability of item dropping"
+title: "Assessing the replicability of decisions based on Cronbach's-alpha-if-item-removed"
 author: "Ian Hussey"
 date: "`r format(Sys.time(), '%d %B %Y')`"
 output:
@@ -11,6 +11,10 @@ output:
     toc_float: yes
 ---
 
+# TODO
+
+- NA
+
 ```{r, include=FALSE}
 knitr::opts_chunk$set(message=FALSE,
                       warning=FALSE)
@@ -20,22 +24,16 @@ knitr::opts_chunk$set(message=FALSE,
 
 # dependencies
 library(tidyverse)
-#library(lavaan)
-#library(semTools)
 library(knitr)
 library(kableExtra)
-#library(moments)
-#library(plotrix)
-#library(lubridate)
 library(psych)
-library(furrr)
 library(lme4)
 library(sjPlot)
-library(emmeans)
-#library(ggstance)
+#library(emmeans)
+library(marginaleffects)
 library(janitor)
 library(boot)
-library(ggpp)
+library(Cairo)
 
 # create necessary directories
 dir.create("../../data/results")
@@ -58,8 +56,12 @@ set.seed(42)
 
 ```{r}
 
-#data_first_timepoint <- read_rds("../../data/processed/data_first_timepoint.rds")
 data_nested_single_timepoint <- read_rds("../../data/processed/data_nested_single_timepoint.rds")
+
+data_drop_decisions_no_data <- read_rds("../../data/results/data_drop_decisions_no_data.rds") |>
+  mutate(sample_size                   = as.factor(subset_n_per_split),
+         match_item_if_dropped         = as.factor(match_item_if_dropped),
+         match_item_if_dropped_or_none = as.factor(match_item_if_dropped_or_none))
 
 ```
 
@@ -89,12 +91,12 @@ results_overall |>
 
 results_overall |>
   select(scale, alpha = raw_alpha, n) |>
-  summarize(k_scales = n(),
+  summarize(k_scales       = n(),
             N_participants = sum(n),
-            alpha_min = min(alpha),
-            alpha_max = max(alpha),
-            alpha_mean = mean(alpha),
-            alpha_sd = sd(alpha)) |>
+            alpha_min      = min(alpha),
+            alpha_max      = max(alpha),
+            alpha_mean     = mean(alpha),
+            alpha_sd       = sd(alpha)) |>
   round_df(2) |>
   kable() |>
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
@@ -106,180 +108,9 @@ weighted_average <- janitor::round_half_up(weighted.mean(results_overall$raw_alp
 
 Weighted average $\alpha$ = `r weighted_average`.
 
-# Create nested pairs of samples of data from each scale
-
-```{r}
-
-if(file.exists("../../data/intermediary/data_replications.rds")){
-  
-  data_replications <- read_rds("../../data/intermediary/data_replications.rds")
-  
-} else {
-  
-  generate_replications <- function(input_data, n_replications, subset_n_per_split){
-    
-    helper_subset_n <- function(dat, subset_n_per_split){sample_n(dat, size = subset_n_per_split*2)}
-    
-    res <- 
-      tibble(replication = seq(from = 1, to = n_replications, by = 1)) |>
-      mutate(nest(mutate(input_data, id = row_number()), data = everything()),
-             data_subset = map(data, helper_subset_n, subset_n_per_split = subset_n_per_split),
-             data_subset_a = map(data_subset, sample_frac, size = 0.5),
-             data_subset_b = map2(data_subset, data_subset_a, anti_join, by = "id"),
-             data_subset_a = map(data_subset_a, select, -id),
-             data_subset_b = map(data_subset_b, select, -id)) |>
-      select(-data, -data_subset)
-    
-    return(res)
-  }
-  
-  data_nested_single_timepoint_25 <- data_nested_single_timepoint |>
-    mutate(replications = furrr::future_map(data, 
-                                            generate_replications, 
-                                            n_replications = 1000, 
-                                            subset_n_per_split = 25,
-                                            .options = furrr_options(seed = TRUE)),
-           subset_n_per_split = 25) |>
-    select(-data) |>
-    unnest(replications)
-  
-  data_nested_single_timepoint_50 <- data_nested_single_timepoint |>
-    mutate(replications = furrr::future_map(data, 
-                                            generate_replications, 
-                                            n_replications = 1000, 
-                                            subset_n_per_split = 50,
-                                            .options = furrr_options(seed = TRUE)),
-           subset_n_per_split = 50) |>
-    select(-data) |>
-    unnest(replications)
-  
-  data_nested_single_timepoint_100 <- data_nested_single_timepoint |>
-    mutate(replications = furrr::future_map(data, 
-                                            generate_replications,
-                                            n_replications = 1000,
-                                            subset_n_per_split = 100,
-                                            .options = furrr_options(seed = TRUE)),
-           subset_n_per_split = 100) |>
-    select(-data) |>
-    unnest(replications)
-  
-  data_nested_single_timepoint_250 <- data_nested_single_timepoint |>
-    mutate(replications = furrr::future_map(data, 
-                                            generate_replications,
-                                            n_replications = 1000,
-                                            subset_n_per_split = 250,
-                                            .options = furrr_options(seed = TRUE)),
-           subset_n_per_split = 250) |>
-    select(-data) |>
-    unnest(replications)
-  
-  data_nested_single_timepoint_500 <- data_nested_single_timepoint |>
-    mutate(replications = furrr::future_map(data, 
-                                            generate_replications,
-                                            n_replications = 1000, 
-                                            subset_n_per_split = 500,
-                                            .options = furrr_options(seed = TRUE)),
-           subset_n_per_split = 500) |>
-    select(-data) |>
-    unnest(replications)
-  
-  data_replications <- 
-    bind_rows(data_nested_single_timepoint_25,
-              data_nested_single_timepoint_50,
-              data_nested_single_timepoint_100,
-              data_nested_single_timepoint_250,
-              data_nested_single_timepoint_500)
-  
-  write_rds(data_replications, "../../data/intermediary/data_replications.rds", compress = "gz")
-  
-}
-
-```
-
-# Calculate alpha and drop decisions for each sample
-
-```{r}
-
-if(file.exists("../../data/results/data_drop_decisions.rds") & 
-   file.exists("../../data/results/data_drop_decisions_no_data.rds")){
-  
-  data_drop_decisions <- read_rds("../../data/results/data_drop_decisions.rds")
-  data_drop_decisions_no_data <- read_rds("../../data/results/data_drop_decisions_no_data.rds")
-  
-  
-} else {
-  
-  item_to_drop <- function(data){
-    
-    res <- psych::alpha(data)
-    
-    alpha_full_scale <- as.numeric(res$total["raw_alpha"])
-    
-    res$alpha.drop |>
-      as_tibble(rownames = "item") |>
-      filter(raw_alpha == max(raw_alpha)) |>
-      select(item_to_drop = item, alpha_if_dropped = raw_alpha) |>
-      mutate(alpha_full_scale = alpha_full_scale,
-             item_to_drop_or_none = ifelse(alpha_full_scale >= alpha_if_dropped, "none", item_to_drop))
-  }
-  
-  alpha_if_given_item_dropped <- function(data, item_to_drop){
-    
-    res <- data |>
-      select(-{{item_to_drop}}) |>
-      psych::alpha()
-    
-    alpha <- as.numeric(res$total["raw_alpha"])
-    
-    return(alpha)
-  }
-  
-  data_drop_decisions <- data_replications |>
-    # subset A
-    mutate(alpha_a = furrr::future_map(data_subset_a, item_to_drop)) |>
-    unnest(alpha_a) |>
-    rename(item_to_drop_a         = item_to_drop,
-           item_to_drop_or_none_a = item_to_drop_or_none,
-           alpha_if_dropped_a     = alpha_if_dropped,
-           alpha_full_scale_a     = alpha_full_scale) |>
-    # subset B
-    mutate(alpha_b = furrr::future_map(data_subset_b, item_to_drop)) |>
-    unnest(alpha_b) |>
-    rename(item_to_drop_b         = item_to_drop,
-           item_to_drop_or_none_b = item_to_drop_or_none,
-           alpha_if_dropped_b     = alpha_if_dropped,
-           alpha_full_scale_b     = alpha_full_scale) |>
-    # compare
-    mutate(match_item_if_dropped = item_to_drop_a == item_to_drop_b,
-           match_item_if_dropped_or_none = item_to_drop_or_none_a == item_to_drop_or_none_b) |>
-    mutate(alpha_if_a_recommendation_dropped_b = 
-             furrr::future_map2(data_subset_b, 
-                                item_to_drop_a,
-                                alpha_if_given_item_dropped,
-                                .options = furrr_options(seed = TRUE))) |>
-    mutate(alpha_if_a_recommendation_dropped_b = as.numeric(alpha_if_a_recommendation_dropped_b),
-           alpha_b_diff = alpha_full_scale_b - alpha_if_a_recommendation_dropped_b,
-           alpha_b_improved = alpha_b_diff > 0)
-  
-  write_rds(data_drop_decisions, "../../data/results/data_drop_decisions.rds", compress = "gz")
-  
-  data_drop_decisions_no_data <- data_drop_decisions |>
-    select(-data_subset_a, -data_subset_b)
-  
-  write_rds(data_drop_decisions_no_data, "../../data/results/data_drop_decisions_no_data.rds", compress = "gz")
-  
-}
-
-```
-
 # Frequency of item drop recommendations
 
 ```{r fig.height=12, fig.width=10}
-
-temp <- data_drop_decisions_no_data |>
-  select(scale, replication, subset_n_per_split, 
-         alpha_if_dropped_a, alpha_full_scale_a, item_to_drop_or_none_a, 
-         alpha_full_scale_b, alpha_if_a_recommendation_dropped_b, alpha_b_diff, alpha_b_improved)
 
 data_n_items <- data_nested_single_timepoint |>
   mutate(n_items_in_scale = as.numeric(map(data, ncol))) |>
@@ -324,377 +155,142 @@ ggsave(filename  = "../plots/drop_recommendation_frequencies.pdf",
 
 ```
 
-# Metas
+# Multilevel logistic regressions
 
 ## Proportion of pairs of samples with matching item-drop recommendation
 
 ```{r}
 
-data_drop_decisions_summary <- data_drop_decisions_no_data |>
-  group_by(scale, subset_n_per_split) |>
-  summarize(
-    proportion_match_item_if_dropped = mean(match_item_if_dropped, na.rm = TRUE),
-    variance_match_item_if_dropped = possibly(var, otherwise = NA_real_)(match_item_if_dropped),
-    proportion_match_item_if_dropped_or_none = mean(match_item_if_dropped_or_none, na.rm = TRUE),
-    variance_match_item_if_dropped_or_none = possibly(var, otherwise = NA_real_)(match_item_if_dropped_or_none),
-    n_replications = max(replication)
-  )
-
-data_reshaped <- data_drop_decisions_summary |>
-  # offset problematic values, logit transform
-  mutate(
-    proportion_match_item_if_dropped = case_when(proportion_match_item_if_dropped == 0 ~ 0.001,
-                                                 proportion_match_item_if_dropped == 1 ~ 0.999,
-                                                 TRUE ~ proportion_match_item_if_dropped),
-    proportion_match_item_if_dropped_logit = boot::logit(proportion_match_item_if_dropped),
-    variance_match_item_if_dropped = ifelse(variance_match_item_if_dropped == 0, 0.001, variance_match_item_if_dropped),
-    proportion_match_item_if_dropped_or_none = case_when(proportion_match_item_if_dropped_or_none == 0 ~ 0.001,
-                                                         proportion_match_item_if_dropped_or_none == 1 ~ 0.999,
-                                                         TRUE ~ proportion_match_item_if_dropped_or_none),
-    proportion_match_item_if_dropped_or_none_logit = boot::logit(proportion_match_item_if_dropped_or_none),
-    variance_match_item_if_dropped_or_none = ifelse(variance_match_item_if_dropped_or_none == 0, 0.001, variance_match_item_if_dropped_or_none),
-  ) |>
-  # order factors
-  mutate(n_participants = fct_reorder(as.factor(subset_n_per_split), as.numeric(subset_n_per_split)))
-
-# data_reshaped |>
-#   select(scale, n_participants, 
-#          proportion_match_item_if_dropped, proportion_match_item_if_dropped_or_none) |>
-#   round_df(2) |>
-#   kable() |>
-#   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-
-```
-
-```{r fig.height=6, fig.width=7}
-
-ggplot(data_reshaped, aes(proportion_match_item_if_dropped, n_participants, group = fct_rev(scale))) +
-  geom_linerange(aes(xmin = proportion_match_item_if_dropped - sqrt(variance_match_item_if_dropped)*1.96, 
-                     xmax = proportion_match_item_if_dropped + sqrt(variance_match_item_if_dropped)*1.96),
-                 position = position_dodge(width = 0.5)) +
-  geom_point(size = 2.5,
-             alpha = 0.5,
-             position = position_dodge(width = 0.5)) +
-  scale_x_continuous(breaks = c(0, .25, .5, .75, 1), 
-                     labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)"),
-                     limits = c(0,1)) +
-  labs(x = "Proportion of cases where<br/>item-dropping recommendation replicated",
-       y = "N participants in each sample") +
-  mdthemes::md_theme_linedraw() +
-  theme(legend.position = "none")
-
-```
-
-```{r fig.height=4, fig.width=5}
-
 # fit model
-fit_1 <-
-  lmer(proportion_match_item_if_dropped_logit ~ 1 + n_participants + (1 | scale),
-       weights = 1/variance_match_item_if_dropped,
-       data = data_reshaped)
+fit_1 <- 
+  glmer(match_item_if_dropped ~ 1 + sample_size + (1 | scale),
+        family = binomial(link = "logit"),
+        data = data_drop_decisions)
 
-# extract re Tau
-results_re_tau_1 <- fit_1 |>
-  merTools::REsdExtract() |>
-  as_tibble(rownames = "scale") |>
-  rename(tau = value)
+# marginal means
+results_1_estimates <- fit_1 |>
+  marginalmeans() |>
+  tidy() |>
+  filter(term == "sample_size") |>
+  select(sample_size = value, estimate, ci_lower = conf.low, ci_upper = conf.high) |>
+  round_df(2)
 
-# extract marginal means
-results_1 <-
-  summary(emmeans(fit_1, ~ n_participants)) |>
-  dplyr::select(n_participants, estimate = emmean, se = SE, 
-                ci_lower = lower.CL, ci_upper = upper.CL) |>
-  mutate(pi_lower = estimate - (1.96 * sqrt(se^2 + results_re_tau_1$tau^2)),
-         pi_upper = estimate + (1.96 * sqrt(se^2 + results_re_tau_1$tau^2))) |>
-  select(-se) |>
-  mutate_if(is.numeric, boot::inv.logit)
+results_1_estimates
 
-# plot
-p_meta_1 <-
-  ggplot(results_1, aes(estimate, n_participants)) +
-  #geom_linerange(aes(xmin = pi_lower, xmax = pi_upper), size = 0.5, linetype = "dotted") +
-  geom_linerange(aes(xmin = ci_lower, xmax = ci_upper)) +
-  geom_point(size = 2.5, shape = 15) +
-  scale_x_continuous(breaks = c(0, .25, .5, .75, 1), 
-                     labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)"),
-                     limits = c(0,1)) +
-  labs(x = "Proportion of cases where<br/>item-dropping recommendation replicated",
-       y = "N participants in each sample") +
-  mdthemes::md_theme_linedraw() 
+# compare marginal means
+results_1_comparisons <- 
+  comparisons(fit_1, contrast_factor = "pairwise") |> 
+  tidy()
 
-p_meta_1
+results_1_comparisons
 
-ggsave(filename  = "../plots/meta_analyses_1.pdf",
-       plot      = p_meta_1,
-       device    = "pdf",
-       units     = "in",
-       width     = 5,
-       height    = 4,
-       limitsize = TRUE)
-
-results_1 |>
-  round_df(2) |>
-  kable() |>
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-
-```
-
-```{r fig.height=4, fig.width=5}
-
-ggplot() +
-  #geom_vline(xintercept = 0.50, linetype = "dotted") +
-  geom_linerange(data = results_1, aes(y = estimate, x = n_participants,
-                                       ymin = ci_lower, ymax = ci_upper),
-                 position = ggpp::position_dodge2nudge(x = -0.2, width = 0)) +
-  geom_point(data = results_1, aes(y = estimate, x = n_participants),
-             size = 2.5, shape = 15,
-             position = ggpp::position_dodge2nudge(x = -0.2, width = 0)) +
-  geom_point(data = data_reshaped, aes(y = proportion_match_item_if_dropped, x = n_participants, group = scale),
-             size = 1, shape = 16,
-             alpha = 0.5,
-             position = ggpp::position_dodge2nudge(x = 0, width = 0.2)) +
-  coord_flip() +
-  scale_y_continuous(breaks = c(0, .25, .5, .75, 1), 
-                     labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)"),
-                     limits = c(0,1)) +
-  labs(y = "Proportion of cases where<br/>item-dropping recommendation replicated",
-       x = "N participants in each sample") +
-  mdthemes::md_theme_linedraw() 
+# # plot
+# plot_1 <- 
+#   ggplot(results_1_estimates, aes(estimate, sample_size)) +
+#   geom_linerange(aes(xmin = ci_lower, xmax = ci_upper)) +
+#   geom_point(size = 2.5, shape = 15) +
+#   scale_x_continuous(breaks = c(0, .25, .5, .75, 1), 
+#                      labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)"),
+#                      limits = c(0,1)) +
+#   labs(x = "Proportion of cases where<br/>item-dropping recommendation replicated",
+#        y = "N participants in each sample") +
+#   mdthemes::md_theme_linedraw() 
+# 
+# ggsave(filename  = "../plots/plot_1.pdf",
+#        plot      = plot_1,
+#        device    = "pdf",
+#        units     = "in",
+#        width     = 5,
+#        height    = 3,
+#        limitsize = TRUE)
 
 ```
 
 ## Proportion of pairs of samples with matching item-drop-or-no-drop recommendation
 
-```{r fig.height=4, fig.width=5}
-
-ggplot(data_reshaped, aes(proportion_match_item_if_dropped_or_none, n_participants, group = fct_rev(scale))) +
-  geom_linerange(aes(xmin = proportion_match_item_if_dropped_or_none - sqrt(variance_match_item_if_dropped_or_none)*1.96, 
-                     xmax = proportion_match_item_if_dropped_or_none + sqrt(variance_match_item_if_dropped_or_none)*1.96),
-                 position = position_dodge(width = 0.5)) +
-  geom_point(size = 2.5,
-             alpha = 0.5,
-             position = position_dodge(width = 0.5)) +
-  scale_x_continuous(breaks = c(0, .25, .5, .75, 1), 
-                     labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)"),
-                     limits = c(0,1)) +
-  labs(x = "Proportion of cases where<br/>item-dropping recommendation replicated",
-       y = "N participants in each sample") +
-  mdthemes::md_theme_linedraw() +
-  theme(legend.position = "none")
-
-```
-
-```{r fig.height=4, fig.width=5}
+```{r}
 
 # fit model
-fit_2 <-
-  lmer(proportion_match_item_if_dropped_or_none_logit ~ 1 + n_participants + (1 | scale),
-       weights = 1/variance_match_item_if_dropped_or_none,
-       data = data_reshaped)
+fit_2 <- 
+  glmer(match_item_if_dropped_or_none ~ 1 + sample_size + (1 | scale),
+        family = binomial(link = "logit"),
+        data = data_drop_decisions)
 
-# extract re Tau
-results_re_tau_2 <- fit_2 |>
-  merTools::REsdExtract() |>
-  as_tibble(rownames = "scale") |>
-  rename(tau = value)
+# marginal means
+results_2_estimates <- fit_2 |>
+  marginalmeans() |>
+  tidy() |>
+  filter(term == "sample_size") |>
+  select(sample_size = value, estimate, ci_lower = conf.low, ci_upper = conf.high) |>
+  round_df(2)
 
-# extract marginal means
-results_2 <-
-  summary(emmeans(fit_2, ~ n_participants)) |>
-  dplyr::select(n_participants, estimate = emmean, se = SE, 
-                ci_lower = lower.CL, ci_upper = upper.CL) |>
-  mutate(pi_lower = estimate - (1.96 * sqrt(se^2 + results_re_tau_2$tau^2)),
-         pi_upper = estimate + (1.96 * sqrt(se^2 + results_re_tau_2$tau^2))) |>
-  select(-se) |>
-  mutate_if(is.numeric, boot::inv.logit)
+results_2_estimates
 
-# plot
-p_meta_2 <-
-  ggplot(results_2, aes(estimate, n_participants)) +
-  #geom_linerange(aes(xmin = pi_lower, xmax = pi_upper), size = 0.5, linetype = "dotted") +
-  geom_linerange(aes(xmin = ci_lower, xmax = ci_upper)) +
-  geom_point(size = 2.5, shape = 15) +
-  scale_x_continuous(breaks = c(0, .25, .5, .75, 1), 
-                     labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)"),
-                     limits = c(0,1)) +
-  labs(x = "Proportion of cases where<br/>item-dropping recommendation replicated",
-       y = "N participants in each sample") +
-  mdthemes::md_theme_linedraw() 
+# compare marginal means
+results_2_comparisons <- 
+  comparisons(fit_2, contrast_factor = "pairwise") |> 
+  tidy()
 
-p_meta_2
+results_2_comparisons
 
-ggsave(filename  = "../plots/meta_analyses_2.pdf",
-       plot      = p_meta_2,
-       device    = "pdf",
-       units     = "in",
-       width     = 5,
-       height    = 4,
-       limitsize = TRUE)
-
-results_2 |>
-  round_df(2) |>
-  kable() |>
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+# # plot
+# plot_2 <- 
+#   ggplot(results_2_estimates, aes(estimate, sample_size)) +
+#   geom_linerange(aes(xmin = ci_lower, xmax = ci_upper)) +
+#   geom_point(size = 2.5, shape = 15) +
+#   scale_x_continuous(breaks = c(0, .25, .5, .75, 1), 
+#                      labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)"),
+#                      limits = c(0,1)) +
+#   labs(x = "Proportion of cases where<br/>item-dropping recommendation replicated",
+#        y = "N participants in each sample") +
+#   mdthemes::md_theme_linedraw() 
+# 
+# ggsave(filename  = "../plots/plot_2.pdf",
+#        plot      = plot_2,
+#        device    = "pdf",
+#        units     = "in",
+#        width     = 5,
+#        height    = 3,
+#        limitsize = TRUE)
 
 ```
 
-```{r fig.height=4, fig.width=5}
-
-ggplot() +
-  #geom_vline(xintercept = 0.50, linetype = "dotted") +
-  geom_linerange(data = results_2, aes(y = estimate, x = n_participants,
-                                       ymin = ci_lower, ymax = ci_upper),
-                 position = ggpp::position_dodge2nudge(x = -0.2, width = 0)) +
-  geom_point(data = results_2, aes(y = estimate, x = n_participants),
-             size = 2.5, shape = 15,
-             position = ggpp::position_dodge2nudge(x = -0.2, width = 0)) +
-  geom_point(data = data_reshaped, aes(y = proportion_match_item_if_dropped_or_none, x = n_participants, group = scale),
-             size = 1, shape = 16,
-             alpha = 0.5,
-             position = ggpp::position_dodge2nudge(x = 0, width = 0.2)) +
-  coord_flip() +
-  scale_y_continuous(breaks = c(0, .25, .5, .75, 1), 
-                     labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)"),
-                     limits = c(0,1)) +
-  labs(y = "Proportion of cases where<br/>item-dropping recommendation replicated",
-       x = "N participants in each sample") +
-  mdthemes::md_theme_linedraw() 
-
-```
-
-## Proportion of out of sample with improved alphas
-
-Only considering cases where an item drop was recommended.
+## Combined plot
 
 ```{r}
 
-# data_drop_decisions_no_data |>
-#   group_by(subset_n_per_split) |>
-#   summarize(prop_none = mean(item_to_drop_or_none_a == "none"))
-
-data_drop_decisions_summary_3 <- data_drop_decisions_no_data |>
-  filter(item_to_drop_or_none_a != "none") |>
-  group_by(scale, subset_n_per_split) |>
-  summarize(
-    proportion_improved = mean(alpha_b_improved, na.rm = TRUE),
-    variance_improved = possibly(var, otherwise = NA_real_)(alpha_b_improved),
-    n_replications = max(replication)
-  )
-
-data_reshaped_3 <- data_drop_decisions_summary_3 |>
-  # offset problematic values, logit transform
-  mutate(
-    proportion_improved = case_when(proportion_improved == 0 ~ 0.001,
-                                    proportion_improved == 1 ~ 0.999,
-                                    TRUE ~ proportion_improved),
-    proportion_improved_logit = boot::logit(proportion_improved),
-    variance_improved = ifelse(variance_improved == 0, 0.001, variance_improved)
+plot_replication <- 
+  bind_rows(
+    mutate(results_1_estimates, Strategy = "Drop one item"),
+    mutate(results_2_estimates, Strategy = "Drop one item if it improves alpha compared to full scale")
   ) |>
-  # order factors
-  mutate(n_participants = fct_reorder(as.factor(subset_n_per_split), as.numeric(subset_n_per_split)))
-
-```
-
-```{r fig.height=4, fig.width=5}
-
-ggplot(data_reshaped_3, aes(proportion_improved, n_participants, group = fct_rev(scale))) +
-  geom_vline(xintercept = 0.50, linetype = "dotted") +
-  geom_linerange(aes(xmin = proportion_improved - sqrt(variance_improved)*1.96, 
-                     xmax = proportion_improved + sqrt(variance_improved)*1.96),
-                 position = position_dodge(width = 0.5)) +
-  geom_point(size = 2.5,
-             alpha = 0.5,
-             position = position_dodge(width = 0.5)) +
+  ggplot(aes(estimate, sample_size, color = Strategy)) +
+  geom_linerange(aes(xmin = ci_lower, xmax = ci_upper), position = position_dodge(width = 0.5)) +
+  geom_point(size = 2.5, shape = 15, position = position_dodge(width = 0.5)) +
+  scale_color_viridis_d(begin = 0.3, end = 0.7,
+                        labels = c("Drop one item",
+                                   "Drop one item if it improves \u03B1 compared to full scale")) +
   scale_x_continuous(breaks = c(0, .25, .5, .75, 1), 
-                     labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)"),
+                     #labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)"),
+                     labels = c("0.00", "0.25", "0.50", "0.75", "1.00"),
                      limits = c(0,1)) +
-  labs(x = "Proportion of cases where<br/>item-dropping recommendation replicated",
-       y = "N participants in each sample") +
+  labs(x = "Replication rate",
+       y = "Sample size") +
   mdthemes::md_theme_linedraw() +
-  theme(legend.position = "none")
+  theme(legend.position = "top") +
+  guides(color = guide_legend(reverse = FALSE))
 
-```
+plot_replication
 
-```{r fig.height=4, fig.width=5}
-
-# fit model
-fit_3 <-
-  lmer(proportion_improved_logit ~ 1 + n_participants + (1 | scale),
-       weights = 1/variance_improved,
-       data = data_reshaped_3)
-
-# extract re Tau
-results_re_tau_3 <- fit_3 |>
-  merTools::REsdExtract() |>
-  as_tibble(rownames = "scale") |>
-  rename(tau = value)
-
-# extract marginal means
-results_3 <-
-  summary(emmeans(fit_3, ~ n_participants)) |>
-  dplyr::select(n_participants, estimate = emmean, se = SE, 
-                ci_lower = lower.CL, ci_upper = upper.CL) |>
-  mutate(pi_lower = estimate - (1.96 * sqrt(se^2 + results_re_tau_3$tau^2)),
-         pi_upper = estimate + (1.96 * sqrt(se^2 + results_re_tau_3$tau^2))) |>
-  select(-se) |>
-  mutate_if(is.numeric, boot::inv.logit)
-
-# plot
-p_meta_3 <-
-  ggplot(results_3, aes(estimate, n_participants)) +
-  geom_vline(xintercept = 0.50, linetype = "dotted") +
-  #geom_linerange(aes(xmin = pi_lower, xmax = pi_upper), size = 0.5, linetype = "dotted") +
-  geom_linerange(aes(xmin = ci_lower, xmax = ci_upper)) +
-  geom_point(size = 2.5, shape = 15) +
-  scale_x_continuous(breaks = c(0, .25, .5, .75, 1), 
-                     labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)"),
-                     limits = c(0,1)) +
-  labs(x = "Proportion of cases where<br/>item-dropping recommendation replicated",
-       y = "N participants in each sample") +
-  mdthemes::md_theme_linedraw() 
-
-p_meta_3
-
-ggsave(filename  = "../plots/meta_analyses_3.pdf",
-       plot      = p_meta_3,
-       device    = "pdf",
+ggsave(filename  = "../plots/plot_replication.pdf",
+       plot      = plot_replication,
+       device    = cairo_pdf, # for greek letters
        units     = "in",
-       width     = 5,
+       width     = 6,
        height    = 4,
        limitsize = TRUE)
 
-results_3 |>
-  round_df(2) |>
-  kable() |>
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-
 ```
-
-```{r fig.height=4, fig.width=5}
-
-ggplot() +
-  geom_hline(yintercept = 0.50, linetype = "dotted") +
-  geom_linerange(data = results_3, aes(y = estimate, x = n_participants,
-                                       ymin = ci_lower, ymax = ci_upper),
-                 position = ggpp::position_dodge2nudge(x = -0.2, width = 0)) +
-  geom_point(data = results_3, aes(y = estimate, x = n_participants),
-             size = 2.5, shape = 15,
-             position = ggpp::position_dodge2nudge(x = -0.2, width = 0)) +
-  geom_point(data = data_reshaped_3, aes(y = proportion_improved, x = n_participants, group = scale),
-             size = 1, shape = 16,
-             alpha = 0.5,
-             position = ggpp::position_dodge2nudge(x = 0, width = 0.2)) +
-  coord_flip() +
-  scale_y_continuous(breaks = c(0, .25, .5, .75, 1), 
-                     labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)"),
-                     limits = c(0,1)) +
-  labs(y = "Proportion of cases where<br/>item-dropping recommendation replicated",
-       x = "N participants in each sample") +
-  mdthemes::md_theme_linedraw() 
-
-```
-
-TODO correspondence between meta and original data looks off, also for other plots
 
 # Session info
 
