@@ -49,11 +49,11 @@ set.seed(42)
 ```{r}
 
 # get data
-load("../../data/intermediary/trimmed_data.RData")
+data_AIID_trimmed <- read_rds("../../data/intermediary/data_AIID_trimmed.rds")
 
 # trim to include only the first time point per user_id per scale
 # ie exclude repeat participation on the same scale
-data_first_timepoint <- trimmed_data %>%
+data_first_timepoint <- data_AIID_trimmed %>%
   arrange(user_id, individual_differences_measure, datetime_ymdhms) %>%
   mutate(combined_var = paste0(user_id, individual_differences_measure)) %>%
   filter(combined_var != lag(combined_var)) %>%
@@ -178,3 +178,6 @@ write_rds(data_nested_single_timepoint, "../../data/processed/data_nested_single
 sessionInfo()
 
 ```
+
+
+

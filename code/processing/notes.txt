@@ -1,0 +1,4 @@
+Processing scripts were run in order.
+
+NB processing1.Rmd makes use of the AIID dataset. 85% of this dataset is publicly available here: https://osf.io/pcjwf/
+The remaining 15% has not been released publicly at time of writing. It's also large enough, and the processing scripts are complex enough, that I haven't included it in this repo. See here for the public repo for processing scripts: https://github.com/ianhussey/AIID-study-public
