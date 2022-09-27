@@ -27,9 +27,6 @@ library(furrr)
 library(janitor)
 library(ggpp)
 
-# create necessary directories
-dir.create("../../data/results")
-
 # functions
 # rounds all numeric variables in a dataframe to the desired number of places. Non-numeric variables will be ignored.
 round_df <- function(df, digits) {

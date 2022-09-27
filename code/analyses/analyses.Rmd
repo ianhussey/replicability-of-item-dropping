@@ -1,5 +1,5 @@
 ---
-title: "Assessing the replicability of decisions based on Cronbach's-alpha-if-item-removed"
+title: "Assessing the replicability of item-dropping decisions based on Cronbach's-alpha-if-item-removed"
 author: "Ian Hussey"
 date: "`r format(Sys.time(), '%d %B %Y')`"
 output:
@@ -29,26 +29,17 @@ library(kableExtra)
 library(psych)
 library(lme4)
 library(sjPlot)
-#library(emmeans)
+library(ggstance)
 library(marginaleffects)
 library(janitor)
 library(boot)
 library(Cairo)
-
-# create necessary directories
-dir.create("../../data/results")
 
 # functions
 # rounds all numeric variables in a dataframe to the desired number of places. Non-numeric variables will be ignored.
 round_df <- function(df, digits) {
   mutate_if(df, is.numeric, janitor::round_half_up, digits = 2)
 }
-
-# set up parallel processing
-future::plan(multisession)
-
-# set seed for reproducibility
-set.seed(42)
 
 ```
 
@@ -58,7 +49,7 @@ set.seed(42)
 
 data_nested_single_timepoint <- read_rds("../../data/processed/data_nested_single_timepoint.rds")
 
-data_drop_decisions_no_data <- read_rds("../../data/results/data_drop_decisions_no_data.rds") |>
+data_drop_decisions_no_data <- read_rds("../../data/processed/data_drop_decisions_no_data.rds") |>
   mutate(sample_size                   = as.factor(subset_n_per_split),
          match_item_if_dropped         = as.factor(match_item_if_dropped),
          match_item_if_dropped_or_none = as.factor(match_item_if_dropped_or_none))
@@ -76,11 +67,9 @@ cronbachs_alpha <- function(data){
 }
 
 results_overall <- data_nested_single_timepoint |> 
-  mutate(results = furrr::future_map(data, 
-                                     cronbachs_alpha, 
-                                     .options = furrr_options(seed = TRUE))) |>
+  mutate(results = map(data, cronbachs_alpha)) |>
   unnest(results) |> 
-  mutate(n = furrr::future_map(data, nrow, .options = furrr_options(seed = TRUE))) |>
+  mutate(n = map(data, nrow)) |>
   unnest(n)
 
 results_overall |>
@@ -94,19 +83,18 @@ results_overall |>
   summarize(k_scales       = n(),
             N_participants = sum(n),
             alpha_min      = min(alpha),
-            alpha_max      = max(alpha),
-            alpha_mean     = mean(alpha),
-            alpha_sd       = sd(alpha)) |>
+            alpha_max      = max(alpha)) |>
   round_df(2) |>
   kable() |>
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
 
-# lm(raw_alpha ~ 1, weights = n, data = results_overall)
-weighted_average <- janitor::round_half_up(weighted.mean(results_overall$raw_alpha), 2)
+weighted_mean <- janitor::round_half_up(weighted.mean(results_overall$raw_alpha, results_overall$n), 2)
+
+weighted_sd <- janitor::round_half_up(sqrt(Hmisc::wtd.var(results_overall$raw_alpha, results_overall$n)), 2)
 
 ```
 
-Weighted average $\alpha$ = `r weighted_average`.
+Weighted mean $\alpha$ = `r weighted_mean`, weighted SD =  `r weighted_sd`.
 
 # Frequency of item drop recommendations
 
@@ -133,8 +121,6 @@ p_freq <-
          item_rank = fct_reorder(item_rank, n, .desc = TRUE)) |>
   ungroup() |>
   select(-item_to_drop_a) |>
-  # pivot_wider(values_from = n,
-  #             names_from = item_rank) |>
   ggplot(aes(item_rank, n)) +
   geom_bar(stat = "identity") +
   scale_x_discrete(labels = seq(from = 1, to = max(data_n_items$n_items_in_scale), by = 1)) +
@@ -145,7 +131,7 @@ p_freq <-
 
 p_freq
 
-ggsave(filename  = "../plots/drop_recommendation_frequencies.pdf",
+ggsave(filename  = "../plots/plot_drop_recommendation_frequencies.pdf",
        plot      = p_freq,
        device    = "pdf",
        units     = "in",
@@ -155,9 +141,13 @@ ggsave(filename  = "../plots/drop_recommendation_frequencies.pdf",
 
 ```
 
-# Multilevel logistic regressions
+# Replication rate of item-dropping recommendations
 
-## Proportion of pairs of samples with matching item-drop recommendation
+Using multilevel logistic models
+
+## Strategy 1
+
+Drop one item based on max Cronbach's-$\alpha$-if-item-removed. I.e, item dropping was mandatory, even if the alpha in the retained items was lower than the full-scale $\alpha$. Recommendation in each sample could be item 1...item N.
 
 ```{r}
 
@@ -165,48 +155,20 @@ ggsave(filename  = "../plots/drop_recommendation_frequencies.pdf",
 fit_1 <- 
   glmer(match_item_if_dropped ~ 1 + sample_size + (1 | scale),
         family = binomial(link = "logit"),
-        data = data_drop_decisions)
+        data = data_drop_decisions_no_data)
 
 # marginal means
 results_1_estimates <- fit_1 |>
   marginalmeans() |>
   tidy() |>
   filter(term == "sample_size") |>
-  select(sample_size = value, estimate, ci_lower = conf.low, ci_upper = conf.high) |>
-  round_df(2)
-
-results_1_estimates
-
-# compare marginal means
-results_1_comparisons <- 
-  comparisons(fit_1, contrast_factor = "pairwise") |> 
-  tidy()
-
-results_1_comparisons
-
-# # plot
-# plot_1 <- 
-#   ggplot(results_1_estimates, aes(estimate, sample_size)) +
-#   geom_linerange(aes(xmin = ci_lower, xmax = ci_upper)) +
-#   geom_point(size = 2.5, shape = 15) +
-#   scale_x_continuous(breaks = c(0, .25, .5, .75, 1), 
-#                      labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)"),
-#                      limits = c(0,1)) +
-#   labs(x = "Proportion of cases where<br/>item-dropping recommendation replicated",
-#        y = "N participants in each sample") +
-#   mdthemes::md_theme_linedraw() 
-# 
-# ggsave(filename  = "../plots/plot_1.pdf",
-#        plot      = plot_1,
-#        device    = "pdf",
-#        units     = "in",
-#        width     = 5,
-#        height    = 3,
-#        limitsize = TRUE)
+  select(sample_size = value, estimate, ci_lower = conf.low, ci_upper = conf.high)
 
 ```
 
-## Proportion of pairs of samples with matching item-drop-or-no-drop recommendation
+## Strategy 2
+
+Drop an item based on max Cronbach's-$\alpha$-if-item-removed if it is higher than the full-scale $\alpha$. I.e, item dropping was not mandatory if it didn't improve $\alpha$. Recommendation in each sample could be item 1...item N or no item dropped.
 
 ```{r}
 
@@ -214,81 +176,73 @@ results_1_comparisons
 fit_2 <- 
   glmer(match_item_if_dropped_or_none ~ 1 + sample_size + (1 | scale),
         family = binomial(link = "logit"),
-        data = data_drop_decisions)
+        data = data_drop_decisions_no_data)
 
 # marginal means
 results_2_estimates <- fit_2 |>
   marginalmeans() |>
   tidy() |>
   filter(term == "sample_size") |>
-  select(sample_size = value, estimate, ci_lower = conf.low, ci_upper = conf.high) |>
-  round_df(2)
-
-results_2_estimates
-
-# compare marginal means
-results_2_comparisons <- 
-  comparisons(fit_2, contrast_factor = "pairwise") |> 
-  tidy()
-
-results_2_comparisons
-
-# # plot
-# plot_2 <- 
-#   ggplot(results_2_estimates, aes(estimate, sample_size)) +
-#   geom_linerange(aes(xmin = ci_lower, xmax = ci_upper)) +
-#   geom_point(size = 2.5, shape = 15) +
-#   scale_x_continuous(breaks = c(0, .25, .5, .75, 1), 
-#                      labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)"),
-#                      limits = c(0,1)) +
-#   labs(x = "Proportion of cases where<br/>item-dropping recommendation replicated",
-#        y = "N participants in each sample") +
-#   mdthemes::md_theme_linedraw() 
-# 
-# ggsave(filename  = "../plots/plot_2.pdf",
-#        plot      = plot_2,
-#        device    = "pdf",
-#        units     = "in",
-#        width     = 5,
-#        height    = 3,
-#        limitsize = TRUE)
+  select(sample_size = value, estimate, ci_lower = conf.low, ci_upper = conf.high)
 
 ```
 
-## Combined plot
+## Plot
 
-```{r}
+```{r fig.height=4, fig.width=6}
+
+results_estimates <- 
+  bind_rows(mutate(results_1_estimates, strategy = "Max alpha if item removed"),
+            mutate(results_2_estimates, strategy = "Max alpha if item removed if it improves alpha compared to full scale"))
 
 plot_replication <- 
-  bind_rows(
-    mutate(results_1_estimates, Strategy = "Drop one item"),
-    mutate(results_2_estimates, Strategy = "Drop one item if it improves alpha compared to full scale")
-  ) |>
-  ggplot(aes(estimate, sample_size, color = Strategy)) +
-  geom_linerange(aes(xmin = ci_lower, xmax = ci_upper), position = position_dodge(width = 0.5)) +
+  ggplot(results_estimates, aes(estimate, sample_size, color = strategy)) +
+  geom_linerangeh(aes(xmin = ci_lower, xmax = ci_upper), position = position_dodge(width = 0.5)) +
   geom_point(size = 2.5, shape = 15, position = position_dodge(width = 0.5)) +
   scale_color_viridis_d(begin = 0.3, end = 0.7,
-                        labels = c("Drop one item",
-                                   "Drop one item if it improves \u03B1 compared to full scale")) +
-  scale_x_continuous(breaks = c(0, .25, .5, .75, 1), 
-                     #labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)"),
-                     labels = c("0.00", "0.25", "0.50", "0.75", "1.00"),
-                     limits = c(0,1)) +
+                        labels = c("Max \u03B1 if item removed",
+                                   "Max \u03B1 if item removed<br/>if it improves \u03B1 compared to full scale"),
+                        name = "Item dropping strategy") +
+  scale_x_continuous(
+    #breaks = c(0, .25, .5, .75, 1), 
+    breaks = c(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0), 
+    #labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)"),
+    #labels = c("0.00", "0.25", "0.50", "0.75", "1.00"),
+    #labels = c("0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"),
+    limits = c(0,1)
+  ) +
   labs(x = "Replication rate",
        y = "Sample size") +
   mdthemes::md_theme_linedraw() +
-  theme(legend.position = "top") +
-  guides(color = guide_legend(reverse = FALSE))
+  theme(legend.position = c(0.73, 0.18), # "right",
+        legend.key.height = unit(0.05, 'npc'),
+        panel.grid.minor.x = element_blank(),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(colour = "black")) +
+  guides(color = guide_legend(reverse = TRUE))
 
 plot_replication
 
-ggsave(filename  = "../plots/plot_replication.pdf",
+ggsave(filename  = "../plots/plot_replication_rate.pdf",
        plot      = plot_replication,
        device    = cairo_pdf, # for greek letters
        units     = "in",
        width     = 6,
        height    = 4,
        limitsize = TRUE)
+
+```
+
+## Table
+
+```{r}
+
+results_estimates |>
+  round_df(2) |>
+  arrange(sample_size, strategy) |>
+  select(strategy, sample_size, estimate, ci_lower, ci_upper) |>
+  kable() |>
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
 
 ```
 
