@@ -50,7 +50,8 @@ round_df <- function(df, digits) {
 data_nested_single_timepoint <- read_rds("../../data/processed/data_nested_single_timepoint.rds")
 
 data_drop_decisions_no_data <- read_rds("../../data/processed/data_drop_decisions_no_data.rds") |>
-  mutate(sample_size                   = as.factor(subset_n_per_split),
+  rename(sample_size = subset_n_per_split) |>
+  mutate(sample_size                   = as.factor(sample_size),
          match_item_if_dropped         = as.factor(match_item_if_dropped),
          match_item_if_dropped_or_none = as.factor(match_item_if_dropped_or_none))
 
@@ -145,45 +146,31 @@ ggsave(filename  = "../plots/plot_drop_recommendation_frequencies.pdf",
 
 Using multilevel logistic models
 
-## Strategy 1
+Strategy 1: Drop one item based on max Cronbach's-$\alpha$-if-item-removed. I.e, item dropping was mandatory, even if the alpha in the retained items was lower than the full-scale $\alpha$. Recommendation in each sample could be item 1...item N.
 
-Drop one item based on max Cronbach's-$\alpha$-if-item-removed. I.e, item dropping was mandatory, even if the alpha in the retained items was lower than the full-scale $\alpha$. Recommendation in each sample could be item 1...item N.
-
-```{r}
-
-# fit model
-fit_1 <- 
-  glmer(match_item_if_dropped ~ 1 + sample_size + (1 | scale),
-        family = binomial(link = "logit"),
-        data = data_drop_decisions_no_data)
-
-# marginal means
-results_1_estimates <- fit_1 |>
-  marginalmeans() |>
-  tidy() |>
-  filter(term == "sample_size") |>
-  select(sample_size = value, estimate, ci_lower = conf.low, ci_upper = conf.high)
-
-```
-
-## Strategy 2
-
-Drop an item based on max Cronbach's-$\alpha$-if-item-removed if it is higher than the full-scale $\alpha$. I.e, item dropping was not mandatory if it didn't improve $\alpha$. Recommendation in each sample could be item 1...item N or no item dropped.
+Strategy 2: Drop an item based on max Cronbach's-$\alpha$-if-item-removed if it is higher than the full-scale $\alpha$. I.e, item dropping was not mandatory if it didn't improve $\alpha$. Recommendation in each sample could be item 1...item N or no item dropped.
 
 ```{r}
 
+dat <- data_drop_decisions_no_data |>
+  select(scale, replication, sample_size, match_item_if_dropped, match_item_if_dropped_or_none, sample_size, scale) |>
+  pivot_longer(names_to = "strategy",
+               values_to = "replicated",
+               cols = c(match_item_if_dropped, match_item_if_dropped_or_none))
+
 # fit model
-fit_2 <- 
-  glmer(match_item_if_dropped_or_none ~ 1 + sample_size + (1 | scale),
+fit <- 
+  glmer(replicated ~ 1 + sample_size * strategy + (1 | scale),
         family = binomial(link = "logit"),
-        data = data_drop_decisions_no_data)
+        data = dat)
+
+# results table
+tab_model(fit)
 
 # marginal means
-results_2_estimates <- fit_2 |>
-  marginalmeans() |>
-  tidy() |>
-  filter(term == "sample_size") |>
-  select(sample_size = value, estimate, ci_lower = conf.low, ci_upper = conf.high)
+results_estimates <- fit |>
+  marginalmeans(variables = c("sample_size", "strategy"), interaction = TRUE) |>
+  select(sample_size, strategy, marginalmean, ci_lower = conf.low, ci_upper = conf.high)
 
 ```
 
@@ -191,12 +178,8 @@ results_2_estimates <- fit_2 |>
 
 ```{r fig.height=4, fig.width=6}
 
-results_estimates <- 
-  bind_rows(mutate(results_1_estimates, strategy = "Max alpha if item removed"),
-            mutate(results_2_estimates, strategy = "Max alpha if item removed if it improves alpha compared to full scale"))
-
 plot_replication <- 
-  ggplot(results_estimates, aes(estimate, sample_size, color = strategy)) +
+  ggplot(results_estimates, aes(marginalmean, sample_size, color = strategy)) +
   geom_linerangeh(aes(xmin = ci_lower, xmax = ci_upper), position = position_dodge(width = 0.5)) +
   geom_point(size = 2.5, shape = 15, position = position_dodge(width = 0.5)) +
   scale_color_viridis_d(begin = 0.3, end = 0.7,
@@ -240,7 +223,7 @@ ggsave(filename  = "../plots/plot_replication_rate.pdf",
 results_estimates |>
   round_df(2) |>
   arrange(sample_size, strategy) |>
-  select(strategy, sample_size, estimate, ci_lower, ci_upper) |>
+  select(strategy, sample_size, marginalmean, ci_lower, ci_upper) |>
   kable() |>
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
 
