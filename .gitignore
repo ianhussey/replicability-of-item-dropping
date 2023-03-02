@@ -4,3 +4,4 @@
 old/*
 data/processed/data_drop_decisions.rds
 data/intermediary/data_replications.rds
+.Rproj.user
