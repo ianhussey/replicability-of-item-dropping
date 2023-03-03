@@ -1,0 +1,240 @@
+---
+title: "Assessing the replicability of recommendations of Cronbach's-alpha-if-item-removed"
+author: "Ian Hussey"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    highlight: haddock
+    theme: flatly
+    toc: yes
+    toc_float: yes
+---
+
+Outputs are data frames containing the drop decisions for analysis.
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(message=FALSE,
+                      warning=FALSE)
+```
+
+```{r}
+
+# dependencies
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(psych)
+library(furrr)
+library(janitor)
+library(ggpp)
+
+# functions
+# rounds all numeric variables in a dataframe to the desired number of places. Non-numeric variables will be ignored.
+round_df <- function(df, digits) {
+  mutate_if(df, is.numeric, janitor::round_half_up, digits = 2)
+}
+
+# set up parallel processing
+future::plan(multisession)
+
+# set seed for reproducibility
+set.seed(42)
+
+```
+
+# Data
+
+```{r}
+
+data_nested <- read_rds("../../../data/processed/bainbridge et al/data_nested.rds")
+
+```
+
+# Create nested pairs of samples of data from each scale
+
+```{r}
+
+if(file.exists("../../../data/processed/bainbridge et al/data_replications.rds")){
+  
+  data_replications <- read_rds("../../../data/processed/bainbridge et al/data_replications.rds")
+  
+} else {
+  
+  generate_replications <- function(input_data, n_replications, subset_n_per_split){
+    
+    helper_subset_n <- function(dat, subset_n_per_split){sample_n(dat, size = subset_n_per_split*2)}
+    
+    n_input_data <- nrow(input_data)
+    
+    if(n_input_data >= subset_n_per_split*2){
+      res <- 
+        tibble(replication = seq(from = 1, to = n_replications, by = 1)) |>
+        mutate(nest(mutate(input_data, id = row_number()), data = everything()),
+               data_subset   = map(data, helper_subset_n, subset_n_per_split = subset_n_per_split),
+               data_subset_a = map(data_subset, sample_frac, size = 0.5),
+               data_subset_b = map2(data_subset, data_subset_a, anti_join, by = "id"),
+               data_subset_a = map(data_subset_a, select, -id),
+               data_subset_b = map(data_subset_b, select, -id)) |>
+        select(-data, -data_subset)
+    } else {
+      res <- NULL
+    }
+    
+    return(res)
+  }
+  
+  possibly_future_map <- possibly(.f = furrr::future_map, otherwise = "Error")
+  
+  data_nested_25 <- data_nested |>
+    mutate(replications = possibly_future_map(data, 
+                                              generate_replications, 
+                                              n_replications = 1000, 
+                                              subset_n_per_split = 25,
+                                              .options = furrr_options(seed = TRUE)),
+           subset_n_per_split = 25) |>
+    select(-data) |>
+    unnest(replications)
+  
+  data_nested_50 <- data_nested |>
+    mutate(replications = possibly_future_map(data, 
+                                              generate_replications, 
+                                              n_replications = 1000, 
+                                              subset_n_per_split = 50,
+                                              .options = furrr_options(seed = TRUE)),
+           subset_n_per_split = 50) |>
+    select(-data) |>
+    unnest(replications)
+  
+  data_nested_100 <- data_nested |>
+    mutate(replications = possibly_future_map(data, 
+                                              generate_replications,
+                                              n_replications = 1000,
+                                              subset_n_per_split = 100,
+                                              .options = furrr_options(seed = TRUE)),
+           subset_n_per_split = 100) |>
+    select(-data) |>
+    unnest(replications)
+  
+  data_nested_250 <- data_nested |>
+    mutate(replications = possibly_future_map(data, 
+                                              generate_replications,
+                                              n_replications = 1000,
+                                              subset_n_per_split = 250,
+                                              .options = furrr_options(seed = TRUE)),
+           subset_n_per_split = 250) |>
+    select(-data) |>
+    unnest(replications)
+  
+  data_nested_500 <- data_nested |>
+    mutate(replications = possibly_future_map(data, 
+                                              generate_replications,
+                                              n_replications = 1000, 
+                                              subset_n_per_split = 500,
+                                              .options = furrr_options(seed = TRUE)),
+           subset_n_per_split = 500) |>
+    select(-data) |>
+    unnest(replications)
+  
+  data_replications <- 
+    bind_rows(data_nested_25,
+              data_nested_50,
+              data_nested_100,
+              data_nested_250,
+              data_nested_500)
+  
+  write_rds(data_replications, "../../../data/processed/bainbridge et al/data_replications.rds", compress = "gz")
+  
+}
+
+```
+
+# Calculate alpha and drop decisions for each sample
+
+```{r}
+
+if(file.exists("../../../data/processed/bainbridge et al/data_drop_decisions.rds") & 
+   file.exists("../../../data/processed/bainbridge et al/data_drop_decisions_no_data.rds")){
+  
+  data_drop_decisions <- read_rds("../../../data/processed/bainbridge et al/data_drop_decisions.rds")
+  data_drop_decisions_no_data <- read_rds("../../../data/processed/bainbridge et al/data_drop_decisions_no_data.rds")
+  
+} else {
+  
+  item_to_drop <- function(data){
+    
+    res <- psych::alpha(data)
+    
+    alpha_full_scale <- as.numeric(res$total["raw_alpha"])
+    
+    res$alpha.drop |>
+      as_tibble(rownames = "item") |>
+      filter(raw_alpha == max(raw_alpha)) |>
+      select(item_to_drop = item, alpha_if_dropped = raw_alpha) |>
+      mutate(alpha_full_scale = alpha_full_scale,
+             item_to_drop_or_none = ifelse(alpha_full_scale >= alpha_if_dropped, "none", item_to_drop))
+  }
+  
+  alpha_if_given_item_dropped <- function(data, item_to_drop){
+    
+    res <- data |>
+      select(-{{item_to_drop}}) |>
+      psych::alpha()
+    
+    alpha <- as.numeric(res$total["raw_alpha"])
+    
+    return(alpha)
+  }
+  
+  data_drop_decisions <- data_replications |>
+    # subset A
+    mutate(alpha_a = possibly_future_map(data_subset_a, item_to_drop)) |>
+    unnest(alpha_a) |>
+    rename(item_to_drop_a         = item_to_drop,
+           item_to_drop_or_none_a = item_to_drop_or_none,
+           alpha_if_dropped_a     = alpha_if_dropped,
+           alpha_full_scale_a     = alpha_full_scale) |>
+    # subset B
+    mutate(alpha_b = possibly_future_map(data_subset_b, item_to_drop)) |>
+    unnest(alpha_b) |>
+    rename(item_to_drop_b         = item_to_drop,
+           item_to_drop_or_none_b = item_to_drop_or_none,
+           alpha_if_dropped_b     = alpha_if_dropped,
+           alpha_full_scale_b     = alpha_full_scale) |>
+    # compare
+    mutate(match_item_if_dropped = item_to_drop_a == item_to_drop_b,
+           match_item_if_dropped_or_none = item_to_drop_or_none_a == item_to_drop_or_none_b) 
+  # # out of sample comparisons
+  # |>
+  #   mutate(alpha_if_a_recommendation_dropped_b = 
+  #            furrr::future_map2(data_subset_b, 
+  #                               item_to_drop_a,
+  #                               alpha_if_given_item_dropped,
+  #                               .options = furrr_options(seed = TRUE))) |>
+  #   mutate(alpha_if_a_recommendation_dropped_b = as.numeric(alpha_if_a_recommendation_dropped_b),
+  #          alpha_b_diff = alpha_full_scale_b - alpha_if_a_recommendation_dropped_b,
+  #          alpha_b_improved = alpha_b_diff > 0)
+  
+  write_rds(data_drop_decisions, 
+            "../../../data/processed/bainbridge et al/data_drop_decisions.rds", 
+            compress = "gz")
+  
+  data_drop_decisions_no_data <- data_drop_decisions |>
+    select(-data_subset_a, -data_subset_b)
+  
+  write_rds(data_drop_decisions_no_data, 
+            "../../../data/processed/bainbridge et al/data_drop_decisions_no_data.rds", 
+            compress = "gz")
+  
+}
+
+```
+
+# Session info
+
+```{r}
+
+sessionInfo()
+
+```
+
