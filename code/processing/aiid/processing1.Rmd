@@ -15,13 +15,15 @@ Trim data.
 
 Include only participants with complete individual differences data, fluent english, age 18-65, and present age and gender data.
 
+Output is a wide format data frame saved as a compressed rds object.
+
 ```{r}
 
 # dependencies
 library(tidyverse)
 
 # get data
-load("~/git/AIID-study/data/processed/AIID_data.RData")
+load("~/git/AIID-study/data/processed/AIID_data.RData") # take data directly from the AIID repo. https://github.com/ianhussey/AIID-study-public 
 #load("~/git/AIID-study/data/subsets/AIID_subset_exploratory.RData")
 
 # trim data 
@@ -80,7 +82,7 @@ data_AIID_trimmed <- AIID_data %>%
                 soc_pe1, soc_pe2, soc_pe3, soc_pe4, soc_pe5, soc_pe6, soc_pe7, soc_pe8, soc_pe9, soc_pe10)
 
 # save to disk
-write_rds(data_AIID_trimmed, "../../data/intermediary/data_AIID_trimmed.rds", compress = "gz")
+write_rds(data_AIID_trimmed, "../../../data/raw/aiid/data_AIID_trimmed.rds", compress = "gz")
 
 ```
 

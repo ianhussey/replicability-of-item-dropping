@@ -47,9 +47,9 @@ round_df <- function(df, digits) {
 
 ```{r}
 
-data_nested_single_timepoint <- read_rds("../../data/processed/data_nested_single_timepoint.rds")
+data_nested_single_timepoint <- read_rds("../../../data/processed/aiid/data_nested_single_timepoint.rds")
 
-data_drop_decisions_no_data <- read_rds("../../data/processed/data_drop_decisions_no_data.rds") |>
+data_drop_decisions_no_data <- read_rds("../../../data/processed/aiid/data_drop_decisions_no_data.rds") |>
   rename(sample_size = subset_n_per_split) |>
   mutate(sample_size                   = as.factor(sample_size),
          match_item_if_dropped         = as.factor(match_item_if_dropped),
@@ -132,7 +132,7 @@ p_freq <-
 
 p_freq
 
-ggsave(filename  = "../plots/plot_drop_recommendation_frequencies.pdf",
+ggsave(filename  = "../../../communication/plots/plot_drop_recommendation_frequencies_aiid.pdf",
        plot      = p_freq,
        device    = "pdf",
        units     = "in",
@@ -169,7 +169,7 @@ tab_model(fit)
 
 # marginal means
 results_estimates <- fit |>
-  marginalmeans(variables = c("sample_size", "strategy"), interaction = TRUE) |>
+  marginalmeans(variables = c("sample_size", "strategy"), cross = TRUE) |>
   select(sample_size, strategy, marginalmean, ci_lower = conf.low, ci_upper = conf.high)
 
 ```
@@ -206,7 +206,7 @@ plot_replication <-
 
 plot_replication
 
-ggsave(filename  = "../plots/plot_replication_rate.pdf",
+ggsave(filename  = "../../../communication/plots/plot_replication_rate_aiid.pdf",
        plot      = plot_replication,
        device    = cairo_pdf, # for greek letters
        units     = "in",

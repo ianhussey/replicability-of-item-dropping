@@ -11,6 +11,8 @@ output:
     toc_float: yes
 ---
 
+Outputs are data frames containing the drop decisions for analysis.
+
 ```{r, include=FALSE}
 knitr::opts_chunk$set(message=FALSE,
                       warning=FALSE)
@@ -45,7 +47,7 @@ set.seed(42)
 
 ```{r}
 
-data_nested_single_timepoint <- read_rds("../../data/processed/data_nested_single_timepoint.rds")
+data_nested_single_timepoint <- read_rds("../../../data/processed/aiid/data_nested_single_timepoint.rds")
 
 ```
 
@@ -53,9 +55,9 @@ data_nested_single_timepoint <- read_rds("../../data/processed/data_nested_singl
 
 ```{r}
 
-if(file.exists("../../data/intermediary/data_replications.rds")){
+if(file.exists("../../../data/processed/aiid/data_replications.rds")){
   
-  data_replications <- read_rds("../../data/intermediary/data_replications.rds")
+  data_replications <- read_rds("../../../data/processed/aiid/data_replications.rds")
   
 } else {
   
@@ -133,7 +135,7 @@ if(file.exists("../../data/intermediary/data_replications.rds")){
               data_nested_single_timepoint_250,
               data_nested_single_timepoint_500)
   
-  write_rds(data_replications, "../../data/intermediary/data_replications.rds", compress = "gz")
+  write_rds(data_replications, "../../../data/processed/aiid/data_replications.rds", compress = "gz")
   
 }
 
@@ -143,11 +145,11 @@ if(file.exists("../../data/intermediary/data_replications.rds")){
 
 ```{r}
 
-if(file.exists("../../data/processed/data_drop_decisions.rds") & 
-   file.exists("../../data/processed/data_drop_decisions_no_data.rds")){
+if(file.exists("../../../data/processed/aiid/data_drop_decisions.rds") & 
+   file.exists("../../../data/processed/aiid/data_drop_decisions_no_data.rds")){
   
-  data_drop_decisions <- read_rds("../../data/processed/data_drop_decisions.rds")
-  data_drop_decisions_no_data <- read_rds("../../data/processed/data_drop_decisions_no_data.rds")
+  data_drop_decisions <- read_rds("../../../data/processed/aiid/data_drop_decisions.rds")
+  data_drop_decisions_no_data <- read_rds("../../../data/processed/aiid/data_drop_decisions_no_data.rds")
   
   } else {
   
@@ -206,20 +208,19 @@ if(file.exists("../../data/processed/data_drop_decisions.rds") &
   #          alpha_b_improved = alpha_b_diff > 0)
   
   write_rds(data_drop_decisions, 
-            "../../data/processed/data_drop_decisions.rds", 
+            "../../../data/processed/aiid/data_drop_decisions.rds", 
             compress = "gz")
   
   data_drop_decisions_no_data <- data_drop_decisions |>
     select(-data_subset_a, -data_subset_b)
   
   write_rds(data_drop_decisions_no_data, 
-            "../../data/processed/data_drop_decisions_no_data.rds", 
+            "../../../data/processed/aiid/data_drop_decisions_no_data.rds", 
             compress = "gz")
   
 }
 
 ```
-
 
 # Session info
 

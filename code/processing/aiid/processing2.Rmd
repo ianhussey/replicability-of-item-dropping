@@ -11,6 +11,8 @@ output:
     toc_float: yes
 ---
 
+Outputs are lists of data frames, each resampled from the full dataset.
+
 ```{r, include=FALSE}
 knitr::opts_chunk$set(message=FALSE,
                       warning=FALSE,
@@ -49,7 +51,7 @@ set.seed(42)
 ```{r}
 
 # get data
-data_AIID_trimmed <- read_rds("../../data/intermediary/data_AIID_trimmed.rds")
+data_AIID_trimmed <- read_rds("../../../data/raw/aiid/data_AIID_trimmed.rds")
 
 # trim to include only the first time point per user_id per scale
 # ie exclude repeat participation on the same scale
@@ -166,8 +168,8 @@ data_nested_single_timepoint <-
 
 ```{r}
 
-write_rds(data_first_timepoint, "../../data/processed/data_first_timepoint.rds", compress = "gz")
-write_rds(data_nested_single_timepoint, "../../data/processed/data_nested_single_timepoint.rds")
+write_rds(data_first_timepoint, "../../../data/processed/aiid/data_first_timepoint.rds", compress = "gz")
+write_rds(data_nested_single_timepoint, "../../../data/processed/aiid/data_nested_single_timepoint.rds")
 
 ```
 
