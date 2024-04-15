@@ -315,47 +315,59 @@ subset_data <- function(data, string){
     drop_na()
 }
 
-# aggr
+# aggr 
 # ambig
 # bas
-# bfi_a
-# bfi_c
-# bfi_e
-# bfi_n
-# bfi_o
-# bis
+# bfi_a 
+# bfi_c 
+# bfi_e 
+# bfi_n 
+# bfi_o 
+# bis 
 # curi
-# doc
-# dogma
-# dt
-# empa
-# er
+# doc 
+# dogma 
+# dtmach 
+# dtnarc 
+# dtpsyc 
+# empa 
+# empec
+# empf 
+# emppd
+# emppt
+# erreap
+# ersup 
 # flour
 # gratit
 # grit
 # hope
-# imp
+# imp 
 # ip_a
 # ip_c
-# ip_e
-# ip_n
-# ip_o
+# ip_e 
+# ip_n 
+# ip_o 
 # iuncr
-# lone
-# mlpres
-# mndfn
-# nfc
-# nfs
-# opt
+# lone 
+# mlpres 
+# mlsrch 
+# mndfn 
+# nfc 
+# nfs 
+# opt 
 # pain
-# pwb
-# satwl
+# pwb 
+# satwl 
 # scomp
+# scont 
+# scpri 
+# scpub 
+# scsanx
 # seff
 # sest
 # smast
-# ss
-# vital
+# ss 
+# vital 
 # worry
 
 data_aggr <- subset_data(data_processed_itemlevel, "aggr")
@@ -370,9 +382,16 @@ data_bis <- subset_data(data_processed_itemlevel, "bis")
 data_curi <- subset_data(data_processed_itemlevel, "curi")
 data_doc <- subset_data(data_processed_itemlevel, "doc")
 data_dogma <- subset_data(data_processed_itemlevel, "dogma")
-data_dt <- subset_data(data_processed_itemlevel, "dt")
+data_dtmach <- subset_data(data_processed_itemlevel, "dtmach")
+data_dtnarc <- subset_data(data_processed_itemlevel, "dtnarc")
+data_dtpsyc <- subset_data(data_processed_itemlevel, "dtpsyc")
 data_empa <- subset_data(data_processed_itemlevel, "empa")
-data_er <- subset_data(data_processed_itemlevel, "er")
+data_empec <- subset_data(data_processed_itemlevel, "empec")
+data_empf <- subset_data(data_processed_itemlevel, "empf")
+data_emppd <- subset_data(data_processed_itemlevel, "emppd")
+data_emppt <- subset_data(data_processed_itemlevel, "emppt")
+data_erreap <- subset_data(data_processed_itemlevel, "erreap")
+data_ersup <- subset_data(data_processed_itemlevel, "ersup")
 data_flour <- subset_data(data_processed_itemlevel, "flour")
 data_gratit <- subset_data(data_processed_itemlevel, "gratit")
 data_grit <- subset_data(data_processed_itemlevel, "grit")
@@ -386,6 +405,7 @@ data_ip_o <- subset_data(data_processed_itemlevel, "ip_o")
 data_iuncr <- subset_data(data_processed_itemlevel, "iuncr")
 data_lone <- subset_data(data_processed_itemlevel, "lone")
 data_mlpres <- subset_data(data_processed_itemlevel, "mlpres")
+data_mlsrch <- subset_data(data_processed_itemlevel, "mlsrch")
 data_mndfn <- subset_data(data_processed_itemlevel, "mndfn")
 data_nfc <- subset_data(data_processed_itemlevel, "nfc")
 data_nfs <- subset_data(data_processed_itemlevel, "nfs")
@@ -394,6 +414,10 @@ data_pain <- subset_data(data_processed_itemlevel, "pain")
 data_pwb <- subset_data(data_processed_itemlevel, "pwb")
 data_satwl <- subset_data(data_processed_itemlevel, "satwl")
 data_scomp <- subset_data(data_processed_itemlevel, "scomp")
+data_scont <- subset_data(data_processed_itemlevel, "scont")
+data_scpri <- subset_data(data_processed_itemlevel, "scpri")
+data_scpub <- subset_data(data_processed_itemlevel, "scpub")
+data_scsanx <- subset_data(data_processed_itemlevel, "scsanx")
 data_seff <- subset_data(data_processed_itemlevel, "seff")
 data_sest <- subset_data(data_processed_itemlevel, "sest")
 data_smast <- subset_data(data_processed_itemlevel, "smast")
@@ -407,18 +431,25 @@ data_nested <-
     nest(data_aggr, data = everything()),
     nest(data_ambig, data = everything()),
     nest(data_bas, data = everything()),
-    nest(data_bis, data = everything()),
     nest(data_bfi_a, data = everything()),
     nest(data_bfi_c, data = everything()),
     nest(data_bfi_e, data = everything()),
     nest(data_bfi_n, data = everything()),
     nest(data_bfi_o, data = everything()),
+    nest(data_bis, data = everything()),
     nest(data_curi, data = everything()),
     nest(data_doc, data = everything()),
     nest(data_dogma, data = everything()),
-    nest(data_dt, data = everything()),
+    nest(data_dtmach, data = everything()),
+    nest(data_dtnarc, data = everything()),
+    nest(data_dtpsyc, data = everything()),
     nest(data_empa, data = everything()),
-    nest(data_er, data = everything()),
+    nest(data_empec, data = everything()),
+    nest(data_empf, data = everything()),
+    nest(data_emppd, data = everything()),
+    nest(data_emppt, data = everything()),
+    nest(data_erreap, data = everything()),
+    nest(data_ersup, data = everything()),
     nest(data_flour, data = everything()),
     nest(data_gratit, data = everything()),
     nest(data_grit, data = everything()),
@@ -432,6 +463,7 @@ data_nested <-
     nest(data_iuncr, data = everything()),
     nest(data_lone, data = everything()),
     nest(data_mlpres, data = everything()),
+    nest(data_mlsrch, data = everything()),
     nest(data_mndfn, data = everything()),
     nest(data_nfc, data = everything()),
     nest(data_nfs, data = everything()),
@@ -440,6 +472,10 @@ data_nested <-
     nest(data_pwb, data = everything()),
     nest(data_satwl, data = everything()),
     nest(data_scomp, data = everything()),
+    nest(data_scont, data = everything()),
+    nest(data_scpri, data = everything()),
+    nest(data_scpub, data = everything()),
+    nest(data_scsanx, data = everything()),
     nest(data_seff, data = everything()),
     nest(data_sest, data = everything()),
     nest(data_smast, data = everything()),
@@ -447,11 +483,7 @@ data_nested <-
     nest(data_vital, data = everything()),
     nest(data_worry, data = everything())
   ) |>
-  mutate(scale = c("aggr", "ambig", "bas", "bfi_a", "bfi_c", "bfi_e", "bfi_n", "bfi_o", "bis", "curi", 
-                   "doc", "dogma", "dt", "empa", "er", "flour", "gratit", "grit", "hope", 
-                   "imp", "ip_a", "ip_c", "ip_e", "ip_n", "ip_o", "iuncr", "lone", "mlpres", "mndfn", 
-                   "nfc", "nfs", "opt", "pain", "pwb", "satwl", "scomp", "seff", "sest", 
-                   "smast", "ss", "vital", "worry")) |>
+  mutate(scale = c("aggr", "ambig", "bas", "bfi_a", "bfi_c", "bfi_e", "bfi_n", "bfi_o", "bis", "curi", "doc", "dogma", "dtmach", "dtnarc", "dtpsyc", "empa", "empec", "empf", "emppd", "emppt", "erreap", "ersup", "flour", "gratit", "grit", "hope", "imp", "ip_a", "ip_c", "ip_e", "ip_n", "ip_o", "iuncr", "lone", "mlpres", "mlsrch", "mndfn", "nfc", "nfs", "opt", "pain", "pwb", "satwl", "scomp", "scont", "scpri", "scpub", "scsanx", "seff", "sest", "smast", "ss", "vital", "worry")) |>
   select(scale, data)
 
 ```

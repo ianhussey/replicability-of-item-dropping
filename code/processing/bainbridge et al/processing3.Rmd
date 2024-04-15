@@ -149,7 +149,7 @@ if(file.exists("../../../data/processed/bainbridge et al/data_replications.rds")
 
 ```
 
-# Calculate alpha and drop decisions for each sample
+# Drop decisions
 
 ```{r}
 
@@ -161,7 +161,7 @@ if(file.exists("../../../data/processed/bainbridge et al/data_drop_decisions.rds
   
 } else {
   
-  item_to_drop <- function(data){
+    item_to_drop_cronbach <- function(data){
     
     res <- psych::alpha(data)
     
@@ -170,12 +170,29 @@ if(file.exists("../../../data/processed/bainbridge et al/data_drop_decisions.rds
     res$alpha.drop |>
       as_tibble(rownames = "item") |>
       filter(raw_alpha == max(raw_alpha)) |>
-      select(item_to_drop = item, alpha_if_dropped = raw_alpha) |>
+      select(item_to_drop = item, 
+             alpha_if_dropped = raw_alpha) |>
       mutate(alpha_full_scale = alpha_full_scale,
              item_to_drop_or_none = ifelse(alpha_full_scale >= alpha_if_dropped, "none", item_to_drop))
   }
   
-  alpha_if_given_item_dropped <- function(data, item_to_drop){
+  # alpha_if_given_item_dropped <- function(data, item_to_drop){
+  #   
+  #   res <- data |>
+  #     select(-{{item_to_drop}}) |>
+  #     psych::alpha()
+  #   
+  #   alpha <- as.numeric(res$total["raw_alpha"])
+  #   
+  #   return(alpha)
+  # }
+  
+  
+  item_to_drop_random <- function(data){
+    
+    item_to_drop <- data |>
+      colnames() |>
+      sample(1)
     
     res <- data |>
       select(-{{item_to_drop}}) |>
@@ -183,37 +200,101 @@ if(file.exists("../../../data/processed/bainbridge et al/data_drop_decisions.rds
     
     alpha <- as.numeric(res$total["raw_alpha"])
     
-    return(alpha)
+    results <- tibble(random_item_to_drop = item_to_drop, 
+                      alpha_if_random_dropped = alpha)
+    
+    return(results)
   }
   
-  data_drop_decisions <- data_replications |>
-    # subset A
-    mutate(alpha_a = possibly_future_map(data_subset_a, item_to_drop)) |>
-    unnest(alpha_a) |>
-    rename(item_to_drop_a         = item_to_drop,
-           item_to_drop_or_none_a = item_to_drop_or_none,
-           alpha_if_dropped_a     = alpha_if_dropped,
-           alpha_full_scale_a     = alpha_full_scale) |>
-    # subset B
-    mutate(alpha_b = possibly_future_map(data_subset_b, item_to_drop)) |>
-    unnest(alpha_b) |>
-    rename(item_to_drop_b         = item_to_drop,
-           item_to_drop_or_none_b = item_to_drop_or_none,
-           alpha_if_dropped_b     = alpha_if_dropped,
-           alpha_full_scale_b     = alpha_full_scale) |>
-    # compare
-    mutate(match_item_if_dropped = item_to_drop_a == item_to_drop_b,
-           match_item_if_dropped_or_none = item_to_drop_or_none_a == item_to_drop_or_none_b) 
-  # # out of sample comparisons
-  # |>
-  #   mutate(alpha_if_a_recommendation_dropped_b = 
-  #            furrr::future_map2(data_subset_b, 
-  #                               item_to_drop_a,
-  #                               alpha_if_given_item_dropped,
-  #                               .options = furrr_options(seed = TRUE))) |>
-  #   mutate(alpha_if_a_recommendation_dropped_b = as.numeric(alpha_if_a_recommendation_dropped_b),
-  #          alpha_b_diff = alpha_full_scale_b - alpha_if_a_recommendation_dropped_b,
-  #          alpha_b_improved = alpha_b_diff > 0)
+  
+  item_to_drop_full_scale_correlation <- function(data){
+    
+    dat <- data |>
+      rownames_to_column(var = "id")
+    
+    mean_scores <- dat |>
+      pivot_longer(cols = -id,
+                   names_to = "item",
+                   values_to = "response") |>
+      group_by(id) |>
+      summarize(mean_score = mean(response), .groups = "drop")
+    
+    dat_with_sum_scores <- 
+      full_join(mean_scores, dat, by = "id") |>
+      select(-id)
+    
+    data.frame(r = cor(dat_with_sum_scores)[1,]) |>
+      rownames_to_column(var = "item") |>
+      filter(item != "mean_score") |>
+      arrange(r) |>
+      slice(1:1) |>
+      select(item_to_drop_fullscalecorrelation = item)
+  }
+  
+  
+  drop_decisions_workflow <- function(data){
+    
+    data |>
+      # subset A
+      mutate(alpha_a = furrr::future_map(data_subset_a, 
+                                         item_to_drop_cronbach,
+                                         .options = furrr_options(seed = TRUE))) |>
+      unnest(alpha_a) |>
+      rename(item_to_drop_a         = item_to_drop,
+             item_to_drop_or_none_a = item_to_drop_or_none,
+             alpha_if_dropped_a     = alpha_if_dropped,
+             alpha_full_scale_a     = alpha_full_scale) |>
+      # subset B
+      mutate(alpha_b = furrr::future_map(data_subset_b,
+                                         item_to_drop_cronbach,
+                                         .options = furrr_options(seed = TRUE))) |>
+      unnest(alpha_b) |>
+      rename(item_to_drop_b         = item_to_drop,
+             item_to_drop_or_none_b = item_to_drop_or_none,
+             alpha_if_dropped_b     = alpha_if_dropped,
+             alpha_full_scale_b     = alpha_full_scale) |>
+      # compare
+      mutate(match_item_if_dropped = item_to_drop_a == item_to_drop_b,
+             match_item_if_dropped_or_none = item_to_drop_or_none_a == item_to_drop_or_none_b) |>
+      #   # # out of sample comparisons
+      #   # |>
+      #   #   mutate(alpha_if_a_recommendation_dropped_b = 
+      #   #            furrr::future_map2(data_subset_b, 
+      #   #                               item_to_drop_a,
+      #   #                               alpha_if_given_item_dropped,
+      #   #                               .options = furrr_options(seed = TRUE))) |>
+      #   #   mutate(alpha_if_a_recommendation_dropped_b = as.numeric(alpha_if_a_recommendation_dropped_b),
+      #   #          alpha_b_diff = alpha_full_scale_b - alpha_if_a_recommendation_dropped_b,
+      #   #          alpha_b_improved = alpha_b_diff > 0)
+      # alpha if random item dropped
+      mutate(alpha_random_a = furrr::future_map(data_subset_a,
+                                                item_to_drop_random,
+                                                .options = furrr_options(seed = TRUE))) |>
+      unnest(alpha_random_a) |>
+      rename(item_to_drop_random_a     = random_item_to_drop,
+             alpha_if_random_dropped_a = alpha_if_random_dropped) |>
+      # subset B
+      mutate(alpha_random_b = furrr::future_map(data_subset_b,
+                                                item_to_drop_random,
+                                                .options = furrr_options(seed = TRUE))) |>
+      unnest(alpha_random_b) |>
+      rename(item_to_drop_random_b     = random_item_to_drop,
+             alpha_if_random_dropped_b = alpha_if_random_dropped) |>
+      # compare
+      mutate(match_item_if_random_dropped = item_to_drop_random_a == item_to_drop_random_b) |>
+
+      # drop recommendation based on correlation item with lowset correlation with full scale 
+      mutate(fullscalecorrelation_a = furrr::future_map(data_subset_a,
+                                                        item_to_drop_full_scale_correlation,
+                                                        .options = furrr_options(seed = TRUE))) |>
+      unnest(fullscalecorrelation_a) |>
+      rename(item_to_drop_fullscalecorrelation_a = item_to_drop_fullscalecorrelation) |>
+      # compare
+      mutate(match_item_if_fullscalecorrelation_dropped = item_to_drop_random_a == item_to_drop_fullscalecorrelation_a) |>
+      
+      # drop data columns
+      select(-data, -data_subset_a, -data_subset_b)
+  }
   
   write_rds(data_drop_decisions, 
             "../../../data/processed/bainbridge et al/data_drop_decisions.rds", 

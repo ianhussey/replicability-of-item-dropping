@@ -11,7 +11,7 @@
 
 <meta name="author" content="Ian Hussey" />
 
-<meta name="date" content="2023-03-02" />
+<meta name="date" content="2023-03-03" />
 
 <title>Replicability of item dropping</title>
 
@@ -1669,7 +1669,7 @@ border-radius: 0px;
 
 <h1 class="title toc-ignore">Replicability of item dropping</h1>
 <h4 class="author">Ian Hussey</h4>
-<h4 class="date">02 March 2023</h4>
+<h4 class="date">03 March 2023</h4>
 
 </div>
 
@@ -1958,144 +1958,176 @@ dataset.</p>
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">drop_na</span>()</span>
 <span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co"># aggr</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co"># aggr </span></span>
 <span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="co"># ambig</span></span>
 <span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="co"># bas</span></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="co"># bfi_a</span></span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="co"># bfi_c</span></span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="co"># bfi_e</span></span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="co"># bfi_n</span></span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="co"># bfi_o</span></span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="co"># bis</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="co"># bfi_a </span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="co"># bfi_c </span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="co"># bfi_e </span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="co"># bfi_n </span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="co"># bfi_o </span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="co"># bis </span></span>
 <span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a><span class="co"># curi</span></span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="co"># doc</span></span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a><span class="co"># dogma</span></span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a><span class="co"># dt</span></span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a><span class="co"># empa</span></span>
-<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a><span class="co"># er</span></span>
-<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a><span class="co"># flour</span></span>
-<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a><span class="co"># gratit</span></span>
-<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a><span class="co"># grit</span></span>
-<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a><span class="co"># hope</span></span>
-<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a><span class="co"># imp</span></span>
-<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a><span class="co"># ip_a</span></span>
-<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a><span class="co"># ip_c</span></span>
-<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a><span class="co"># ip_e</span></span>
-<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a><span class="co"># ip_n</span></span>
-<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a><span class="co"># ip_o</span></span>
-<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a><span class="co"># iuncr</span></span>
-<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a><span class="co"># lone</span></span>
-<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a><span class="co"># mlpres</span></span>
-<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a><span class="co"># mndfn</span></span>
-<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a><span class="co"># nfc</span></span>
-<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a><span class="co"># nfs</span></span>
-<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a><span class="co"># opt</span></span>
-<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a><span class="co"># pain</span></span>
-<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a><span class="co"># pwb</span></span>
-<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a><span class="co"># satwl</span></span>
-<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a><span class="co"># scomp</span></span>
-<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a><span class="co"># seff</span></span>
-<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a><span class="co"># sest</span></span>
-<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a><span class="co"># smast</span></span>
-<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a><span class="co"># ss</span></span>
-<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a><span class="co"># vital</span></span>
-<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a><span class="co"># worry</span></span>
-<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a>data_aggr <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;aggr&quot;</span>)</span>
-<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>data_ambig <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;ambig&quot;</span>)</span>
-<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>data_bas <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;bas&quot;</span>)</span>
-<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>data_bfi_a <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;bfi_a&quot;</span>)</span>
-<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>data_bfi_c <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;bfi_c&quot;</span>)</span>
-<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>data_bfi_e <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;bfi_e&quot;</span>)</span>
-<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>data_bfi_n <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;bfi_n&quot;</span>)</span>
-<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a>data_bfi_o <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;bfi_o&quot;</span>)</span>
-<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a>data_bis <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;bis&quot;</span>)</span>
-<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a>data_curi <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;curi&quot;</span>)</span>
-<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a>data_doc <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;doc&quot;</span>)</span>
-<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a>data_dogma <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;dogma&quot;</span>)</span>
-<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a>data_dt <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;dt&quot;</span>)</span>
-<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a>data_empa <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;empa&quot;</span>)</span>
-<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a>data_er <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;er&quot;</span>)</span>
-<span id="cb4-65"><a href="#cb4-65" aria-hidden="true" tabindex="-1"></a>data_flour <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;flour&quot;</span>)</span>
-<span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a>data_gratit <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;gratit&quot;</span>)</span>
-<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a>data_grit <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;grit&quot;</span>)</span>
-<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a>data_hope <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;hope&quot;</span>)</span>
-<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a>data_imp <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;imp&quot;</span>)</span>
-<span id="cb4-70"><a href="#cb4-70" aria-hidden="true" tabindex="-1"></a>data_ip_a <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;ip_a&quot;</span>)</span>
-<span id="cb4-71"><a href="#cb4-71" aria-hidden="true" tabindex="-1"></a>data_ip_c <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;ip_c&quot;</span>)</span>
-<span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a>data_ip_e <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;ip_e&quot;</span>)</span>
-<span id="cb4-73"><a href="#cb4-73" aria-hidden="true" tabindex="-1"></a>data_ip_n <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;ip_n&quot;</span>)</span>
-<span id="cb4-74"><a href="#cb4-74" aria-hidden="true" tabindex="-1"></a>data_ip_o <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;ip_o&quot;</span>)</span>
-<span id="cb4-75"><a href="#cb4-75" aria-hidden="true" tabindex="-1"></a>data_iuncr <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;iuncr&quot;</span>)</span>
-<span id="cb4-76"><a href="#cb4-76" aria-hidden="true" tabindex="-1"></a>data_lone <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;lone&quot;</span>)</span>
-<span id="cb4-77"><a href="#cb4-77" aria-hidden="true" tabindex="-1"></a>data_mlpres <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;mlpres&quot;</span>)</span>
-<span id="cb4-78"><a href="#cb4-78" aria-hidden="true" tabindex="-1"></a>data_mndfn <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;mndfn&quot;</span>)</span>
-<span id="cb4-79"><a href="#cb4-79" aria-hidden="true" tabindex="-1"></a>data_nfc <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;nfc&quot;</span>)</span>
-<span id="cb4-80"><a href="#cb4-80" aria-hidden="true" tabindex="-1"></a>data_nfs <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;nfs&quot;</span>)</span>
-<span id="cb4-81"><a href="#cb4-81" aria-hidden="true" tabindex="-1"></a>data_opt <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;opt&quot;</span>)</span>
-<span id="cb4-82"><a href="#cb4-82" aria-hidden="true" tabindex="-1"></a>data_pain <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;pain&quot;</span>)</span>
-<span id="cb4-83"><a href="#cb4-83" aria-hidden="true" tabindex="-1"></a>data_pwb <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;pwb&quot;</span>)</span>
-<span id="cb4-84"><a href="#cb4-84" aria-hidden="true" tabindex="-1"></a>data_satwl <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;satwl&quot;</span>)</span>
-<span id="cb4-85"><a href="#cb4-85" aria-hidden="true" tabindex="-1"></a>data_scomp <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;scomp&quot;</span>)</span>
-<span id="cb4-86"><a href="#cb4-86" aria-hidden="true" tabindex="-1"></a>data_seff <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;seff&quot;</span>)</span>
-<span id="cb4-87"><a href="#cb4-87" aria-hidden="true" tabindex="-1"></a>data_sest <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;sest&quot;</span>)</span>
-<span id="cb4-88"><a href="#cb4-88" aria-hidden="true" tabindex="-1"></a>data_smast <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;smast&quot;</span>)</span>
-<span id="cb4-89"><a href="#cb4-89" aria-hidden="true" tabindex="-1"></a>data_ss <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;ss&quot;</span>)</span>
-<span id="cb4-90"><a href="#cb4-90" aria-hidden="true" tabindex="-1"></a>data_vital <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;vital&quot;</span>)</span>
-<span id="cb4-91"><a href="#cb4-91" aria-hidden="true" tabindex="-1"></a>data_worry <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;worry&quot;</span>)</span>
-<span id="cb4-92"><a href="#cb4-92" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-93"><a href="#cb4-93" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-94"><a href="#cb4-94" aria-hidden="true" tabindex="-1"></a>data_nested <span class="ot">&lt;-</span> </span>
-<span id="cb4-95"><a href="#cb4-95" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>(</span>
-<span id="cb4-96"><a href="#cb4-96" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_aggr, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-97"><a href="#cb4-97" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_ambig, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-98"><a href="#cb4-98" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_bas, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-99"><a href="#cb4-99" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_bis, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-100"><a href="#cb4-100" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_bfi_a, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-101"><a href="#cb4-101" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_bfi_c, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-102"><a href="#cb4-102" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_bfi_e, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-103"><a href="#cb4-103" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_bfi_n, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-104"><a href="#cb4-104" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_bfi_o, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-105"><a href="#cb4-105" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_curi, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-106"><a href="#cb4-106" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_doc, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-107"><a href="#cb4-107" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_dogma, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-108"><a href="#cb4-108" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_dt, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-109"><a href="#cb4-109" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_empa, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-110"><a href="#cb4-110" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_er, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-111"><a href="#cb4-111" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_flour, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-112"><a href="#cb4-112" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_gratit, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-113"><a href="#cb4-113" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_grit, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-114"><a href="#cb4-114" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_hope, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-115"><a href="#cb4-115" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_imp, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-116"><a href="#cb4-116" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_ip_a, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-117"><a href="#cb4-117" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_ip_c, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-118"><a href="#cb4-118" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_ip_e, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-119"><a href="#cb4-119" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_ip_n, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-120"><a href="#cb4-120" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_ip_o, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-121"><a href="#cb4-121" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_iuncr, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-122"><a href="#cb4-122" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_lone, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-123"><a href="#cb4-123" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_mlpres, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-124"><a href="#cb4-124" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_mndfn, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-125"><a href="#cb4-125" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_nfc, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-126"><a href="#cb4-126" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_nfs, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-127"><a href="#cb4-127" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_opt, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-128"><a href="#cb4-128" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_pain, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-129"><a href="#cb4-129" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_pwb, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-130"><a href="#cb4-130" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_satwl, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-131"><a href="#cb4-131" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_scomp, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-132"><a href="#cb4-132" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_seff, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-133"><a href="#cb4-133" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_sest, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-134"><a href="#cb4-134" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_smast, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-135"><a href="#cb4-135" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_ss, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-136"><a href="#cb4-136" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_vital, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
-<span id="cb4-137"><a href="#cb4-137" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_worry, <span class="at">data =</span> <span class="fu">everything</span>())</span>
-<span id="cb4-138"><a href="#cb4-138" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
-<span id="cb4-139"><a href="#cb4-139" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">scale =</span> <span class="fu">c</span>(<span class="st">&quot;aggr&quot;</span>, <span class="st">&quot;ambig&quot;</span>, <span class="st">&quot;bas&quot;</span>, <span class="st">&quot;bfi_a&quot;</span>, <span class="st">&quot;bfi_c&quot;</span>, <span class="st">&quot;bfi_e&quot;</span>, <span class="st">&quot;bfi_n&quot;</span>, <span class="st">&quot;bfi_o&quot;</span>, <span class="st">&quot;bis&quot;</span>, <span class="st">&quot;curi&quot;</span>, </span>
-<span id="cb4-140"><a href="#cb4-140" aria-hidden="true" tabindex="-1"></a>                   <span class="st">&quot;doc&quot;</span>, <span class="st">&quot;dogma&quot;</span>, <span class="st">&quot;dt&quot;</span>, <span class="st">&quot;empa&quot;</span>, <span class="st">&quot;er&quot;</span>, <span class="st">&quot;flour&quot;</span>, <span class="st">&quot;gratit&quot;</span>, <span class="st">&quot;grit&quot;</span>, <span class="st">&quot;hope&quot;</span>, </span>
-<span id="cb4-141"><a href="#cb4-141" aria-hidden="true" tabindex="-1"></a>                   <span class="st">&quot;imp&quot;</span>, <span class="st">&quot;ip_a&quot;</span>, <span class="st">&quot;ip_c&quot;</span>, <span class="st">&quot;ip_e&quot;</span>, <span class="st">&quot;ip_n&quot;</span>, <span class="st">&quot;ip_o&quot;</span>, <span class="st">&quot;iuncr&quot;</span>, <span class="st">&quot;lone&quot;</span>, <span class="st">&quot;mlpres&quot;</span>, <span class="st">&quot;mndfn&quot;</span>, </span>
-<span id="cb4-142"><a href="#cb4-142" aria-hidden="true" tabindex="-1"></a>                   <span class="st">&quot;nfc&quot;</span>, <span class="st">&quot;nfs&quot;</span>, <span class="st">&quot;opt&quot;</span>, <span class="st">&quot;pain&quot;</span>, <span class="st">&quot;pwb&quot;</span>, <span class="st">&quot;satwl&quot;</span>, <span class="st">&quot;scomp&quot;</span>, <span class="st">&quot;seff&quot;</span>, <span class="st">&quot;sest&quot;</span>, </span>
-<span id="cb4-143"><a href="#cb4-143" aria-hidden="true" tabindex="-1"></a>                   <span class="st">&quot;smast&quot;</span>, <span class="st">&quot;ss&quot;</span>, <span class="st">&quot;vital&quot;</span>, <span class="st">&quot;worry&quot;</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb4-144"><a href="#cb4-144" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(scale, data)</span></code></pre></div>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="co"># doc </span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a><span class="co"># dogma </span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a><span class="co"># dtmach </span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a><span class="co"># dtnarc </span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a><span class="co"># dtpsyc </span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a><span class="co"># empa </span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a><span class="co"># empec</span></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a><span class="co"># empf </span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a><span class="co"># emppd</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a><span class="co"># emppt</span></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a><span class="co"># erreap</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a><span class="co"># ersup </span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a><span class="co"># flour</span></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a><span class="co"># gratit</span></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a><span class="co"># grit</span></span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a><span class="co"># hope</span></span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a><span class="co"># imp </span></span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a><span class="co"># ip_a</span></span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a><span class="co"># ip_c</span></span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a><span class="co"># ip_e </span></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a><span class="co"># ip_n </span></span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a><span class="co"># ip_o </span></span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a><span class="co"># iuncr</span></span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a><span class="co"># lone </span></span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a><span class="co"># mlpres </span></span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a><span class="co"># mlsrch </span></span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a><span class="co"># mndfn </span></span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a><span class="co"># nfc </span></span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a><span class="co"># nfs </span></span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a><span class="co"># opt </span></span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a><span class="co"># pain</span></span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a><span class="co"># pwb </span></span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a><span class="co"># satwl </span></span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a><span class="co"># scomp</span></span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a><span class="co"># scont </span></span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a><span class="co"># scpri </span></span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a><span class="co"># scpub </span></span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a><span class="co"># scsanx</span></span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a><span class="co"># seff</span></span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a><span class="co"># sest</span></span>
+<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a><span class="co"># smast</span></span>
+<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a><span class="co"># ss </span></span>
+<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a><span class="co"># vital </span></span>
+<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a><span class="co"># worry</span></span>
+<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a>data_aggr <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;aggr&quot;</span>)</span>
+<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a>data_ambig <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;ambig&quot;</span>)</span>
+<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a>data_bas <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;bas&quot;</span>)</span>
+<span id="cb4-65"><a href="#cb4-65" aria-hidden="true" tabindex="-1"></a>data_bfi_a <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;bfi_a&quot;</span>)</span>
+<span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a>data_bfi_c <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;bfi_c&quot;</span>)</span>
+<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a>data_bfi_e <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;bfi_e&quot;</span>)</span>
+<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a>data_bfi_n <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;bfi_n&quot;</span>)</span>
+<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a>data_bfi_o <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;bfi_o&quot;</span>)</span>
+<span id="cb4-70"><a href="#cb4-70" aria-hidden="true" tabindex="-1"></a>data_bis <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;bis&quot;</span>)</span>
+<span id="cb4-71"><a href="#cb4-71" aria-hidden="true" tabindex="-1"></a>data_curi <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;curi&quot;</span>)</span>
+<span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a>data_doc <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;doc&quot;</span>)</span>
+<span id="cb4-73"><a href="#cb4-73" aria-hidden="true" tabindex="-1"></a>data_dogma <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;dogma&quot;</span>)</span>
+<span id="cb4-74"><a href="#cb4-74" aria-hidden="true" tabindex="-1"></a>data_dtmach <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;dtmach&quot;</span>)</span>
+<span id="cb4-75"><a href="#cb4-75" aria-hidden="true" tabindex="-1"></a>data_dtnarc <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;dtnarc&quot;</span>)</span>
+<span id="cb4-76"><a href="#cb4-76" aria-hidden="true" tabindex="-1"></a>data_dtpsyc <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;dtpsyc&quot;</span>)</span>
+<span id="cb4-77"><a href="#cb4-77" aria-hidden="true" tabindex="-1"></a>data_empa <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;empa&quot;</span>)</span>
+<span id="cb4-78"><a href="#cb4-78" aria-hidden="true" tabindex="-1"></a>data_empec <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;empec&quot;</span>)</span>
+<span id="cb4-79"><a href="#cb4-79" aria-hidden="true" tabindex="-1"></a>data_empf <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;empf&quot;</span>)</span>
+<span id="cb4-80"><a href="#cb4-80" aria-hidden="true" tabindex="-1"></a>data_emppd <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;emppd&quot;</span>)</span>
+<span id="cb4-81"><a href="#cb4-81" aria-hidden="true" tabindex="-1"></a>data_emppt <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;emppt&quot;</span>)</span>
+<span id="cb4-82"><a href="#cb4-82" aria-hidden="true" tabindex="-1"></a>data_erreap <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;erreap&quot;</span>)</span>
+<span id="cb4-83"><a href="#cb4-83" aria-hidden="true" tabindex="-1"></a>data_ersup <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;ersup&quot;</span>)</span>
+<span id="cb4-84"><a href="#cb4-84" aria-hidden="true" tabindex="-1"></a>data_flour <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;flour&quot;</span>)</span>
+<span id="cb4-85"><a href="#cb4-85" aria-hidden="true" tabindex="-1"></a>data_gratit <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;gratit&quot;</span>)</span>
+<span id="cb4-86"><a href="#cb4-86" aria-hidden="true" tabindex="-1"></a>data_grit <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;grit&quot;</span>)</span>
+<span id="cb4-87"><a href="#cb4-87" aria-hidden="true" tabindex="-1"></a>data_hope <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;hope&quot;</span>)</span>
+<span id="cb4-88"><a href="#cb4-88" aria-hidden="true" tabindex="-1"></a>data_imp <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;imp&quot;</span>)</span>
+<span id="cb4-89"><a href="#cb4-89" aria-hidden="true" tabindex="-1"></a>data_ip_a <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;ip_a&quot;</span>)</span>
+<span id="cb4-90"><a href="#cb4-90" aria-hidden="true" tabindex="-1"></a>data_ip_c <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;ip_c&quot;</span>)</span>
+<span id="cb4-91"><a href="#cb4-91" aria-hidden="true" tabindex="-1"></a>data_ip_e <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;ip_e&quot;</span>)</span>
+<span id="cb4-92"><a href="#cb4-92" aria-hidden="true" tabindex="-1"></a>data_ip_n <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;ip_n&quot;</span>)</span>
+<span id="cb4-93"><a href="#cb4-93" aria-hidden="true" tabindex="-1"></a>data_ip_o <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;ip_o&quot;</span>)</span>
+<span id="cb4-94"><a href="#cb4-94" aria-hidden="true" tabindex="-1"></a>data_iuncr <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;iuncr&quot;</span>)</span>
+<span id="cb4-95"><a href="#cb4-95" aria-hidden="true" tabindex="-1"></a>data_lone <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;lone&quot;</span>)</span>
+<span id="cb4-96"><a href="#cb4-96" aria-hidden="true" tabindex="-1"></a>data_mlpres <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;mlpres&quot;</span>)</span>
+<span id="cb4-97"><a href="#cb4-97" aria-hidden="true" tabindex="-1"></a>data_mlsrch <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;mlsrch&quot;</span>)</span>
+<span id="cb4-98"><a href="#cb4-98" aria-hidden="true" tabindex="-1"></a>data_mndfn <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;mndfn&quot;</span>)</span>
+<span id="cb4-99"><a href="#cb4-99" aria-hidden="true" tabindex="-1"></a>data_nfc <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;nfc&quot;</span>)</span>
+<span id="cb4-100"><a href="#cb4-100" aria-hidden="true" tabindex="-1"></a>data_nfs <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;nfs&quot;</span>)</span>
+<span id="cb4-101"><a href="#cb4-101" aria-hidden="true" tabindex="-1"></a>data_opt <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;opt&quot;</span>)</span>
+<span id="cb4-102"><a href="#cb4-102" aria-hidden="true" tabindex="-1"></a>data_pain <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;pain&quot;</span>)</span>
+<span id="cb4-103"><a href="#cb4-103" aria-hidden="true" tabindex="-1"></a>data_pwb <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;pwb&quot;</span>)</span>
+<span id="cb4-104"><a href="#cb4-104" aria-hidden="true" tabindex="-1"></a>data_satwl <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;satwl&quot;</span>)</span>
+<span id="cb4-105"><a href="#cb4-105" aria-hidden="true" tabindex="-1"></a>data_scomp <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;scomp&quot;</span>)</span>
+<span id="cb4-106"><a href="#cb4-106" aria-hidden="true" tabindex="-1"></a>data_scont <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;scont&quot;</span>)</span>
+<span id="cb4-107"><a href="#cb4-107" aria-hidden="true" tabindex="-1"></a>data_scpri <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;scpri&quot;</span>)</span>
+<span id="cb4-108"><a href="#cb4-108" aria-hidden="true" tabindex="-1"></a>data_scpub <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;scpub&quot;</span>)</span>
+<span id="cb4-109"><a href="#cb4-109" aria-hidden="true" tabindex="-1"></a>data_scsanx <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;scsanx&quot;</span>)</span>
+<span id="cb4-110"><a href="#cb4-110" aria-hidden="true" tabindex="-1"></a>data_seff <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;seff&quot;</span>)</span>
+<span id="cb4-111"><a href="#cb4-111" aria-hidden="true" tabindex="-1"></a>data_sest <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;sest&quot;</span>)</span>
+<span id="cb4-112"><a href="#cb4-112" aria-hidden="true" tabindex="-1"></a>data_smast <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;smast&quot;</span>)</span>
+<span id="cb4-113"><a href="#cb4-113" aria-hidden="true" tabindex="-1"></a>data_ss <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;ss&quot;</span>)</span>
+<span id="cb4-114"><a href="#cb4-114" aria-hidden="true" tabindex="-1"></a>data_vital <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;vital&quot;</span>)</span>
+<span id="cb4-115"><a href="#cb4-115" aria-hidden="true" tabindex="-1"></a>data_worry <span class="ot">&lt;-</span> <span class="fu">subset_data</span>(data_processed_itemlevel, <span class="st">&quot;worry&quot;</span>)</span>
+<span id="cb4-116"><a href="#cb4-116" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-117"><a href="#cb4-117" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-118"><a href="#cb4-118" aria-hidden="true" tabindex="-1"></a>data_nested <span class="ot">&lt;-</span> </span>
+<span id="cb4-119"><a href="#cb4-119" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>(</span>
+<span id="cb4-120"><a href="#cb4-120" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_aggr, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-121"><a href="#cb4-121" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_ambig, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-122"><a href="#cb4-122" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_bas, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-123"><a href="#cb4-123" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_bfi_a, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-124"><a href="#cb4-124" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_bfi_c, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-125"><a href="#cb4-125" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_bfi_e, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-126"><a href="#cb4-126" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_bfi_n, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-127"><a href="#cb4-127" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_bfi_o, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-128"><a href="#cb4-128" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_bis, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-129"><a href="#cb4-129" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_curi, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-130"><a href="#cb4-130" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_doc, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-131"><a href="#cb4-131" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_dogma, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-132"><a href="#cb4-132" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_dtmach, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-133"><a href="#cb4-133" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_dtnarc, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-134"><a href="#cb4-134" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_dtpsyc, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-135"><a href="#cb4-135" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_empa, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-136"><a href="#cb4-136" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_empec, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-137"><a href="#cb4-137" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_empf, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-138"><a href="#cb4-138" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_emppd, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-139"><a href="#cb4-139" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_emppt, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-140"><a href="#cb4-140" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_erreap, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-141"><a href="#cb4-141" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_ersup, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-142"><a href="#cb4-142" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_flour, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-143"><a href="#cb4-143" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_gratit, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-144"><a href="#cb4-144" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_grit, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-145"><a href="#cb4-145" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_hope, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-146"><a href="#cb4-146" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_imp, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-147"><a href="#cb4-147" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_ip_a, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-148"><a href="#cb4-148" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_ip_c, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-149"><a href="#cb4-149" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_ip_e, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-150"><a href="#cb4-150" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_ip_n, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-151"><a href="#cb4-151" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_ip_o, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-152"><a href="#cb4-152" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_iuncr, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-153"><a href="#cb4-153" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_lone, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-154"><a href="#cb4-154" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_mlpres, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-155"><a href="#cb4-155" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_mlsrch, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-156"><a href="#cb4-156" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_mndfn, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-157"><a href="#cb4-157" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_nfc, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-158"><a href="#cb4-158" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_nfs, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-159"><a href="#cb4-159" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_opt, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-160"><a href="#cb4-160" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_pain, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-161"><a href="#cb4-161" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_pwb, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-162"><a href="#cb4-162" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_satwl, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-163"><a href="#cb4-163" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_scomp, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-164"><a href="#cb4-164" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_scont, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-165"><a href="#cb4-165" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_scpri, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-166"><a href="#cb4-166" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_scpub, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-167"><a href="#cb4-167" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_scsanx, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-168"><a href="#cb4-168" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_seff, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-169"><a href="#cb4-169" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_sest, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-170"><a href="#cb4-170" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_smast, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-171"><a href="#cb4-171" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_ss, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-172"><a href="#cb4-172" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_vital, <span class="at">data =</span> <span class="fu">everything</span>()),</span>
+<span id="cb4-173"><a href="#cb4-173" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nest</span>(data_worry, <span class="at">data =</span> <span class="fu">everything</span>())</span>
+<span id="cb4-174"><a href="#cb4-174" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb4-175"><a href="#cb4-175" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">scale =</span> <span class="fu">c</span>(<span class="st">&quot;aggr&quot;</span>, <span class="st">&quot;ambig&quot;</span>, <span class="st">&quot;bas&quot;</span>, <span class="st">&quot;bfi_a&quot;</span>, <span class="st">&quot;bfi_c&quot;</span>, <span class="st">&quot;bfi_e&quot;</span>, <span class="st">&quot;bfi_n&quot;</span>, <span class="st">&quot;bfi_o&quot;</span>, <span class="st">&quot;bis&quot;</span>, <span class="st">&quot;curi&quot;</span>, <span class="st">&quot;doc&quot;</span>, <span class="st">&quot;dogma&quot;</span>, <span class="st">&quot;dtmach&quot;</span>, <span class="st">&quot;dtnarc&quot;</span>, <span class="st">&quot;dtpsyc&quot;</span>, <span class="st">&quot;empa&quot;</span>, <span class="st">&quot;empec&quot;</span>, <span class="st">&quot;empf&quot;</span>, <span class="st">&quot;emppd&quot;</span>, <span class="st">&quot;emppt&quot;</span>, <span class="st">&quot;erreap&quot;</span>, <span class="st">&quot;ersup&quot;</span>, <span class="st">&quot;flour&quot;</span>, <span class="st">&quot;gratit&quot;</span>, <span class="st">&quot;grit&quot;</span>, <span class="st">&quot;hope&quot;</span>, <span class="st">&quot;imp&quot;</span>, <span class="st">&quot;ip_a&quot;</span>, <span class="st">&quot;ip_c&quot;</span>, <span class="st">&quot;ip_e&quot;</span>, <span class="st">&quot;ip_n&quot;</span>, <span class="st">&quot;ip_o&quot;</span>, <span class="st">&quot;iuncr&quot;</span>, <span class="st">&quot;lone&quot;</span>, <span class="st">&quot;mlpres&quot;</span>, <span class="st">&quot;mlsrch&quot;</span>, <span class="st">&quot;mndfn&quot;</span>, <span class="st">&quot;nfc&quot;</span>, <span class="st">&quot;nfs&quot;</span>, <span class="st">&quot;opt&quot;</span>, <span class="st">&quot;pain&quot;</span>, <span class="st">&quot;pwb&quot;</span>, <span class="st">&quot;satwl&quot;</span>, <span class="st">&quot;scomp&quot;</span>, <span class="st">&quot;scont&quot;</span>, <span class="st">&quot;scpri&quot;</span>, <span class="st">&quot;scpub&quot;</span>, <span class="st">&quot;scsanx&quot;</span>, <span class="st">&quot;seff&quot;</span>, <span class="st">&quot;sest&quot;</span>, <span class="st">&quot;smast&quot;</span>, <span class="st">&quot;ss&quot;</span>, <span class="st">&quot;vital&quot;</span>, <span class="st">&quot;worry&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb4-176"><a href="#cb4-176" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(scale, data)</span></code></pre></div>
 </div>
 </div>
 </div>

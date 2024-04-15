@@ -29,6 +29,7 @@ library(kableExtra)
 library(psych)
 library(lme4)
 library(sjPlot)
+library(scales)
 library(ggstance)
 library(marginaleffects)
 library(janitor)
@@ -40,6 +41,8 @@ library(Cairo)
 round_df <- function(df, digits) {
   mutate_if(df, is.numeric, janitor::round_half_up, digits = 2)
 }
+
+dir.create("models")
 
 ```
 
@@ -55,9 +58,51 @@ data_drop_decisions_no_data <- read_rds("../../../data/processed/aiid/data_drop_
          match_item_if_dropped         = as.factor(match_item_if_dropped),
          match_item_if_dropped_or_none = as.factor(match_item_if_dropped_or_none))
 
+n_items <- data_nested_single_timepoint |> 
+  mutate(n_items = map(data, ncol)) |>
+  select(-data)
+
 ```
 
 # Full sample metrics
+
+## Inter-item correlations
+
+```{r fig.height=5, fig.width=8}
+
+lower_half_of_cor_matrix <- function(data){
+  correlations <- cor(as.data.frame(data))
+  
+  correlations[upper.tri(correlations, diag = TRUE)] <- NA
+  
+  return(correlations)
+}
+
+inter_item_correlations <- data_nested_single_timepoint |> 
+  mutate(results = map(data, lower_half_of_cor_matrix)) |>
+  select(-data)
+
+# inter_item_correlations$results
+
+summary_inter_item_correlations <- inter_item_correlations |>
+  mutate(mean_correlation = as.numeric(map(results, mean, na.rm = TRUE)),
+         sd_correlation = as.numeric(map(results, sd, na.rm = TRUE)),
+         min_correlation = as.numeric(map(results, min, na.rm = TRUE)),
+         max_correlation = as.numeric(map(results, max, na.rm = TRUE))) |>
+  select(-results) |>
+  round_df() |>
+  mutate(scale = fct_reorder(scale, mean_correlation))
+
+ggplot(summary_inter_item_correlations, aes(mean_correlation, scale)) +
+  geom_linerangeh(aes(xmin = min_correlation, xmax = max_correlation)) +
+  geom_point() +
+  ylab("") +
+  xlab("Mean inter-item correlation\n(intervals are min and max)") +
+  theme_linedraw()
+
+```
+
+## Full scale Cronbach's $\alpha$
 
 These are already established scales, many of which are well known, with a reasonable range of Cronbach's $\alpha$ values when calculated in a large sample. The subsequent assessment of the replicability of item-dropping recommendations is therefore likely generalizable. 
 
@@ -77,7 +122,7 @@ results_overall |>
   select(scale, alpha = raw_alpha, n) |>
   round_df(2) |>
   kable() |>
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+  kable_classic(full_width = FALSE)
 
 results_overall |>
   select(scale, alpha = raw_alpha, n) |>
@@ -87,7 +132,7 @@ results_overall |>
             alpha_max      = max(alpha)) |>
   round_df(2) |>
   kable() |>
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+  kable_classic(full_width = FALSE)
 
 weighted_mean <- janitor::round_half_up(weighted.mean(results_overall$raw_alpha, results_overall$n), 2)
 
@@ -111,7 +156,7 @@ data_drop_decisions_no_data |>
   rename(n_distinct_items_with_drop_recommendations = n) |>
   left_join(data_n_items, by = "scale") |>
   kable() |>
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+  kable_classic(full_width = FALSE)
 
 p_freq <- 
   data_drop_decisions_no_data |>
@@ -144,25 +189,119 @@ ggsave(filename  = "../../../communication/plots/plot_drop_recommendation_freque
 
 # Replication rate of item-dropping recommendations
 
-Using multilevel logistic models
+## Observed rates
 
 Strategy 1: Drop one item based on max Cronbach's-$\alpha$-if-item-removed. I.e, item dropping was mandatory, even if the alpha in the retained items was lower than the full-scale $\alpha$. Recommendation in each sample could be item 1...item N.
 
 Strategy 2: Drop an item based on max Cronbach's-$\alpha$-if-item-removed if it is higher than the full-scale $\alpha$. I.e, item dropping was not mandatory if it didn't improve $\alpha$. Recommendation in each sample could be item 1...item N or no item dropped.
 
-```{r}
+```{r fig.height=5, fig.width=10}
 
 dat <- data_drop_decisions_no_data |>
-  select(scale, replication, sample_size, match_item_if_dropped, match_item_if_dropped_or_none, sample_size, scale) |>
+  select(scale, replication, sample_size, match_item_if_dropped, match_item_if_dropped_or_none) |>
   pivot_longer(names_to = "strategy",
                values_to = "replicated",
                cols = c(match_item_if_dropped, match_item_if_dropped_or_none))
 
-# fit model
-fit <- 
-  glmer(replicated ~ 1 + sample_size * strategy + (1 | scale),
-        family = binomial(link = "logit"),
-        data = dat)
+dat_replication_rate <- dat |>
+  group_by(scale, strategy, sample_size) |>
+  summarize(replication_rate = mean(as.logical(replicated))) |>
+  mutate(sample_size = paste0("N = ", sample_size),
+         sample_size = fct_relevel(sample_size, "N = 25", "N = 50", "N = 100", "N = 250", "N = 500")) 
+
+p1 <- 
+  ggplot(dat_replication_rate, aes(replication_rate, fct_rev(scale), color = strategy)) +
+  #geom_linerangeh(aes(xmin = conf.low, xmax = conf.high)) +
+  geom_point(position = position_dodge(width = 0.75), shape = "square") +
+  ylab("") +
+  facet_wrap(~ sample_size, nrow = 1) +
+  scale_color_viridis_d(option = "mako", begin = 0.3, end = 0.7,
+                        name = "Item dropping strategy",
+                        labels = c("Mandatory dropping", "Dropping only if it improves alpha"),
+                        guide = guide_legend(reverse = TRUE)) +
+  scale_x_continuous(breaks = breaks_width(.20), 
+                     limits = c(0,1)) +
+  theme_linedraw() +
+  theme(legend.position = "bottom") +
+  xlab("Replication rate")
+
+p1
+
+```
+
+```{r fig.height=5, fig.width=8}
+
+# dat_replication_rate_wide <- dat_replication_rate |>
+#   pivot_wider(names_from = strategy,
+#               values_from = replication_rate) |>
+#   mutate(diff = match_item_if_dropped - match_item_if_dropped_or_none) |>
+#   select(-match_item_if_dropped, -match_item_if_dropped_or_none)
+# 
+# dat_replication_rate_combined <- 
+#   left_join(dat_replication_rate, 
+#             dat_replication_rate_wide,
+#             by = join_by(scale, sample_size)) |>
+#   mutate(scale = fct_reorder(scale, diff))
+
+p2 <-
+  dat_replication_rate |>
+  filter(sample_size == "N = 500") |>
+  ggplot(aes(replication_rate, fct_rev(scale), color = strategy)) +
+  #geom_linerangeh(aes(xmin = conf.low, xmax = conf.high)) +
+  geom_point(position = position_dodge(width = 0.75), shape = "square") +
+  ylab("") +
+  scale_color_viridis_d(option = "mako", begin = 0.3, end = 0.7,
+                        name = "Item dropping strategy",
+                        labels = c("Mandatory dropping", "Dropping only if it improves alpha"),
+                        guide = guide_legend(reverse = TRUE)) +
+  scale_x_continuous(breaks = breaks_width(.20),
+                     limits = c(0,1)) +
+  theme_linedraw() +
+  theme(legend.position = "bottom") +
+  xlab("Replication rate")
+
+p2
+
+```
+
+## Model
+
+Using multilevel logistic models
+
+```{r}
+
+dat_with_n_items <- dat |>
+  left_join(n_items, by = "scale") |>
+  mutate(n_items = as.numeric(n_items),
+         n_items_squared = n_items^2,
+         scaled_n_items_squared = scale(n_items_squared))
+
+if(file.exists("models/fit.rds")){
+  
+  fit <- read_rds("models/fit.rds")
+  
+} else {
+  
+  fit <- 
+    glmer(replicated ~ 1 + sample_size * strategy + (1 | scale),
+          family = binomial(link = "logit"),
+          data = dat_with_n_items)
+  
+  # fit_n2 <- 
+  #   glmer(replicated ~ 1 + sample_size * strategy + scaled_n_items_squared + (1 | scale),
+  #         family = binomial(link = "logit"),
+  #         data = dat_with_n_items)
+  # 
+  # fit_n <- 
+  #   glmer(replicated ~ 1 + sample_size * strategy + scaled_n_items_squared + (1 | scale),
+  #         family = binomial(link = "logit"),
+  #         data = dat_with_n_items)
+  # 
+  # fit <- fit_n
+  
+  write_rds(fit, file = "models/fit.rds")
+  
+}
 
 # results table
 tab_model(fit)
@@ -174,7 +313,7 @@ results_estimates <- fit |>
 
 ```
 
-## Plot
+### Plot
 
 ```{r fig.height=4, fig.width=6}
 
@@ -206,7 +345,7 @@ plot_replication <-
 
 plot_replication
 
-ggsave(filename  = "../../../communication/plots/plot_replication_rate_aiid.pdf",
+ggsave(filename  = "../../../communication/plots/plot_replication_rate_aiid_covariate.pdf",
        plot      = plot_replication,
        device    = cairo_pdf, # for greek letters
        units     = "in",
@@ -216,7 +355,7 @@ ggsave(filename  = "../../../communication/plots/plot_replication_rate_aiid.pdf"
 
 ```
 
-## Table
+### Table
 
 ```{r}
 
@@ -225,7 +364,93 @@ results_estimates |>
   arrange(sample_size, strategy) |>
   select(strategy, sample_size, marginalmean, ci_lower, ci_upper) |>
   kable() |>
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+  kable_classic(full_width = FALSE)
+
+```
+
+# Impact of item dropping on alpha
+
+```{r}
+
+data_alpha_diffs <- data_drop_decisions_no_data |>
+  select(replication, scale, sample_size,
+         #alphaifdropped_a = alpha_if_dropped_a,
+         #alphafullscale_a = alpha_full_scale_a,
+         alpha_ifdropped = alpha_if_dropped_b,
+         alpha_fullscale = alpha_full_scale_b) |>
+  mutate(alpha_diff = alpha_ifdropped - alpha_fullscale,
+         sample_size_numeric = as.numeric(as.character(sample_size)))
+
+ggplot(data_alpha_diffs, aes(alpha_diff, color = sample_size)) +
+  geom_density() +
+  scale_colour_viridis_d(begin = 0.3, end = 0.7, option = "mako")
+
+```
+
+```{r}
+
+# fit_diff_mandatory <- 
+#   lmer(alpha_diff ~ 1 + sample_size + (1 | scale),
+#        data = data_alpha_diffs)
+# 
+# plot_model(fit_diff_mandatory, type = "pred")
+# 
+# 
+# fit_diff_conditional <- 
+#   data_alpha_diffs |>
+#   filter(alpha_diff > 0) |>
+#   lmer(alpha_diff ~ 1 + sample_size + (1 | scale),
+#        data = _)
+# 
+# plot_model(fit_diff_conditional, type = "pred")
+
+```
+
+```{r}
+
+intervals_all <- data_alpha_diffs |>
+  group_by(sample_size) |>
+  summarize(median = median(alpha_diff), 
+            lower_50_ci = quantile(alpha_diff, 0.25),
+            upper_50_ci = quantile(alpha_diff, 0.75),
+            lower_95_ci = quantile(alpha_diff, 0.025),
+            upper_95_ci = quantile(alpha_diff, 0.975)) 
+
+ggplot(intervals_all, aes(median, sample_size)) +
+  geom_vline(xintercept = 0, linetype = "dotted") +
+  geom_linerangeh(aes(xmin = lower_95_ci, xmax = upper_95_ci), size = 0.5) +
+  geom_linerangeh(aes(xmin = lower_50_ci, xmax = upper_50_ci), size = 1.0) +
+  geom_point() +
+  labs(x = "Difference in alpha between full and shortened scale",
+       y = "Sample size") +
+  scale_x_continuous(breaks = breaks_width(.01),
+                     limits = c(-0.015, 0.095)) +
+  theme_linedraw() +
+  ggtitle("Mandatory dropping") +
+  theme(panel.grid.minor.x = element_blank())
+
+
+intervals_conditional <- data_alpha_diffs |>
+  filter(alpha_diff > 0) |>
+  group_by(sample_size) |>
+  summarize(median = median(alpha_diff), 
+            lower_50_ci = quantile(alpha_diff, 0.25),
+            upper_50_ci = quantile(alpha_diff, 0.75),
+            lower_95_ci = quantile(alpha_diff, 0.025),
+            upper_95_ci = quantile(alpha_diff, 0.975)) 
+
+ggplot(intervals_conditional, aes(median, sample_size)) +
+  geom_vline(xintercept = 0, linetype = "dotted") +
+  geom_linerangeh(aes(xmin = lower_95_ci, xmax = upper_95_ci), size = 0.5) +
+  geom_linerangeh(aes(xmin = lower_50_ci, xmax = upper_50_ci), size = 1.0) +
+  geom_point() +
+  labs(x = "Difference in alpha between full and shortened scale",
+       y = "Sample size") +
+  scale_x_continuous(breaks = breaks_width(.01),
+                     limits = c(-0.015, 0.095)) +
+  theme_linedraw() +
+  ggtitle("Conditional dropping (improves on full scale alpha)") +
+  theme(panel.grid.minor.x = element_blank())
 
 ```
 

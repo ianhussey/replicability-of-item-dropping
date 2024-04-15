@@ -1,0 +1,281 @@
+---
+title: "Assessing the replicability of item-dropping decisions based on Cronbach's-alpha-if-item-removed"
+author: "Ian Hussey"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    highlight: haddock
+    theme: flatly
+    toc: yes
+    toc_float: yes
+---
+
+# TODO
+
+- NA
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(message=FALSE,
+                      warning=FALSE)
+```
+
+```{r}
+
+# dependencies
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(psych)
+library(lme4)
+library(sjPlot)
+library(ggstance)
+library(marginaleffects)
+library(janitor)
+library(boot)
+library(Cairo)
+
+# functions
+# rounds all numeric variables in a dataframe to the desired number of places. Non-numeric variables will be ignored.
+round_df <- function(df, digits) {
+  mutate_if(df, is.numeric, janitor::round_half_up, digits = 2)
+}
+
+```
+
+# Data
+
+```{r}
+
+data_nested_single_timepoint <- read_rds("../../data/processed/data_nested_single_timepoint.rds")
+
+data_rse <- data_nested_single_timepoint[[2]][[19]]
+
+```
+
+
+```{r}
+
+# function to assess item dropping
+assess_item_to_drop <- function(data){
+  
+  res <- psych::alpha(as.data.frame(data))
+  
+  alpha_full_scale <- as.numeric(res$total["raw_alpha"])
+  
+  res$alpha.drop |>
+    as_tibble(rownames = "item") |>
+    filter(raw_alpha == max(raw_alpha)) |>
+    select(item_to_drop = item, alpha_if_dropped = raw_alpha) |>
+    mutate(alpha_full_scale = alpha_full_scale,
+           item_to_drop_or_none = ifelse(alpha_full_scale >= alpha_if_dropped, "none", item_to_drop))
+}
+
+# assess_item_to_drop(data_rse)
+# assess_item_to_drop(data_rse)$item_to_drop
+# assess_item_to_drop(data_rse)$item_to_drop_or_none
+# assess_item_to_drop(data_rse)$alpha_full_scale
+# assess_item_to_drop(data_rse)$alpha_if_dropped
+
+library(modelr)
+
+# subset and split data
+data_cv_rse <- data_rse |>
+  # this n is simulated sample size
+  # BUT IT ONLY SAMPLES THESE N ONCE AND REUSES THEM, UNLIKE MY MANUAL IMPLEMENTATION
+  # SHOULD THIS N BE 1 AND A PRIOR SPLIT BE (REPEATEDLY) MADE? this would be bootstrapping on top of MC CV. 
+  slice_sample(n = 100) |>
+  # this n is the number of iterations
+  # for each iteration, split the data randomly into training and testing samples, 50% into each.
+  crossv_mc(n = 100, test = 0.5)
+
+results_train <- map(data_cv_rse$train, ~ assess_item_to_drop(data = .))
+results_test  <- map(data_cv_rse$test,  ~ assess_item_to_drop(data = .))
+
+# proportion of cases in which item to drop corrisonds
+mean(
+  unlist(map(results_train, ~ select(., "item_to_drop"))) ==
+    unlist(map(results_test, ~ select(., "item_to_drop")))
+)
+
+# proportion of cases in which item to drop or none corrisonds
+mean(
+  unlist(map(results_train, ~ select(., "item_to_drop_or_none"))) ==
+    unlist(map(results_test, ~ select(., "item_to_drop_or_none")))
+)
+
+```
+
+this is bootstrapping wrapping around monte carlo cross validation.
+
+
+```{r}
+
+cv2 <- crossv_kfold(data_bfi, 10)
+
+cv2$train
+
+models <- map(cv2$train, ~ lm(bfi_o1 ~ bfi_o2 + bfi_o3, data = .))
+errs <- map2_dbl(models, cv2$test, rmse)
+hist(errs)
+
+
+library(rsample)
+library(purrr)
+library(modeldata)
+set.seed(13)
+data(wa_churn, package = "modeldata")
+
+resample1 <- mc_cv(wa_churn, times = 3, prop = .5)
+
+map_dbl(
+  resample1$splits,
+  function(x) {
+    dat <- as.data.frame(x)$churn
+    mean(dat == "Yes")
+  }
+)
+
+
+```
+
+# Frequency of item drop recommendations
+
+```{r fig.height=12, fig.width=10}
+
+data_n_items <- data_nested_single_timepoint |>
+  mutate(n_items_in_scale = as.numeric(map(data, ncol))) |>
+  select(-data)
+
+data_drop_decisions_no_data |>
+  distinct(scale, item_to_drop_a) |>
+  count(scale) |>
+  rename(n_distinct_items_with_drop_recommendations = n) |>
+  left_join(data_n_items, by = "scale") |>
+  kable() |>
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+p_freq <- 
+  data_drop_decisions_no_data |>
+  count(scale, item_to_drop_a) |>
+  arrange(scale, desc(n)) |>
+  group_by(scale) |>
+  mutate(item_rank = paste("ranked_item_", row_number(), sep = ""),
+         item_rank = fct_reorder(item_rank, n, .desc = TRUE)) |>
+  ungroup() |>
+  select(-item_to_drop_a) |>
+  ggplot(aes(item_rank, n)) +
+  geom_bar(stat = "identity") +
+  scale_x_discrete(labels = seq(from = 1, to = max(data_n_items$n_items_in_scale), by = 1)) +
+  facet_wrap(~scale, ncol = 3) +
+  xlab("Item ranked by number of drop recommendations") +
+  ylab("Number of drop recommendations") +
+  theme_light()
+
+p_freq
+
+ggsave(filename  = "../plots/plot_drop_recommendation_frequencies.pdf",
+       plot      = p_freq,
+       device    = "pdf",
+       units     = "in",
+       width     = 10,
+       height    = 12,
+       limitsize = TRUE)
+
+```
+
+# Replication rate of item-dropping recommendations
+
+Using multilevel logistic models
+
+Strategy 1: Drop one item based on max Cronbach's-$\alpha$-if-item-removed. I.e, item dropping was mandatory, even if the alpha in the retained items was lower than the full-scale $\alpha$. Recommendation in each sample could be item 1...item N.
+
+Strategy 2: Drop an item based on max Cronbach's-$\alpha$-if-item-removed if it is higher than the full-scale $\alpha$. I.e, item dropping was not mandatory if it didn't improve $\alpha$. Recommendation in each sample could be item 1...item N or no item dropped.
+
+```{r}
+
+dat <- data_drop_decisions_no_data |>
+  select(scale, replication, sample_size, match_item_if_dropped, match_item_if_dropped_or_none, sample_size, scale) |>
+  pivot_longer(names_to = "strategy",
+               values_to = "replicated",
+               cols = c(match_item_if_dropped, match_item_if_dropped_or_none))
+
+# fit model
+fit <- 
+  glmer(replicated ~ 1 + sample_size * strategy + (1 | scale),
+        family = binomial(link = "logit"),
+        data = dat)
+
+# results table
+tab_model(fit)
+
+# marginal means
+results_estimates <- fit |>
+  marginalmeans(variables = c("sample_size", "strategy"), interaction = TRUE) |>
+  select(sample_size, strategy, marginalmean, ci_lower = conf.low, ci_upper = conf.high)
+
+```
+
+## Plot
+
+```{r fig.height=4, fig.width=6}
+
+plot_replication <- 
+  ggplot(results_estimates, aes(marginalmean, sample_size, color = strategy)) +
+  geom_linerangeh(aes(xmin = ci_lower, xmax = ci_upper), position = position_dodge(width = 0.5)) +
+  geom_point(size = 2.5, shape = 15, position = position_dodge(width = 0.5)) +
+  scale_color_viridis_d(begin = 0.3, end = 0.7,
+                        labels = c("Max \u03B1 if item removed",
+                                   "Max \u03B1 if item removed<br/>if it improves \u03B1 compared to full scale"),
+                        name = "Item dropping strategy") +
+  scale_x_continuous(
+    #breaks = c(0, .25, .5, .75, 1), 
+    breaks = c(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0), 
+    #labels = c("0.00<br/>(Worse)", "0.25", "0.50", "0.75", "1.00<br/>(Better)"),
+    #labels = c("0.00", "0.25", "0.50", "0.75", "1.00"),
+    #labels = c("0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"),
+    limits = c(0,1)
+  ) +
+  labs(x = "Replication rate",
+       y = "Sample size") +
+  mdthemes::md_theme_linedraw() +
+  theme(legend.position = c(0.73, 0.18), # "right",
+        legend.key.height = unit(0.05, 'npc'),
+        panel.grid.minor.x = element_blank(),
+        legend.background = element_blank(),
+        legend.box.background = element_rect(colour = "black")) +
+  guides(color = guide_legend(reverse = TRUE))
+
+plot_replication
+
+ggsave(filename  = "../plots/plot_replication_rate.pdf",
+       plot      = plot_replication,
+       device    = cairo_pdf, # for greek letters
+       units     = "in",
+       width     = 6,
+       height    = 4,
+       limitsize = TRUE)
+
+```
+
+## Table
+
+```{r}
+
+results_estimates |>
+  round_df(2) |>
+  arrange(sample_size, strategy) |>
+  select(strategy, sample_size, marginalmean, ci_lower, ci_upper) |>
+  kable() |>
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
+# Session info
+
+```{r}
+
+sessionInfo()
+
+```
+
