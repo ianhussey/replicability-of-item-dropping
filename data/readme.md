@@ -37,3 +37,8 @@ The additional_scale_data.csv file contains additional information about the sca
 
 The AIID dataset is released under a Creative Commons Zero license (CCO; public domain, see https://creativecommons.org/publicdomain/zero/1.0/). This means that you can copy, modify, distribute and perform the work, even for commercial purposes, all without asking permission. 
 
+## TODO
+
+- simulation needs development. i think i have code for this elsewhere?
+- plot faceted histograms of the distribution of factor loadings per scale for each dataset.
+- in aiid analysis, whats the difference between analysis and analysis_cv? 
