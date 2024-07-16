@@ -13,8 +13,8 @@ output:
 
 # TODO
 
-- What's with the scale labelled NA??
-- Are all scales included?
+- p_freq seems to be missing scales and contain NAs, figure out why
+- change fractional logit models to sth else?
 
 ```{r, include=FALSE}
 knitr::opts_chunk$set(message=FALSE,
@@ -75,6 +75,8 @@ data_drop_decisions_no_data <- read_rds("../../../data/processed/bainbridge et a
 
 ## Inter-item correlations
 
+### Summary 
+
 ```{r fig.height=8, fig.width=8}
 
 lower_half_of_cor_matrix <- function(data){
@@ -89,23 +91,92 @@ inter_item_correlations <- data_nested |>
   mutate(results = map(data, lower_half_of_cor_matrix)) |>
   select(-data)
 
-# inter_item_correlations$results
-  
+
+n_items <- data_nested |> 
+  mutate(n_items = map_dbl(data, ncol)) |>
+  select(-data)
+
+ggplot(n_items, aes(x = n_items)) +
+  geom_histogram(aes(y = ..density..), binwidth = 1, fill = "darkgreen", alpha = 0.75) +
+  #stat_function(fun = dnorm, args = list(mean = m, sd = SD), color = "grey30", size = 1) +
+  ylab("Density") +
+  xlab("N items per scale") +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 10)) +
+  theme_linedraw()
+
 summary_inter_item_correlations <- inter_item_correlations |>
-  mutate(mean_correlation = as.numeric(map(results, mean, na.rm = TRUE)),
-         sd_correlation = as.numeric(map(results, sd, na.rm = TRUE)),
-         min_correlation = as.numeric(map(results, min, na.rm = TRUE)),
-         max_correlation = as.numeric(map(results, max, na.rm = TRUE))) |>
+  mutate(mean_r = map_dbl(results, ~ mean(.x, na.rm = TRUE)),
+         sd_r = map_dbl(results, ~ sd(.x, na.rm = TRUE)),
+         min_r = map_dbl(results, ~ min(.x, na.rm = TRUE)),
+         max_r = map_dbl(results, ~ max(.x, na.rm = TRUE))) |>
   select(-results) |>
   round_df() |>
-  mutate(scale = fct_reorder(scale, mean_correlation))
+  left_join(n_items, by = "scale") |>
+  relocate(n_items, .before = mean_r) 
+  #mutate(scale = fct_reorder(scale, mean_r))
 
-ggplot(summary_inter_item_correlations, aes(mean_correlation, scale)) +
-  geom_linerangeh(aes(xmin = min_correlation, xmax = max_correlation)) +
+summary_inter_item_correlations |>
+  kable() |>
+  kable_classic(full_width = FALSE)
+
+ggplot(summary_inter_item_correlations, aes(mean_r, scale)) +
+  geom_linerangeh(aes(xmin = mean_r - sd_r, xmax = mean_r + sd_r)) + # , size = 1
+  #geom_linerangeh(aes(xmin = min_r, xmax = max_r)) +
+  # geom_point(aes(x = min_r), shape = 3) +
+  # geom_point(aes(x = max_r), shape = 3) +
+  geom_point(aes(x = min_r), shape = "|") +
+  geom_point(aes(x = max_r), shape = "|") +
+  scale_x_continuous(breaks = breaks_pretty(n = 11)) +
   geom_point() +
   ylab("") +
-  xlab("Mean inter-item correlation\n(intervals are min and max)") +
+  xlab("Inter-item correlation\n(mean ± SD, vertical bars for min and max)") +
   theme_linedraw()
+
+```
+
+### Distributions
+
+```{r}
+
+# convert each matrix in 'results' to a long format data frame and combine them into a single data frame
+inter_item_correlations_long <- inter_item_correlations %>%
+  mutate(long_data = map(results, ~ .x %>%
+                           as_tibble(rownames = "var1") %>%
+                           pivot_longer(cols = -var1, names_to = "var2", values_to = "r") %>%
+                           drop_na(r))) %>%
+  select(-results) %>%
+  unnest(long_data)
+
+
+m <- mean(inter_item_correlations_long$r, na.rm = TRUE)
+SD <- sd(inter_item_correlations_long$r, na.rm = TRUE)
+
+ggplot(inter_item_correlations_long, aes(x = r)) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  geom_histogram(aes(y = ..density..), binwidth = 0.05, boundary = 0, fill = "darkgreen", alpha = 0.75) +
+  stat_function(fun = dnorm, args = list(mean = m, sd = SD), color = "grey30", size = 1) +
+  ylab("Density") +
+  xlab("Inter-item correlation") +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 5)) +
+  theme_linedraw()
+
+```
+
+For the full sample of scales, the mean inter-item correlation was `r janitor::round_half_up(m, 2)`, SD = `r janitor::round_half_up(SD, 2)`.
+
+```{r fig.height=16, fig.width=9}
+
+ggplot(inter_item_correlations_long, aes(r)) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  geom_histogram(binwidth = 0.1, boundary = 0, fill = "darkgreen", alpha = 0.75) +
+  #geom_vline(xintercept = m, linetype = "dashed") +
+  ylab("") +
+  xlab("Inter-item correlation") +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 5)) +
+  scale_y_continuous(breaks = scales::breaks_pretty()) +
+  theme_linedraw() +
+  facet_wrap(~ scale, scales = "free_y", ncol = 4) +
+  theme(panel.grid.minor = element_blank())
 
 ```
 
@@ -151,10 +222,10 @@ Weighted mean $\alpha$ = `r weighted_mean`, weighted SD =  `r weighted_sd`.
 
 # Frequency of item drop recommendations
 
-```{r fig.height=12, fig.width=14}
+```{r fig.height=20, fig.width=14}
 
 data_n_items <- data_nested |>
-  mutate(n_items_in_scale = as.numeric(map(data, ncol))) |>
+  mutate(n_items_in_scale = map_dbl(data, ncol)) |>
   select(-data)
 
 data_drop_decisions_no_data |>
@@ -168,8 +239,7 @@ data_drop_decisions_no_data |>
 # data_drop_decisions_no_data |>
 #   distinct(scale)
 
-p_freq <- 
-  data_drop_decisions_no_data |>
+data_drop_decision_frequencies <- data_drop_decisions_no_data |>
   count(scale, item_to_drop_a) |>
   arrange(scale, desc(n)) |>
   group_by(scale) |>
@@ -177,11 +247,17 @@ p_freq <-
          item_rank = fct_reorder(item_rank, n, .desc = TRUE)) |>
   ungroup() |>
   select(-item_to_drop_a) |>
-  #drop_na() |>
-  ggplot(aes(item_rank, n)) +
+  filter(item_rank %in% c("ranked_item_1",
+                          "ranked_item_2",
+                          "ranked_item_3",
+                          "ranked_item_4",
+                          "ranked_item_5"))
+
+p_freq <- 
+  ggplot(data_drop_decision_frequencies, aes(item_rank, n)) +
   geom_bar(stat = "identity") +
   scale_x_discrete(labels = seq(from = 1, to = max(data_n_items$n_items_in_scale), by = 1)) +
-  facet_wrap(~ scale, ncol = 3) +
+  facet_wrap(~ scale, ncol = 4) +
   xlab("Item ranked by number of drop recommendations") +
   ylab("Number of drop recommendations") +
   theme_light()
