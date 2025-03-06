@@ -78,9 +78,9 @@ library(kableExtra)
 \TODO: code to check if the items retained agree between methods.
 \TODO: extension of this simulation to consdier matched pairs of sims, or proportion agreement across iterations of which items are to be retained.
 
-```{r}
+## Simulation functions
 
-set.seed(42)
+```{r}
 
 # generate data ----
 generate_model_normal_distribution <- function(k_indicators, lambda_mu, lambda_sigma) {
@@ -233,7 +233,12 @@ drop_items_based_on_factor_loading <- function(data, k_indicators_retained) {
   if (nfactors == 0) nfactors <- 1  # Ensure at least one factor
   
   # Perform factor analysis using Principal Axis Factoring (PAF)
-  efa_result <- fa(data, nfactors, rotate = "oblimin", fm = "pa", warnings = FALSE)
+  efa_result <- fa(data, 
+                   nfactors, 
+                   rotate = "oblimin", 
+                   fm = "pa", 
+                   scores = "none", 
+                   warnings = FALSE)  
   
   # Extract loadings for the first factor
   loadings_matrix <- efa_result$loadings
@@ -257,21 +262,22 @@ analyze_alpha_continuous <- function(data, k_indicators_retained) {
   return(tibble(alpha = alpha))
 }
 
-# # this code makes sense for real scales where some items are genuinely better/worse than others, but not here where order among the items changes between simulation iterations
-# a more complex simulation would be needed that assigned different items to specific locations on the distribution, or defined some items as outliers.
-# compare_item_selection_methods <- function(df_alpha, df_fa) {
-#   # extract column names
-#   cols_alpha <- sort(colnames(df_alpha))
-#   cols_fa <- sort(colnames(df_fa))
-#   
-#   res <- tibble(alpha_method_items_selected = paste(cols_alpha, collapse = " "),
-#                 fa_method_items_selected = paste(cols_fa, collapse = " "),
-#                 item_selection_methods_agree = identical(cols_alpha, cols_fa))
-#   
-#   return(res)
-# }
 
-# define parameters ----
+compare_item_selections <- function(df1, df2) {
+  # extract column names
+  cols1 <- sort(colnames(df1))
+  cols2 <- sort(colnames(df2))
+
+  res <- tibble(item_selections_agree = identical(cols1, cols2))
+
+  return(res)
+}
+
+```
+
+## Define parameters
+
+```{r}
 
 # # as in Kopalle & Lehman (1996)
 # experiment_parameters <- expand_grid(
@@ -280,20 +286,36 @@ analyze_alpha_continuous <- function(data, k_indicators_retained) {
 #   lambda_mu = seq(0.3, 0.8, by = 0.1),
 #   lambda_sigma = 0.058,
 #   k_indicators_retained = c(3, 5, 10),
-#   iteration = 1:1000 # Kopalle & Lehman (1996) used 50
+#   iteration = 1:3 # Kopalle & Lehman (1996) used 50
 # )
 
-# for testing
 experiment_parameters <- expand_grid(
-  k_indicators = 10,
+  k_indicators = 15,
+  k_indicators_retained = c(5, 10),
   n_participants_multiplier = 10,
-  lambda_mu = 0.8,
+  lambda_mu = seq(0.3, 0.8, by = 0.1),
   lambda_sigma = 0.058,
-  k_indicators_retained = 8,
-  iteration = 1:1000
+  iteration = 1:1000 
 )
 
-# run simulations ----
+# # for testing
+# experiment_parameters <- expand_grid(
+#   k_indicators = 10,
+#   n_participants_multiplier = 10,
+#   lambda_mu = 0.8,
+#   lambda_sigma = 0.058,
+#   k_indicators_retained = 8,
+#   iteration = 1:10
+# )
+
+```
+
+## Run simulation
+
+```{r}
+
+set.seed(42)
+
 simulation_normal <- 
   # using the experiment parameters
   experiment_parameters |>
@@ -325,7 +347,12 @@ simulation_point <-
                                     lambda_mu),
                                generate_data_point_distribution))
 
-# combine and extract results
+```
+
+## Combine and extract results
+
+```{r}
+
 simulation_combined <- 
   bind_rows(simulation_normal,
             simulation_uniform,
@@ -354,16 +381,22 @@ simulation_combined <-
   rename(alpha_estimates_in_subset_fa = alpha) |>
   # calculate difference
   mutate(alpha_diff_alpha = alpha_estimates_in_subset_alpha - alpha_original,
-         alpha_diff_fa = alpha_estimates_in_subset_fa - alpha_original)
+         alpha_diff_fa = alpha_estimates_in_subset_fa - alpha_original) |>
+  mutate(item_selections_match_alpha_fa = pmap(list(generated_data_subset_alpha,
+                                                    generated_data_subset_fa),
+                                               compare_item_selections)) |>
+  unnest(item_selections_match_alpha_fa) |>
+  rename(item_selections_match_alpha_fa = item_selections_agree)
 
-write_rds(simulation_combined, "simulation_combined.rds")
+write_rds(simulation_combined, "simulation_combined_testing.rds")
 
 ```
 
+### Summarize results
 
-```{r fig.height=6, fig.width=9}
+```{r}
 
-#simulation_combined <- read_rds("simulation_combined.rds")
+# simulation_combined <- read_rds("simulation_combined_testing.rds")
 
 # summarize across iterations
 simulation_summary <- simulation_combined |>
@@ -378,7 +411,17 @@ simulation_summary <- simulation_combined |>
             #alpha_subset_fa = mean(alpha_estimates_in_subset_fa),
             bias_alpha = mean(alpha_diff_alpha),
             bias_fa = mean(alpha_diff_fa),
-            .groups = "drop") |>
+            proportion_agree_alpha_fa = mean(item_selections_match_alpha_fa),
+            .groups = "drop") 
+
+```
+
+### Bias in in-sample Cronbach's alpha
+
+```{r fig.height=6, fig.width=9}
+
+simulation_bias <- simulation_summary |>
+  select(-proportion_agree_alpha_fa) |>
   pivot_longer(cols = c("bias_alpha", 
                         "bias_fa"),
                names_to = "method",
@@ -390,26 +433,202 @@ simulation_summary <- simulation_combined |>
                                          lambda_distribution == "normal" ~ "λ distribution: Normal",
                                          lambda_distribution == "uniform" ~ "λ distribution: Uniform"),
          n_participants = as.factor(k_indicators * n_participants_multiplier),
-         k_indicators = as.factor(k_indicators))
+         k_indicators = paste0("Item pool: ", k_indicators),
+         k_indicators_retained = paste0("Items selected: ", k_indicators_retained))
 
-# table
-simulation_summary |>
+## table
+simulation_bias |>
   mutate_if(is.numeric, janitor::round_half_up, digits = 3) |>
   kable() |>
   kable_classic(full_width = TRUE)
 
-# plot
-ggplot(simulation_summary, aes(alpha, bias, color = n_participants, 
-                               linetype = k_indicators, shape = k_indicators)) +
+## plot 
+# n_participants
+ggplot(simulation_bias, aes(alpha, 
+                            bias, 
+                            group = n_participants,
+                            color = method)) +
   geom_point() +
   geom_line() +
-  facet_grid(lambda_distribution ~ method) +
+  facet_wrap(~ k_indicators_retained) +
+  #facet_grid(k_indicators ~ k_indicators_retained) +
   theme_linedraw() +
   xlab("α in full sample") +
-  ylab("Bias in α") +
-  labs(linetype = "K indicators",
-       shape = "K indicators",
-       color = "N participants")
+  ylab("Bias in α") 
+
+# ggplot(simulation_bias, aes(alpha, 
+#                             bias, 
+#                             color = method, 
+#                             linetype = lambda_distribution,
+#                             shape = lambda_distribution)) +
+#   geom_point() +
+#   geom_line() +
+#   facet_grid(k_indicators ~ k_indicators_retained) +
+#   theme_linedraw() +
+#   xlab("α in full sample") +
+#   ylab("Bias in α") 
+#   # labs(linetype = "K indicators",
+#   #      shape = "K indicators",
+#   #      color = "N participants")
+
+```
+
+### Agreement between item dropping methods
+
+```{r fig.height=6, fig.width=9}
+
+simulation_agreement <- simulation_summary |>
+  select(-alpha, -bias_alpha, -bias_fa) |>
+  mutate(n_participants = as.factor(k_indicators * n_participants_multiplier),
+         k_indicators = as.factor(paste0("K indicators: ", k_indicators)),
+         lambda_distribution = case_when(lambda_distribution == "point" ~ "λ distribution: Point",
+                                         lambda_distribution == "normal" ~ "λ distribution: Normal",
+                                         lambda_distribution == "uniform" ~ "λ distribution: Uniform"),
+         lambda_mu = paste0("Population mean λ: ", lambda_mu))
+
+## table
+simulation_agreement |>
+  mutate_if(is.numeric, janitor::round_half_up, digits = 3) |>
+  kable() |>
+  kable_classic(full_width = TRUE)
+
+## plot
+ggplot(simulation_agreement, aes(n_participants, proportion_agree_alpha_fa, 
+                                 group = k_indicators_retained,
+                                 color = k_indicators)) +
+  geom_point() +
+  geom_line() +
+  theme_linedraw() +
+  facet_grid(lambda_distribution ~ lambda_mu) +
+  xlab("N participants") +
+  ylab("Proportion agreement between\nfactor analysis and α-if-item-removed") 
+
+
+ggplot(simulation_agreement, aes(n_participants, 
+                                 proportion_agree_alpha_fa, 
+                                 linetype = lambda_distribution,
+                                 shape = lambda_distribution)) +
+  geom_point() +
+  geom_line() +
+  facet_grid(k_indicators ~ k_indicators_retained) +
+  theme_linedraw() +
+  xlab("N participants") +
+  ylab("Proportion agreement between\nfactor analysis and α-if-item-removed") 
+
+```
+
+## Combine and extract results
+
+i.e., between halves of the sample
+
+```{r fig.height=6, fig.width=9}
+
+first_half <- function(data){
+  data |>
+    mutate(participant = row_number()) |>
+    filter(participant %% 2 == 1)
+}
+
+second_half <- function(data){
+  data |>
+    mutate(participant = row_number()) |>
+    filter(participant %% 2 == 0)
+}
+
+# combine and extract results
+simulation_combined_halves <- 
+  bind_rows(simulation_normal,
+            simulation_uniform,
+            simulation_point) |>
+  mutate(generated_data_subset_half1 = pmap(list(generated_data),
+                                            first_half)) |>
+  mutate(generated_data_subset_half2 = pmap(list(generated_data),
+                                            second_half)) |>
+  # generate a second data set as a subset of the first based on repeated application of best cronbach's alpha if item removed
+  mutate(generated_data_subset_alpha_half1 = pmap(list(generated_data_subset_half1, 
+                                                       k_indicators_retained),
+                                                  drop_items_based_on_alpha)) |>
+  mutate(generated_data_subset_alpha_half2 = pmap(list(generated_data_subset_half2, 
+                                                       k_indicators_retained),
+                                                  drop_items_based_on_alpha)) |>
+  mutate(generated_data_subset_fa_half1 = pmap(list(generated_data_subset_half1, 
+                                                    k_indicators_retained),
+                                               drop_items_based_on_factor_loading)) |>
+  mutate(generated_data_subset_fa_half2 = pmap(list(generated_data_subset_half2, 
+                                                    k_indicators_retained),
+                                               drop_items_based_on_factor_loading)) |>
+  # calculate matches
+  mutate(item_selections_match_alphas = pmap(list(generated_data_subset_alpha_half1,
+                                                  generated_data_subset_alpha_half2),
+                                             compare_item_selections)) |>
+  unnest(item_selections_match_alphas) |>
+  rename(item_selections_match_alphas = item_selections_agree) |>
+  
+  mutate(item_selections_match_fas = pmap(list(generated_data_subset_fa_half1,
+                                               generated_data_subset_fa_half2),
+                                          compare_item_selections)) |>
+  unnest(item_selections_match_fas) |>
+  rename(item_selections_match_fas = item_selections_agree)
+
+write_rds(simulation_combined_halves, "simulation_combined_halves_testing.rds")
+
+```
+
+### Summarize results by half
+
+```{r}
+
+# simulation_combined_halves <- read_rds("simulation_combined_halves_testing.rds")
+
+# summarize across iterations
+simulation_summary_halves <- simulation_combined_halves |>
+  group_by(k_indicators,
+           n_participants_multiplier,
+           lambda_distribution,
+           lambda_mu,
+           lambda_sigma,
+           k_indicators_retained) |>
+  summarize(proportion_item_selections_match_alphas = mean(item_selections_match_alphas),
+            proportion_item_selections_match_fas = mean(item_selections_match_fas),
+            .groups = "drop")
+
+```
+
+### Agreement within item dropping method between 'replication study'
+
+```{r fig.height=6, fig.width=9}
+
+simulation_agreement_halves <- simulation_summary_halves |>
+  mutate(n_participants_per_half = as.factor(k_indicators * n_participants_multiplier / 2),
+         k_indicators = as.factor(paste0("K indicators: ", k_indicators)),
+         lambda_distribution = case_when(lambda_distribution == "point" ~ "λ distribution: Point",
+                                         lambda_distribution == "normal" ~ "λ distribution: Normal",
+                                         lambda_distribution == "uniform" ~ "λ distribution: Uniform")) |>
+  pivot_longer(cols = c("proportion_item_selections_match_alphas", 
+                        "proportion_item_selections_match_fas"),
+               names_to = "method",
+               values_to = "proportion_match") |>
+  mutate(method = str_remove(method, "proportion_item_selections_match_"),
+         method = case_when(method == "fas" ~ "Factor analysis",
+                            method == "alphas" ~ "α if item removed"),
+         lambda_mu = paste0("Population mean λ: ", lambda_mu))
+
+## table
+simulation_agreement_halves |>
+  mutate_if(is.numeric, janitor::round_half_up, digits = 3) |>
+  kable() |>
+  kable_classic(full_width = TRUE)
+
+## plot
+ggplot(simulation_agreement_halves, 
+       aes(n_participants_per_half, proportion_match, group = k_indicators_retained, 
+           color = k_indicators)) +
+  geom_point() +
+  #geom_line() +
+  theme_linedraw() +
+  facet_grid(lambda_distribution ~ lambda_mu) +
+  xlab("N participants") +
+  ylab("Proportion agreement between\nfactor analysis and α-if-item-removed") 
 
 ```
 
