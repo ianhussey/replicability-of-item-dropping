@@ -1,0 +1,680 @@
+---
+title: "Cronbach's alpha if item removed"
+author: "Ian Hussey"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    code_download: true
+    code_folding: hide
+    highlight: haddock
+    theme: flatly
+    toc: yes
+    toc_float: yes
+---
+
+# Overview 
+
+TODO
+
+# Simulation conditions used by Kopalle & Lehman (1996)
+
+Although this simulation differs from that by Kopalle & Lehman (1996) in important ways: 
+
+1. Kopalle & Lehman (1996) employed only 50 iterations whereas I will employ several thousand. This is presumably due to how manual their method was or the processing power available at the time. 
+2. I drop items based on Cronbach's alpha if item removed whereas they did it by factor analyzing the items and choosing the *k* items that loaded most strongly onto the first factor). However, this simulation aims to be similar in its data generation processes. The data generation processes were described in Kopalle & Lehman (1996) as follows:
+
+"For each of the three cases, i.e., constant, normal, and uniform distributions of A, we use a 2 (sample size) X 3 (total number of items) X 3 (number of items chosen) X 6 (true average inter-item correlation) full factorial design. The values in each cell are averaged over 50 replications. The specific levels for the design variables are:
+- Sample size, n = 3, 10
+- Total number of items, N = 10, 20, 30
+- Number of items chosen, k = 3, 5, 10
+- True factor loading, $\lambda$ = 0.3, 0.4, 0.5, 0.6, 0.7, 0.8."
+
+"We also investigate these impacts for three different conditions for the true item-total correlations in Eq. (1). 
+First, we assume that the factor loadings ($\lambda_i$s) of the indicator variables ($X_i$s) are all equal. 
+Second, we assume that the factor loadings observed in a particular study vary around a central tendency according to the normal distribution (note that all measures are equally appropriate in that they are drawn from the same distribution so any difference in $\lambda$ is idiosyncratic to the particular data set). 
+Finally, we assume the factor loadings are "diffuse" and follow the uniform distribution. 
+It is not possible for the uniform and normal distributions to have both equal ranges and standard deviations. Here we chose the standard deviations to be equal, which means the normal distribution has a wider range. We allow the uniform distribution to have a range of 0.2; for example, for a mean $\lambda$ of 0.4, $\lambda_i$ is drawn from a uniform distribution [0.3, 0.5]. This makes the standard deviation 0.058, which is the standard deviation used when we draw randomly from the normal distribution. When we forced the ranges to be the same, the standard deviation for the normal distribution was low and the factor loadings were close to constant."
+
+"The factor loading ($\lambda_i$, $i$ = 1, ..., N) for each variable ($X_i$s) is drawn randomly so that for the constant distribution, $\lambda_i$ = $\lambda$; for the normal distribution, $\lambda_i$ is drawn from a normal distribution with mean 1 and standard deviation 0.058; 
+finally, $\lambda_i$ is drawn from a uniform distribution of range [$\lambda$ - 0.1, $\lambda$ + 0.1]. Similarly, for each observation, the common factor $Y$ is generated from a normal distribution with mean 0 and variance 1. The error term for each variable and for each observation is generated from a normal distribution with mean 0 and variance 1 - $\lambda_i^2$. This process is repeated for each iteration of the simulation.
+Thus $X$s will be normal with mean 0 and variance 1, and the true inter-item correlation between $X_i$ and $X_j$ is $\lambda_i\lambda_j$. In the next stage, we factor analyze the observed data and choose the *k* items that load most heavily on the first factor. In the final stage, we compute the average inter-item correlation among the items chosen and calculate Cronbach's alpha for the *k* items.
+The observed alpha is then compared to the corresponding true value to assess the impact. Jenkins and Taber (1977) find that the effects of the number of scale items and the covariance among items on Cronbach's alpha are approximately additive. To summarize the results, for each of the distributions (constant, normal, and uniform) we separately regress Cronbach's alpha computed for the *k* chosen items and the impact on alpha on the sample size (n), the total number of items (N), the number of items in the scale (k), and the true alpha, i.e., the alpha resulting from k randomly chosen measures of the construct ($\alpha_t$)."
+
+```{r, include=FALSE}
+
+# set default chunk options
+knitr::opts_chunk$set(message = FALSE,
+                      warning = FALSE)
+
+# disable scientific notation
+options(scipen = 999) 
+
+```
+
+# Dependencies
+
+```{r}
+
+library(lavaan)
+library(psych)
+library(parallel)
+library(tidyr)
+library(dplyr)
+library(readr)
+library(purrr)
+library(janitor)
+library(psych)       
+library(GPArotation) 
+library(knitr)
+library(kableExtra)
+
+```
+
+# Simulation
+
+## Version 1
+
+Normally distributed $\lambda$ values only 
+
+```{r eval=FALSE}
+
+set.seed(42)
+
+# generate data ----
+generate_model_normal_distribution <- function(k_indicators, lambda_mu, lambda_sigma) {
+  # ensure that k_indicators is an integer and coefficient is numeric
+  if (!is.numeric(k_indicators) || !is.numeric(lambda_mu) || !is.numeric(lambda_sigma)) {
+    stop("k_indicators, lambda_mu, and lambda_sigma must be numeric")
+  }
+  
+  # generate each item string
+  itemStrings <- sapply(1:k_indicators, function(i) {
+    paste(format(rnorm(n = 1, mean = lambda_mu, sd = lambda_sigma), nsmall = 2), "*item", i, sep = "")
+  })
+  
+  # concatenate all item strings with " + " separator
+  resultString <- paste("factor =~", paste(itemStrings, collapse = " + "))
+  
+  return(resultString)
+}
+# # testing
+# generate_model_normal_distribution(k_indicators = 5, lambda_mu = 0.4, lambda_sigma = 0.058)
+
+
+generate_data_normal_distribution <- function(k_indicators, n_participants_multiplier, lambda_mu, lambda_sigma) {
+  
+  n_participants <- n_participants_multiplier * k_indicators
+  
+  data <- simulateData(generate_model_normal_distribution(k_indicators = k_indicators, 
+                                                          lambda_mu = lambda_mu, 
+                                                          lambda_sigma = lambda_sigma), 
+                       sample.nobs = n_participants)
+  
+  return(data)
+}
+# # testing
+# generate_data_normal_distribution(k_indicators = 5,
+#                                   n_participants_multiplier = 10,
+#                                   lambda_mu = 0.4,
+#                                   lambda_sigma = 0.058)
+
+
+# analyse data ----
+analyze_alpha_dropping <- function(data, k_indicators_retained) {
+  
+  alpha_initial <- psych::alpha(data, warnings = FALSE, discrete = FALSE)$total$raw_alpha
+  
+  remove_worst_items <- function(data, k_indicators_retained) { 
+    
+    k_indicators <- ncol(data)
+    k_indicators_to_remove <- k_indicators - k_indicators_retained
+    
+    for (k in 1:k_indicators_to_remove) {
+      if (k_indicators <= 2) {
+        warning("Cannot remove more items without violating minimum required for scale reliability analysis.")
+        break
+      }
+      
+      alphas_if_removed <- sapply(1:k_indicators, function(item) {
+        suppressMessages(psych::alpha(data[, -item], warnings = FALSE, discrete = FALSE)$total$raw_alpha)
+      })
+      
+      item_to_remove <- which.max(alphas_if_removed)
+      data <- data[, -item_to_remove, drop = FALSE]
+      k_indicators <- ncol(data)
+    }
+    return(data)
+  }
+  
+  data_reduced <- remove_worst_items(data = data, k_indicators_retained = k_indicators_retained)
+  
+  alpha_final <- psych::alpha(data_reduced, warnings = FALSE, discrete = FALSE)$total$raw_alpha
+  
+  alpha_change <- alpha_final - alpha_initial
+  
+  return(tibble(alpha_initial = alpha_initial,
+                alpha_final = alpha_final,
+                alpha_change = alpha_change))
+}
+# # testing
+# generate_data_normal_distribution(k_indicators = 5,
+#                                   n_participants_multiplier = 10,
+#                                   lambda_mu = 0.4,
+#                                   lambda_sigma = 0.058) |>
+#   analyze_alpha_dropping(k_indicators_retained = 4)
+
+
+# define parameters ----
+
+# # more closely mapped to Kopalle & Lehman (1996)
+# experiment_parameters <- expand_grid(
+#   k_indicators = c(10, 20, 30),
+#   n_participants_multiplier = c(3, 10),
+#   lambda_mu = seq(0.3, 0.8, by = 0.1),
+#   lambda_sigma = 0.058,
+#   k_indicators_retained = c(3, 5, 10),
+#   iteration = 1:100
+# )
+
+# for testing
+experiment_parameters <- expand_grid(
+  k_indicators = 10,
+  n_participants_multiplier = 10,
+  lambda_mu = 0.8,
+  lambda_sigma = 0.058,
+  k_indicators_retained = c(7, 8, 9),
+  iteration = 1:100
+)
+
+# run simulation ----
+simulation <- 
+  # using the experiment parameters
+  experiment_parameters |>
+  
+  # generate data using the data generating function and the parameters relevant to data generation
+  mutate(generated_data = pmap(list(k_indicators, 
+                                    n_participants_multiplier, 
+                                    lambda_mu, 
+                                    lambda_sigma),
+                               generate_data_normal_distribution)) |>
+  
+  # apply the analysis function to the generated data using the parameters relevant to analysis
+  mutate(results = pmap(list(generated_data,
+                             k_indicators_retained),
+                        analyze_alpha_dropping))
+
+# summarize across iterations ----
+# todo needs work, don't quite understand it
+simulation_summary <- simulation |>
+  unnest(results) |>
+  group_by(k_indicators, 
+           n_participants_multiplier, 
+           k_indicators_retained, 
+           lambda_mu, 
+           lambda_sigma) |>
+  summarise(mean_alpha_initial = mean(alpha_initial, na.rm = TRUE),
+            mean_alpha_final = mean(alpha_final, na.rm = TRUE),
+            mean_alpha_change = mean(alpha_change, na.rm = TRUE)) |>
+  # summarise(mean_alpha_change = mean(alpha_change, na.rm = TRUE)) |>
+  # # Reshaping for clearer comparison across lambda_mu values
+  # pivot_wider(names_from = lambda_mu,
+  #             values_from = mean_alpha_change,
+  #             names_prefix = "lambda_mu_") |>
+  mutate_if(is.numeric, janitor::round_half_up, digits = 2)
+
+simulation_summary |>
+  kable() |>
+  kable_classic(full_width = FALSE) 
+
+```
+
+## Version 2
+
+Separates data subsetting out from calculation of alpha, so you have access to both data sets.
+
+```{r eval=FALSE}
+
+set.seed(42)
+
+# generate data ----
+generate_model_normal_distribution <- function(k_indicators, lambda_mu, lambda_sigma) {
+  # ensure that k_indicators is an integer and coefficient is numeric
+  if (!is.numeric(k_indicators) || !is.numeric(lambda_mu) || !is.numeric(lambda_sigma)) {
+    stop("k_indicators, lambda_mu, and lambda_sigma must be numeric")
+  }
+  
+  # generate each item string
+  itemStrings <- sapply(1:k_indicators, function(i) {
+    paste(format(rnorm(n = 1, mean = lambda_mu, sd = lambda_sigma), nsmall = 2), "*item", i, sep = "")
+  })
+  
+  # concatenate all item strings with " + " separator
+  resultString <- paste("factor =~", paste(itemStrings, collapse = " + "))
+  
+  return(resultString)
+}
+# # testing
+# generate_model_normal_distribution(k_indicators = 5, lambda_mu = 0.4, lambda_sigma = 0.058)
+
+
+generate_data_normal_distribution <- function(k_indicators, n_participants_multiplier, lambda_mu, lambda_sigma) {
+  
+  n_participants <- n_participants_multiplier * k_indicators
+  
+  data <- simulateData(generate_model_normal_distribution(k_indicators = k_indicators, 
+                                                          lambda_mu = lambda_mu, 
+                                                          lambda_sigma = lambda_sigma), 
+                       sample.nobs = n_participants)
+  
+  return(data)
+}
+# # testing
+# generate_data_normal_distribution(k_indicators = 5,
+#                                   n_participants_multiplier = 10,
+#                                   lambda_mu = 0.4,
+#                                   lambda_sigma = 0.058)
+
+drop_items_based_on_alpha <- function(data, k_indicators_retained) {
+  k_indicators <- ncol(data)
+  k_indicators_to_remove <- k_indicators - k_indicators_retained
+  
+  if (k_indicators_to_remove < 1) {
+    stop("Cannot remove more items than are present.")
+  }
+  
+  for (k in 1:k_indicators_to_remove) {
+    if (k_indicators <= 2) {
+      stop("Cannot remove more items without violating minimum required for scale reliability analysis.")
+    }
+    alphas_if_removed <- sapply(1:k_indicators, function(item) {
+      psych::alpha(data[, -item], warnings = FALSE, discrete = FALSE)$total$raw_alpha
+    })
+    item_to_remove <- which.max(alphas_if_removed)
+    data <- data[, -item_to_remove, drop = FALSE]
+    k_indicators <- ncol(data)
+  }
+  return(data)
+}
+
+analyze_alpha_continuous <- function(data, k_indicators_retained) {
+  alpha <- psych::alpha(data, warnings = FALSE, discrete = FALSE)$total$raw_alpha
+  return(tibble(alpha = alpha))
+}
+
+# define parameters ----
+
+# # as in Kopalle & Lehman (1996)
+# experiment_parameters <- expand_grid(
+#   k_indicators = c(10, 20, 30),
+#   n_participants_multiplier = c(3, 10),
+#   lambda_mu = seq(0.3, 0.8, by = 0.1),
+#   lambda_sigma = 0.058,
+#   k_indicators_retained = c(3, 5, 10),
+#   iteration = 1:1000 # Kopalle & Lehman (1996) used 50
+# )
+
+# for testing
+experiment_parameters <- expand_grid(
+  k_indicators = 10,
+  n_participants_multiplier = 10,
+  lambda_mu = 0.8,
+  lambda_sigma = 0.058,
+  k_indicators_retained = 8,
+  iteration = 1:1000
+)
+
+# run simulation ----
+simulation <- 
+  # using the experiment parameters
+  experiment_parameters |>
+  
+  # generate data using the data generating function and the parameters relevant to data generation
+  mutate(generated_data_normal = pmap(list(k_indicators, 
+                                           n_participants_multiplier, 
+                                           lambda_mu, 
+                                           lambda_sigma),
+                                      generate_data_normal_distribution)) |>
+  # generate a second data set as a subset of the first based on repeated application of best cronbach's alpha if item removed
+  mutate(generated_data_normal_subset = pmap(list(generated_data_normal, k_indicators_retained),
+                                             drop_items_based_on_alpha)) |>
+  
+  # analyze: 
+  ## calculate cronbach's alpha in full data
+  mutate(results_normal_original = pmap(list(generated_data_normal),
+                                        analyze_alpha_continuous)) |>
+  unnest(results_normal_original) |>
+  rename(alpha_normal_original = alpha) |>
+  
+  ## calculate cronbach's alpha in subset 
+  mutate(results_normal_subset = pmap(list(generated_data_normal_subset),
+                                      analyze_alpha_continuous)) |>
+  unnest(results_normal_subset) |>
+  rename(alpha_normal_subset = alpha) |>
+  
+  # calculate difference
+  mutate(alpha_normal_diff = alpha_normal_subset - alpha_normal_original)
+
+# summarize across iterations
+simulation_summary <- simulation |>
+  group_by(k_indicators,
+           n_participants_multiplier,
+           lambda_mu,
+           lambda_sigma,
+           k_indicators_retained) |>
+  summarize(mean_normal_alpha_original = mean(alpha_normal_original),
+            mean_normal_alpha_subset = mean(alpha_normal_subset),
+            mean_normal_bias = mean(alpha_normal_diff),
+            .groups = "drop")
+
+# table
+simulation_summary |>
+  mutate_if(is.numeric, janitor::round_half_up, digits = 3) |>
+  kable() |>
+  kable_classic(full_width = TRUE)
+
+```
+
+## Version 3
+
+Adds uniform and point distributions.
+
+\TODO: code to check if the items retained agree between methods.
+\TODO: extension of this simulation to consdier matched pairs of sims, or proportion agreement across iterations of which items are to be retained.
+
+```{r}
+
+set.seed(42)
+
+# generate data ----
+generate_model_normal_distribution <- function(k_indicators, lambda_mu, lambda_sigma) {
+  # ensure that k_indicators is an integer and coefficient is numeric
+  if (!is.numeric(k_indicators) || !is.numeric(lambda_mu) || !is.numeric(lambda_sigma)) {
+    stop("k_indicators, lambda_mu, and lambda_sigma must be numeric")
+  }
+  
+  # generate each item string
+  itemStrings <- sapply(1:k_indicators, function(i) {
+    paste(format(rnorm(n = 1, mean = lambda_mu, sd = lambda_sigma), nsmall = 2), "*item", i, sep = "")
+  })
+  
+  # concatenate all item strings with " + " separator
+  resultString <- paste("factor =~", paste(itemStrings, collapse = " + "))
+  
+  return(resultString)
+}
+# # testing
+# generate_model_normal_distribution(k_indicators = 5, lambda_mu = 0.4, lambda_sigma = 0.058)
+
+
+generate_data_normal_distribution <- function(k_indicators, n_participants_multiplier, lambda_mu, lambda_sigma) {
+  
+  n_participants <- n_participants_multiplier * k_indicators
+  
+  data <- simulateData(generate_model_normal_distribution(k_indicators = k_indicators, 
+                                                          lambda_mu = lambda_mu, 
+                                                          lambda_sigma = lambda_sigma), 
+                       sample.nobs = n_participants)
+  
+  return(data)
+}
+# # testing
+# generate_data_normal_distribution(k_indicators = 5,
+#                                   n_participants_multiplier = 10,
+#                                   lambda_mu = 0.4,
+#                                   lambda_sigma = 0.058)
+
+
+generate_model_uniform_distribution <- function(k_indicators, lambda_mu) {
+  # ensure that k_indicators is an integer and coefficient is numeric
+  if (!is.numeric(k_indicators) || !is.numeric(lambda_mu)) {
+    stop("k_indicators and lambda_mu must be numeric")
+  }
+  
+  # generate each item string
+  itemStrings <- sapply(1:k_indicators, function(i) {
+    paste(format(runif(n = 1, min = lambda_mu - 0.1, max = lambda_mu + 0.1), nsmall = 2), "*item", i, sep = "") # range [lambda_mu 0.1, lambda_mu+0.1)] produces lambda_sigma = 0.58; same as used in other distributions. see Kopalle & Lehman (1996).
+  })
+  
+  # concatenate all item strings with " + " separator
+  resultString <- paste("factor =~", paste(itemStrings, collapse = " + "))
+  
+  return(resultString)
+}
+# # testing
+# generate_model_uniform_distribution(k_indicators = 5, lambda_mu = 0.4)
+
+
+generate_data_uniform_distribution <- function(k_indicators, n_participants_multiplier, lambda_mu) {
+  
+  n_participants <- n_participants_multiplier * k_indicators
+  
+  data <- simulateData(generate_model_uniform_distribution(k_indicators = k_indicators, 
+                                                           lambda_mu = lambda_mu), 
+                       sample.nobs = n_participants)
+  
+  return(data)
+}
+# # testing
+# generate_data_uniform_distribution(k_indicators = 5,
+#                                   n_participants_multiplier = 10,
+#                                   lambda_mu = 0.4)
+
+
+generate_model_point_distribution <- function(k_indicators, lambda_mu) {
+  # ensure that k_indicators is an integer and lambda_mu is numeric
+  if (!is.numeric(k_indicators) || !is.numeric(lambda_mu)) {
+    stop("k_indicators and lambda_mu must be numeric")
+  }
+  
+  # generate each item string with the fixed lambda value
+  itemStrings <- sapply(1:k_indicators, function(i) {
+    paste(format(lambda_mu, nsmall = 2), "*item", i, sep = "")
+  })
+  
+  # concatenate all item strings with " + " separator
+  resultString <- paste("factor =~", paste(itemStrings, collapse = " + "))
+  
+  return(resultString)
+}
+# # Example usage:
+# generate_model_point_distribution(5, 0.7)
+
+
+generate_data_point_distribution <- function(k_indicators, n_participants_multiplier, lambda_mu) {
+  
+  n_participants <- n_participants_multiplier * k_indicators
+  
+  data <- simulateData(generate_model_point_distribution(k_indicators = k_indicators,
+                                                         lambda_mu = lambda_mu),
+                       sample.nobs = n_participants)
+  
+  return(data)
+}
+# # testing
+# generate_data_point_distribution(k_indicators = 5,
+#                                  n_participants_multiplier = 10,
+#                                  lambda_mu = 0.4)
+
+
+drop_items_based_on_alpha <- function(data, k_indicators_retained) {
+  k_indicators <- ncol(data)
+  k_indicators_to_remove <- k_indicators - k_indicators_retained
+  
+  if (k_indicators_to_remove > k_indicators) {
+    stop("Cannot remove more items than are present.")
+  }
+  
+  for (k in 1:k_indicators_to_remove) {
+    if (k_indicators <= 2) {
+      stop("Cannot remove more items without violating minimum required for scale reliability analysis.")
+    }
+    alphas_if_removed <- sapply(1:k_indicators, function(item) {
+      psych::alpha(data[, -item], warnings = FALSE, discrete = FALSE)$total$raw_alpha
+    })
+    item_to_remove <- which.max(alphas_if_removed)
+    data <- data[, -item_to_remove, drop = FALSE]
+    k_indicators <- ncol(data)
+  }
+  return(data)
+}
+
+drop_items_based_on_factor_loading <- function(data, k_indicators_retained) {
+  require(psych)       # For factor analysis
+  require(GPArotation) # For rotations
+  
+  k_indicators <- ncol(data)
+  
+  if (k_indicators_retained > k_indicators) {
+    stop("Cannot retain more items than are present in the dataset.")
+  }
+
+  # Compute eigenvalues of the correlation matrix
+  eigenvalues <- eigen(cor(data))$values
+  
+  # Determine the number of factors using Kaiser’s Criterion (eigenvalues > 1)
+  nfactors <- sum(eigenvalues > 1)
+  if (nfactors == 0) nfactors <- 1  # Ensure at least one factor
+  
+  # Perform factor analysis using Principal Axis Factoring (PAF)
+  efa_result <- fa(data, nfactors, rotate = "oblimin", fm = "pa")
+  
+  # Extract loadings for the first factor
+  loadings_matrix <- efa_result$loadings
+  loadings_df <- data.frame(item = colnames(data), 
+                            loading = abs(loadings_matrix[, 1]))
+
+  # Select top N items with highest absolute loadings on the first factor
+  top_items <- loadings_df[order(-loadings_df$loading), "item"][1:k_indicators_retained]
+  
+  data_subset <- data[, top_items, drop = FALSE]
+
+  # Return the subset of the original data containing only the retained items
+  return(data_subset)
+}
+# # testing
+# sim_data <- as.data.frame(matrix(rnorm(500), ncol = 10))  # Simulated dataset (50 observations, 10 items)
+# result_data <- drop_items_based_on_factor_loading(sim_data, k_indicators_retained = 7)
+
+analyze_alpha_continuous <- function(data, k_indicators_retained) {
+  alpha <- psych::alpha(data, warnings = FALSE, discrete = FALSE)$total$raw_alpha
+  return(tibble(alpha = alpha))
+}
+
+# define parameters ----
+
+# # as in Kopalle & Lehman (1996)
+# experiment_parameters <- expand_grid(
+#   k_indicators = c(10, 20, 30),
+#   n_participants_multiplier = c(3, 10),
+#   lambda_mu = seq(0.3, 0.8, by = 0.1),
+#   lambda_sigma = 0.058,
+#   k_indicators_retained = c(3, 5, 10),
+#   iteration = 1:1000 # Kopalle & Lehman (1996) used 50
+# )
+
+# for testing
+experiment_parameters <- expand_grid(
+  k_indicators = 10,
+  n_participants_multiplier = 10,
+  lambda_mu = 0.8,
+  lambda_sigma = 0.058,
+  k_indicators_retained = 8,
+  iteration = 1:1000
+)
+
+# run simulations ----
+simulation_normal <- 
+  # using the experiment parameters
+  experiment_parameters |>
+  mutate(lambda_distribution = "normal") |>
+  # generate data using the data generating function and the parameters relevant to data generation
+  mutate(generated_data = pmap(list(k_indicators, 
+                                    n_participants_multiplier, 
+                                    lambda_mu, 
+                                    lambda_sigma),
+                               generate_data_normal_distribution)) 
+
+simulation_uniform <- 
+  # using the experiment parameters
+  experiment_parameters |>
+  mutate(lambda_distribution = "uniform") |>
+  # generate data using the data generating function and the parameters relevant to data generation
+  mutate(generated_data = pmap(list(k_indicators, 
+                                    n_participants_multiplier, 
+                                    lambda_mu),
+                               generate_data_uniform_distribution))
+
+simulation_point <- 
+  # using the experiment parameters
+  experiment_parameters |>
+  mutate(lambda_distribution = "point") |>
+  # generate data using the data generating function and the parameters relevant to data generation
+  mutate(generated_data = pmap(list(k_indicators, 
+                                    n_participants_multiplier, 
+                                    lambda_mu),
+                               generate_data_point_distribution))
+
+# combine and extract results
+simulation_combined <- 
+  bind_rows(simulation_normal,
+            simulation_uniform,
+            simulation_point) |>
+  # generate a second data set as a subset of the first based on repeated application of best cronbach's alpha if item removed
+  mutate(generated_data_subset_alpha = pmap(list(generated_data, 
+                                                 k_indicators_retained),
+                                            drop_items_based_on_alpha)) |>
+  mutate(generated_data_subset_fa = pmap(list(generated_data, 
+                                              k_indicators_retained),
+                                         drop_items_based_on_factor_loading)) |>
+  # calculate cronbach's alpha in full data
+  mutate(results_original = pmap(list(generated_data),
+                                 analyze_alpha_continuous)) |>
+  unnest(results_original) |>
+  rename(alpha_original = alpha) |>
+  # calculate cronbach's alpha in subset determined via cronbach's alpha if item removed
+  mutate(results_subset_alpha = pmap(list(generated_data_subset_alpha),
+                                     analyze_alpha_continuous)) |>
+  unnest(results_subset_alpha) |>
+  rename(alpha_estimates_in_subset_alpha = alpha) |>
+  # calculate cronbach's alpha in subset determined via factor loading
+  mutate(results_subset_fa = pmap(list(generated_data_subset_fa),
+                                     analyze_alpha_continuous)) |>
+  unnest(results_subset_fa) |>
+  rename(alpha_estimates_in_subset_fa = alpha) |>
+  # calculate difference
+  mutate(alpha_diff_alpha = alpha_estimates_in_subset_alpha - alpha_original,
+         alpha_diff_fa = alpha_estimates_in_subset_fa - alpha_original)
+
+# summarize across iterations
+simulation_summary <- simulation_combined |>
+  group_by(k_indicators,
+           n_participants_multiplier,
+           lambda_distribution,
+           lambda_mu,
+           lambda_sigma,
+           k_indicators_retained) |>
+  summarize(mean_alpha_original = mean(alpha_original),
+            mean_alpha_subset_alpha = mean(alpha_estimates_in_subset_alpha),
+            mean_alpha_subset_fa = mean(alpha_estimates_in_subset_fa),
+            mean_bias_alpha = mean(alpha_diff_alpha),
+            mean_bias_fa = mean(alpha_diff_fa),
+            .groups = "drop")
+
+# table
+simulation_summary |>
+  mutate_if(is.numeric, janitor::round_half_up, digits = 3) |>
+  kable() |>
+  kable_classic(full_width = TRUE)
+
+```
+
+# Session info
+
+```{r}
+
+sessionInfo()
+
+```
+
+
+
