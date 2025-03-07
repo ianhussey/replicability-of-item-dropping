@@ -12,6 +12,11 @@ output:
     toc_float: yes
 ---
 
+# TODO
+
+- need to add other distributions, eg with a clear outlier item that should be excluded
+- need to add mandatory drops vs drop if alpha improves - look at alpha-same.Rmd and think about how to integrate the two
+
 # Overview 
 
 TODO
@@ -236,7 +241,7 @@ drop_items_based_on_factor_loading <- function(data, k_indicators_retained) {
   efa_result <- fa(data, 
                    nfactors, 
                    rotate = "oblimin", 
-                   fm = "pa", 
+                   fm = "ml",
                    scores = "none", 
                    warnings = FALSE)  
   
@@ -388,7 +393,7 @@ simulation_combined <-
   unnest(item_selections_match_alpha_fa) |>
   rename(item_selections_match_alpha_fa = item_selections_agree)
 
-write_rds(simulation_combined, "simulation_combined_testing.rds")
+# write_rds(simulation_combined, "simulation_combined_testing.rds")
 
 ```
 
@@ -446,12 +451,15 @@ simulation_bias |>
 # n_participants
 ggplot(simulation_bias, aes(alpha, 
                             bias, 
-                            group = n_participants,
-                            color = method)) +
+                            #group = n_participants,
+                            #group = lambda_distribution,
+                            shape = lambda_distribution,
+                            color = lambda_mu)) +
   geom_point() +
   geom_line() +
-  facet_wrap(~ k_indicators_retained) +
-  #facet_grid(k_indicators ~ k_indicators_retained) +
+  scale_color_viridis_c(begin = 0.2, end = 0.9) +
+  #facet_wrap(~ k_indicators_retained) +
+  facet_grid(method ~ k_indicators_retained) +
   theme_linedraw() +
   xlab("α in full sample") +
   ylab("Bias in α") 
@@ -480,11 +488,12 @@ ggplot(simulation_bias, aes(alpha,
 simulation_agreement <- simulation_summary |>
   select(-alpha, -bias_alpha, -bias_fa) |>
   mutate(n_participants = as.factor(k_indicators * n_participants_multiplier),
-         k_indicators = as.factor(paste0("K indicators: ", k_indicators)),
+         k_indicators = as.factor(paste0("K items in pool: ", k_indicators)),
+         k_indicators_retained = as.factor(paste0("K items selected: ", k_indicators_retained)),
          lambda_distribution = case_when(lambda_distribution == "point" ~ "λ distribution: Point",
                                          lambda_distribution == "normal" ~ "λ distribution: Normal",
-                                         lambda_distribution == "uniform" ~ "λ distribution: Uniform"),
-         lambda_mu = paste0("Population mean λ: ", lambda_mu))
+                                         lambda_distribution == "uniform" ~ "λ distribution: Uniform"))
+         #lambda_mu = paste0("Population mean λ: ", lambda_mu))
 
 ## table
 simulation_agreement |>
@@ -493,27 +502,42 @@ simulation_agreement |>
   kable_classic(full_width = TRUE)
 
 ## plot
-ggplot(simulation_agreement, aes(n_participants, proportion_agree_alpha_fa, 
-                                 group = k_indicators_retained,
-                                 color = k_indicators)) +
-  geom_point() +
-  geom_line() +
-  theme_linedraw() +
-  facet_grid(lambda_distribution ~ lambda_mu) +
-  xlab("N participants") +
-  ylab("Proportion agreement between\nfactor analysis and α-if-item-removed") 
+# ggplot(simulation_agreement, aes(n_participants, proportion_agree_alpha_fa, 
+#                                  group = k_indicators_retained,
+#                                  color = k_indicators)) +
+#   geom_point() +
+#   geom_line() +
+#   theme_linedraw() +
+#   facet_grid(lambda_distribution ~ lambda_mu) +
+#   xlab("N participants") +
+#   ylab("Proportion agreement between\nfactor analysis and α-if-item-removed") 
+# 
+# 
+# ggplot(simulation_agreement, aes(n_participants, 
+#                                  proportion_agree_alpha_fa, 
+#                                  linetype = lambda_distribution,
+#                                  shape = lambda_distribution)) +
+#   geom_point() +
+#   geom_line() +
+#   facet_grid(k_indicators ~ k_indicators_retained) +
+#   theme_linedraw() +
+#   xlab("N participants") +
+#   ylab("Proportion agreement between\nfactor analysis and α-if-item-removed") 
 
 
-ggplot(simulation_agreement, aes(n_participants, 
+ggplot(simulation_agreement, aes(lambda_mu, 
                                  proportion_agree_alpha_fa, 
-                                 linetype = lambda_distribution,
+                                 #group = n_participants,
+                                 color = lambda_distribution,
                                  shape = lambda_distribution)) +
   geom_point() +
   geom_line() +
-  facet_grid(k_indicators ~ k_indicators_retained) +
+  facet_wrap(~ as.factor(k_indicators_retained)) +
+  #facet_grid( ~ ) +
   theme_linedraw() +
-  xlab("N participants") +
-  ylab("Proportion agreement between\nfactor analysis and α-if-item-removed") 
+  scale_y_continuous(limits = c(0,1), breaks = breaks_pretty(n = 10)) +
+  xlab("Population mean λ") +
+  ylab("Proportion agreement in item selections between methods\n(factor analysis vs. α-if-item-removed)") 
 
 ```
 
@@ -570,7 +594,7 @@ simulation_combined_halves <-
   unnest(item_selections_match_fas) |>
   rename(item_selections_match_fas = item_selections_agree)
 
-write_rds(simulation_combined_halves, "simulation_combined_halves_testing.rds")
+# write_rds(simulation_combined_halves, "simulation_combined_halves_testing.rds")
 
 ```
 
@@ -600,7 +624,8 @@ simulation_summary_halves <- simulation_combined_halves |>
 
 simulation_agreement_halves <- simulation_summary_halves |>
   mutate(n_participants_per_half = as.factor(k_indicators * n_participants_multiplier / 2),
-         k_indicators = as.factor(paste0("K indicators: ", k_indicators)),
+         k_indicators = as.factor(paste0("K items in pool: ", k_indicators)),
+         k_indicators_retained = as.factor(paste0("K items selected: ", k_indicators_retained)),
          lambda_distribution = case_when(lambda_distribution == "point" ~ "λ distribution: Point",
                                          lambda_distribution == "normal" ~ "λ distribution: Normal",
                                          lambda_distribution == "uniform" ~ "λ distribution: Uniform")) |>
@@ -610,8 +635,8 @@ simulation_agreement_halves <- simulation_summary_halves |>
                values_to = "proportion_match") |>
   mutate(method = str_remove(method, "proportion_item_selections_match_"),
          method = case_when(method == "fas" ~ "Factor analysis",
-                            method == "alphas" ~ "α if item removed"),
-         lambda_mu = paste0("Population mean λ: ", lambda_mu))
+                            method == "alphas" ~ "α if item removed"))
+         #lambda_mu = paste0("Population mean λ: ", lambda_mu))
 
 ## table
 simulation_agreement_halves |>
@@ -620,17 +645,24 @@ simulation_agreement_halves |>
   kable_classic(full_width = TRUE)
 
 ## plot
-ggplot(simulation_agreement_halves, 
-       aes(n_participants_per_half, proportion_match, group = k_indicators_retained, 
-           color = k_indicators)) +
+ggplot(simulation_agreement_halves, aes(lambda_mu, 
+                                        proportion_match, 
+                                        #group = n_participants,
+                                        color = lambda_distribution,
+                                        shape = lambda_distribution)) +
   geom_point() +
-  #geom_line() +
+  geom_line() +
+  facet_grid(method ~ as.factor(k_indicators_retained)) +
+  #facet_grid( ~ ) +
   theme_linedraw() +
-  facet_grid(lambda_distribution ~ lambda_mu) +
-  xlab("N participants") +
-  ylab("Proportion agreement between\nfactor analysis and α-if-item-removed") 
+  scale_y_continuous(limits = c(0,1), breaks = breaks_pretty(n = 10)) +
+  xlab("Population mean λ") +
+  ylab("Proportion agreement in item selections between studies") 
 
 ```
+
+- need to increase N, as its currently half the original N
+- need to check all is in order this seems too bad to be true?
 
 # Session info
 
