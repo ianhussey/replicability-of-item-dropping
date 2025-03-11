@@ -12,10 +12,12 @@ output:
     toc_float: yes
 ---
 
-# TODO
+# TODO after lab chat
 
-- need to add other distributions, eg with a clear outlier item that should be excluded
-- need to add mandatory drops vs drop if alpha improves - look at alpha-same.Rmd and think about how to integrate the two
+- move from replication to novel study. drop the EFA piece.
+- add conditional dropping so that item(s) are only dropped if alpha improves, or better yet if it crosses a .6, .7, .8, .9 threshold. might need to check which of K multiple number of drops is the best and use that, or the first that reaches a threshold.
+- Find one or more more realistic distributions of alpha using real datasets, e.g., synth training data, bainbridge, AIID.
+- Choose a strategy that purposefully adds a poorly performing item to the realistic distirbution. Compare via sim the probability of choosing to drop an item when there is vs isnt a bad one, and the probability of choosing the wrong item to drop when there is a bad one.
 
 # Overview 
 
@@ -237,7 +239,7 @@ drop_items_based_on_factor_loading <- function(data, k_indicators_retained) {
   nfactors <- sum(eigenvalues > 1)
   if (nfactors == 0) nfactors <- 1  # Ensure at least one factor
   
-  # Perform factor analysis using Principal Axis Factoring (PAF)
+  # Perform factor analysis 
   efa_result <- fa(data, 
                    nfactors, 
                    rotate = "oblimin", 
@@ -450,7 +452,7 @@ simulation_bias |>
 ## plot 
 # n_participants
 ggplot(simulation_bias, aes(alpha, 
-                            bias, 
+                            bias*-1, 
                             #group = n_participants,
                             #group = lambda_distribution,
                             shape = lambda_distribution,
@@ -478,6 +480,22 @@ ggplot(simulation_bias, aes(alpha,
 #   # labs(linetype = "K indicators",
 #   #      shape = "K indicators",
 #   #      color = "N participants")
+
+
+ggplot(simulation_bias, aes(alpha + bias, # sub set alpha is full + bias
+                            bias*-1, 
+                            #group = n_participants,
+                            #group = lambda_distribution,
+                            shape = lambda_distribution,
+                            color = lambda_mu)) +
+  geom_point() +
+  geom_line() +
+  scale_color_viridis_c(begin = 0.2, end = 0.9) +
+  #facet_wrap(~ k_indicators_retained) +
+  facet_grid(method ~ k_indicators_retained) +
+  theme_linedraw() +
+  xlab("α in subset") +
+  ylab("Bias in α") 
 
 ```
 
