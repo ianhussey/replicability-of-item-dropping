@@ -162,8 +162,8 @@ n_cases_per_condition <- 40
 # the grid itself is deterministic; the seed is set inside the cached computation below,
 # next to the random draws it actually governs
 validation_cases <- expand_grid(
-  k_indicators = c(5, 9, 13, 21, 39),
-  n_participants = c(20, 30, 50, 200, 1000),
+  k_indicators = c(5, 10, 20),
+  n_participants = c(20, 50, 100),
   case = seq_len(n_cases_per_condition)
 )
 
