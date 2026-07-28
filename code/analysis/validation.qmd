@@ -113,20 +113,63 @@ Nothing is recomputed if its `.rds` already exists, so a local re-render costs s
 # every cache below.
 functions_hash <- unname(substr(tools::md5sum("simulation_functions.R"), 1, 8))
 
+# Guard against a cache file holding the wrong object. This is not hypothetical: the cached
+# path is easy to write the wrong thing to by hand, and because this is a *validation* file,
+# a wrong-shaped cache would either crash the summary chunk with an opaque error or -- worse
+# -- let checks appear to pass on columns that do not exist. Fail immediately, and say why.
+check_cached_object <- function(object, path, required_columns) {
+
+  if (is.null(required_columns)) return(invisible(TRUE))
+
+  missing_columns <- setdiff(required_columns, names(object))
+
+  if (length(missing_columns) > 0) {
+    stop("The object at '", path, "' is not what this cache slot expects.\n",
+         "  missing columns: ", paste(missing_columns, collapse = ", "), "\n",
+         "  columns present: ", paste(names(object), collapse = ", "), "\n",
+         "  This usually means a different object was written to that path. ",
+         "Delete the file and re-run.",
+         call. = FALSE)
+  }
+
+  invisible(TRUE)
+}
+
 # Run `computation` and cache it to `path`, or read it back if that file already exists.
 # `computation` is a lazily-evaluated promise, so on the cached path it is never evaluated
 # and no work is done. Provenance (where and when it was computed) is attached as an
 # attribute so the rendered report can state which machine produced the numbers -- which
 # matters here because the timings below are hardware-dependent.
-cache_rds <- function(path, computation) {
+#
+# Every path in and out of this function is announced and verified. A cache write that
+# silently does not happen costs a whole cluster run, and a relative `path` resolves against
+# whatever the working directory happens to be -- which differs between rendering the
+# document (working directory = document directory) and running its chunks interactively in
+# RStudio (working directory = project root). The messages below name the absolute path
+# actually used, so a file landing somewhere unexpected is visible rather than mysterious.
+cache_rds <- function(path, computation, required_columns = NULL) {
 
   if (file.exists(path)) {
-    return(read_rds(path))
+    result <- read_rds(path)
+    check_cached_object(result, path, required_columns)
+    message("cache_rds: loaded ", normalizePath(path))
+    return(result)
   }
 
-  dir.create(dirname(path), showWarnings = FALSE, recursive = TRUE)
+  message("cache_rds: no cache at '", path, "' -- computing. Working directory: ", getwd())
+
+  cache_directory <- dirname(path)
+  dir.create(cache_directory, showWarnings = FALSE, recursive = TRUE)
+
+  if (!dir.exists(cache_directory)) {
+    stop("cache_rds: could not create the results directory '", cache_directory,
+         "' from working directory ", getwd(), call. = FALSE)
+  }
 
   result <- computation
+
+  # check before writing, so a mistake is caught at the source rather than on the next render
+  check_cached_object(result, path, required_columns)
 
   attr(result, "provenance") <-
     list(computed_on = unname(Sys.info()[["nodename"]]),
@@ -134,6 +177,16 @@ cache_rds <- function(path, computation) {
          computed_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"))
 
   write_rds(x = result, file = path, compress = "gz")
+
+  # verify the write actually landed rather than assuming it did
+  if (!file.exists(path)) {
+    stop("cache_rds: write_rds() did not produce a file at '", path,
+         "' (working directory: ", getwd(), "). The computed result would be lost.",
+         call. = FALSE)
+  }
+
+  message("cache_rds: wrote ", normalizePath(path),
+          sprintf(" (%.1f KB)", file.size(path) / 1024))
 
   return(result)
 }
@@ -167,6 +220,17 @@ validation_cases <- expand_grid(
   case = seq_len(n_cases_per_condition)
 )
 
+# Shuffle so expensive cases are spread across workers (load balancing). Cost is steeply
+# graded here -- a case calls psych::alpha() k + 1 times on n rows, so the largest
+# (k, n) cell is orders of magnitude more work than the smallest -- and furrr splits the
+# input into one CONTIGUOUS chunk per worker, while expand_grid() emits rows sorted by k
+# then n. Unshuffled, a single worker receives every expensive case and the whole run waits
+# on it. The shuffle seed is fixed, so the run stays reproducible; it does change which
+# L'Ecuyer stream each case draws (furrr assigns streams by position), so the cases sampled
+# differ from an unshuffled run -- reproducibly, but not identically.
+set.seed(101)
+validation_cases <- validation_cases[sample(nrow(validation_cases)), ]
+
 nrow(validation_cases)
 
 ```
@@ -176,6 +240,7 @@ nrow(validation_cases)
 For each case, both implementations are run on the identical dataset and their outputs compared.
 
 ```{r}
+#| message: true
 
 validate_one_case <- function(k_indicators, n_participants) {
 
@@ -223,11 +288,22 @@ validate_one_case <- function(k_indicators, n_participants) {
          alpha_pop_leq_omega = alpha_pop_custom <= omega_pop_custom + 1e-12)
 }
 
-validation_path <- paste0("results/validation_cases_ncases", n_cases_per_condition,
+# NB "results", not "cases": this slot holds the per-case comparison RESULTS, not the
+# validation_cases grid that was fed in. The previous name invited writing the grid here.
+validation_path <- paste0("results/validation_results_ncases", n_cases_per_condition,
                           "_fns", functions_hash, ".rds")
 
 # the slow step: psych::alpha() is called k + 1 times per case
-validation <- cache_rds(validation_path, {
+validation <- cache_rds(validation_path,
+                        required_columns = c("k_indicators", "n_participants",
+                                             "any_negative_loading",
+                                             "max_abs_diff_alpha_full",
+                                             "max_abs_diff_alphas_if_removed",
+                                             "candidate_item_agrees",
+                                             "max_abs_diff_alpha_pop",
+                                             "max_abs_diff_omega_pop",
+                                             "alpha_pop_leq_omega"),
+                        computation = {
 
   set.seed(42)
 
@@ -236,7 +312,10 @@ validation <- cache_rds(validation_path, {
     future_pmap(.f = validate_one_case,
                 .progress = TRUE,
                 .options = furrr_options(seed = TRUE)) |>
-    bind_rows()
+    bind_rows() |>
+    # undo the load-balancing shuffle so the cached object is stored in a readable order.
+    # Purely cosmetic: every summary below groups by condition, so order is irrelevant.
+    arrange(k_indicators, n_participants)
 })
 
 ```
@@ -355,6 +434,7 @@ This is not a hypothetical concern. Given `lavaan` syntax that specifies loading
 Each check draws one item pool per pool size, generates a very large sample from it, and compares the realised covariance structure and sample alpha against the intended population values.
 
 ```{r}
+#| message: true
 
 n_participants_large <- 100000
 
@@ -377,7 +457,12 @@ check_dgp_recovery <- function(k_indicators) {
 dgp_recovery_path <- paste0("results/validation_dgp_recovery_n", n_participants_large,
                             "_fns", functions_hash, ".rds")
 
-dgp_recovery <- cache_rds(dgp_recovery_path, {
+dgp_recovery <- cache_rds(dgp_recovery_path,
+                          required_columns = c("k_indicators", "mean_item_variance",
+                                               "max_abs_diff_covariance",
+                                               "sample_alpha_large_n", "population_alpha",
+                                               "difference"),
+                          computation = {
 
   set.seed(2024)
 
@@ -430,10 +515,13 @@ This block is deliberately left serial while the checks above are parallelised: 
 Unlike every other result in this file, these numbers are **hardware-dependent**: cached alongside the rest, they report the speed of whichever machine computed them. If the cache was written on the cluster and this report re-rendered locally, the timings below are the cluster's, not the laptop's. The provenance table at the end records which machine that was; delete `results/validation_timing_*.rds` to re-measure on the current one.
 
 ```{r}
+#| message: true
 
 timing_path <- paste0("results/validation_timing_fns", functions_hash, ".rds")
 
-timing <- cache_rds(timing_path, {
+timing <- cache_rds(timing_path,
+                    required_columns = c("implementation", "seconds_per_dataset"),
+                    computation = {
 
   set.seed(1)
   timing_lambda <- draw_lambda(k_indicators = 39)
