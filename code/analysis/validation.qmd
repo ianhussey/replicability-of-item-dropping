@@ -40,7 +40,7 @@ options(scipen = 999)
 
 # Purpose
 
-`simulation.qmd` needs, for every replication, the sample Cronbach's alpha of the full item pool and the sample alpha of the pool with each item removed in turn. The obvious implementation calls `psych::alpha()` once per item, which builds a large object of item statistics (item-total correlations, item means and SDs, alpha standard errors) that the simulation never uses, and does so $k$ times per replication.
+`simulation_1_bias.qmd` needs, for every replication, the sample Cronbach's alpha of the full item pool and the sample alpha of the pool with each item removed in turn. The obvious implementation calls `psych::alpha()` once per item, which builds a large object of item statistics (item-total correlations, item means and SDs, alpha standard errors) that the simulation never uses, and does so $k$ times per replication.
 
 `simulation_functions.R` instead computes both quantities directly from a single covariance matrix:
 
@@ -59,6 +59,8 @@ Both this file and the simulation `source()` the same `simulation_functions.R`, 
 ```{r}
 
 library(psych)
+library(furrr)
+library(readr)
 library(dplyr)
 library(tidyr)
 library(purrr)
@@ -71,6 +73,82 @@ library(kableExtra)
 # the functions under validation, and the DGP used to generate validation cases
 source("simulation_functions.R")
 
+# --- How many workers does THIS session/allocation actually have? -----------
+# parallelly::availableCores() honours the SLURM allocation, cgroup CPU quotas,
+# and affinity masks, so it returns the cores granted to THIS session -- not the
+# ~196 physical cores parallel::detectCores() would report. Set the override to
+# pin a count manually; leave NULL to auto-detect.
+n_workers_override <- NULL
+detected_cores <- unname(parallelly::availableCores())
+n_workers <- if (is.null(n_workers_override)) detected_cores else as.integer(n_workers_override)
+n_workers <- max(1L, as.integer(n_workers))
+message(sprintf("Parallel plan: %d workers (parallelly detected %d).", n_workers, detected_cores))
+
+# RStudio Server is not fork-safe, so use multisession (separate R processes), not multicore.
+# `furrr_options(seed = TRUE)` (used in every future_* call below) advances an L'Ecuyer-CMRG
+# stream per task rather than re-seeding per worker. That matters more here than usual: it
+# makes the results independent of worker count, so the validation run on the cluster and a
+# re-run on a laptop with a different core count produce identical numbers.
+plan(multisession, workers = n_workers)
+
+```
+
+# Caching and the HPC workflow
+
+Every expensive computation in this file is cached to a `.rds` under `results/`, following the same convention as `simulation_1_bias.qmd`. The intended workflow is:
+
+1. Run this file on the HPC (render it, or `source()` the purled script) — the `.rds` files are written to `results/`.
+2. Download `results/` to the local machine.
+3. Re-render locally. Every cached computation is read from disk, so the tables, figures and pass/fail checks are reproduced without re-running anything.
+
+Nothing is recomputed if its `.rds` already exists, so a local re-render costs seconds regardless of how long the original run took.
+
+**Cache keys.** A cached validation carries a specific hazard that a cached simulation does not: if `simulation_functions.R` were edited after the cache was written, this file would happily re-render and report that the *old* functions passed, which is exactly the failure mode a validation is supposed to prevent. Each cache filename therefore embeds a hash of `simulation_functions.R` alongside the parameters that determine the result. Editing the functions changes the hash, so the old cache no longer matches and the validation re-runs rather than silently vouching for code that no longer exists. Deleting a `.rds` also forces recomputation.
+
+```{r}
+
+# Hash of the file under validation. tools::md5sum() is base R, so this adds no dependency.
+# The same source file (tracked in git) gives the same hash on the cluster and locally, so a
+# downloaded .rds matches; an edited simulation_functions.R gives a new hash and invalidates
+# every cache below.
+functions_hash <- unname(substr(tools::md5sum("simulation_functions.R"), 1, 8))
+
+# Run `computation` and cache it to `path`, or read it back if that file already exists.
+# `computation` is a lazily-evaluated promise, so on the cached path it is never evaluated
+# and no work is done. Provenance (where and when it was computed) is attached as an
+# attribute so the rendered report can state which machine produced the numbers -- which
+# matters here because the timings below are hardware-dependent.
+cache_rds <- function(path, computation) {
+
+  if (file.exists(path)) {
+    return(read_rds(path))
+  }
+
+  dir.create(dirname(path), showWarnings = FALSE, recursive = TRUE)
+
+  result <- computation
+
+  attr(result, "provenance") <-
+    list(computed_on = unname(Sys.info()[["nodename"]]),
+         platform    = R.version$platform,
+         computed_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"))
+
+  write_rds(x = result, file = path, compress = "gz")
+
+  return(result)
+}
+
+# extract the provenance attribute for reporting; NA if the object predates this mechanism
+cache_provenance <- function(object, path) {
+  provenance <- attr(object, "provenance")
+  tibble(file        = basename(path),
+         computed_on = provenance$computed_on %||% NA_character_,
+         platform    = provenance$platform    %||% NA_character_,
+         computed_at = provenance$computed_at %||% NA_character_)
+}
+
+functions_hash
+
 ```
 
 # Validation cases
@@ -79,10 +157,10 @@ Cases are drawn from the simulation's own DGP and its own design grid, so the va
 
 ```{r}
 
-set.seed(42)
-
 n_cases_per_condition <- 40
 
+# the grid itself is deterministic; the seed is set inside the cached computation below,
+# next to the random draws it actually governs
 validation_cases <- expand_grid(
   k_indicators = c(5, 9, 13, 21, 39),
   n_participants = c(20, 30, 50, 200, 1000),
@@ -145,10 +223,21 @@ validate_one_case <- function(k_indicators, n_participants) {
          alpha_pop_leq_omega = alpha_pop_custom <= omega_pop_custom + 1e-12)
 }
 
-validation <- validation_cases |>
-  select(k_indicators, n_participants) |>
-  pmap(validate_one_case) |>
-  bind_rows()
+validation_path <- paste0("results/validation_cases_ncases", n_cases_per_condition,
+                          "_fns", functions_hash, ".rds")
+
+# the slow step: psych::alpha() is called k + 1 times per case
+validation <- cache_rds(validation_path, {
+
+  set.seed(42)
+
+  validation_cases |>
+    select(k_indicators, n_participants) |>
+    future_pmap(.f = validate_one_case,
+                .progress = TRUE,
+                .options = furrr_options(seed = TRUE)) |>
+    bind_rows()
+})
 
 ```
 
@@ -285,9 +374,18 @@ check_dgp_recovery <- function(k_indicators) {
          difference = sample_alpha_large_n - population_alpha)
 }
 
-set.seed(2024)
+dgp_recovery_path <- paste0("results/validation_dgp_recovery_n", n_participants_large,
+                            "_fns", functions_hash, ".rds")
 
-dgp_recovery <- map(c(5, 9, 13, 21, 39), check_dgp_recovery) |> bind_rows()
+dgp_recovery <- cache_rds(dgp_recovery_path, {
+
+  set.seed(2024)
+
+  future_map(.x = c(5, 9, 13, 21, 39),
+             .f = check_dgp_recovery,
+             .options = furrr_options(seed = TRUE)) |>
+    bind_rows()
+})
 
 dgp_recovery |>
   mutate(across(where(is.numeric), \(x) signif(x, 4))) |>
@@ -327,29 +425,41 @@ dgp_recovery_passed
 
 The reason for the swap. Both implementations produce the full set of leave-one-out alphas for one dataset.
 
+This block is deliberately left serial while the checks above are parallelised: it measures the single-core cost of one dataset, which is the like-for-like comparison between the two implementations and the number that scales to a per-replication cost in the simulation.
+
+Unlike every other result in this file, these numbers are **hardware-dependent**: cached alongside the rest, they report the speed of whichever machine computed them. If the cache was written on the cluster and this report re-rendered locally, the timings below are the cluster's, not the laptop's. The provenance table at the end records which machine that was; delete `results/validation_timing_*.rds` to re-measure on the current one.
+
 ```{r}
 
-set.seed(1)
-timing_lambda <- draw_lambda(k_indicators = 39)
-timing_data   <- generate_data(lambda = timing_lambda, n_participants = 1000)
+timing_path <- paste0("results/validation_timing_fns", functions_hash, ".rds")
 
-timing_psych <- system.time({
-  for (i in 1:5) {
-    sapply(seq_len(ncol(timing_data)), function(item) {
-      psych::alpha(timing_data[, -item], warnings = FALSE, discrete = FALSE)$total$raw_alpha
-    })
-  }
-})[["elapsed"]] / 5
+timing <- cache_rds(timing_path, {
 
-timing_custom <- system.time({
-  for (i in 1:5) alphas_if_each_item_removed_from_cov(cov(timing_data))
-})[["elapsed"]] / 5
+  set.seed(1)
+  timing_lambda <- draw_lambda(k_indicators = 39)
+  timing_data   <- generate_data(lambda = timing_lambda, n_participants = 1000)
 
-tibble(implementation = c("psych::alpha(), once per item", "alphas_if_each_item_removed_from_cov()"),
-       seconds_per_dataset = c(timing_psych, timing_custom)) |>
+  timing_psych <- system.time({
+    for (i in 1:5) {
+      sapply(seq_len(ncol(timing_data)), function(item) {
+        psych::alpha(timing_data[, -item], warnings = FALSE, discrete = FALSE)$total$raw_alpha
+      })
+    }
+  })[["elapsed"]] / 5
+
+  timing_custom <- system.time({
+    for (i in 1:5) alphas_if_each_item_removed_from_cov(cov(timing_data))
+  })[["elapsed"]] / 5
+
+  tibble(implementation = c("psych::alpha(), once per item",
+                            "alphas_if_each_item_removed_from_cov()"),
+         seconds_per_dataset = c(timing_psych, timing_custom))
+})
+
+timing |>
   mutate(speedup = max(seconds_per_dataset) / seconds_per_dataset) |>
   mutate(across(where(is.numeric), \(x) signif(x, 3))) |>
-  kable(caption = "Mean elapsed time to compute all k leave-one-out alphas for one dataset (k = 39, N = 1000), averaged over 5 runs.") |>
+  kable(caption = "Mean elapsed time to compute all k leave-one-out alphas for one dataset (k = 39, N = 1000), averaged over 5 runs. Measured on the machine listed in the provenance table below.") |>
   kable_classic(full_width = FALSE)
 
 ```
@@ -369,6 +479,22 @@ cat(if (all_checks_passed && dgp_recovery_passed) {
 } else {
   "Validation FAILED. See the tables above."
 })
+
+```
+
+## Provenance of the cached results
+
+Where and when each cached result was actually computed. If these rows name the cluster, the report was re-rendered locally from downloaded `.rds` files and nothing above was recomputed on this machine.
+
+```{r}
+
+bind_rows(cache_provenance(validation,    validation_path),
+          cache_provenance(dgp_recovery,  dgp_recovery_path),
+          cache_provenance(timing,        timing_path)) |>
+  kable(caption = paste0("Provenance of each cached result. All three are keyed to ",
+                         "simulation_functions.R hash ", functions_hash,
+                         "; a change to that file invalidates them.")) |>
+  kable_classic(full_width = TRUE)
 
 ```
 
