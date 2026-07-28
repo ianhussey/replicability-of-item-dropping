@@ -235,7 +235,7 @@ $$\widehat{\text{MCSE}}(\hat p) \;=\; \sqrt{\hat p\,(1-\hat p)\,/\,K}$$
 
 ### Number of simulation repetitions
 
-We use `niter` = 10000 replications per condition for the full run (this pilot file: K = 200). At the worst case for a proportion measure ($\hat p = 0.5$), `niter` = 10000 gives $\widehat{\text{MCSE}}(\hat p) = \sqrt{0.25/10000} \approx 0.016$, i.e. P(drop) is uncertain to roughly ±1.6 percentage points; this is adequate for the visual and tabular comparisons reported here but would be too loose for a confirmatory study making a specific numeric claim. A future preregistered iteration targeting, say, an MCSE of 0.005 on a proportion near 0.5 would require $K \geq 0.5 \times 0.5 / 0.005^2 = 10{,}000$ replications per condition. With 25 conditions, `niter` = 10000 gives 250,000 replications, each generating one dataset.
+We use `niter` = 10000 replications per condition for the full run (this pilot file: K = 200). At the worst case for a proportion measure ($\hat p = 0.5$), `niter` = 10000 gives $\widehat{\text{MCSE}}(\hat p) = \sqrt{0.25/10000} \approx 0.005$, i.e. P(drop) is uncertain to roughly ±0.5 percentage points. With 25 conditions, `niter` = 10000 gives 250,000 replications, each generating one dataset.
 
 ### Non-convergence and missing values
 
