@@ -517,38 +517,38 @@ Unlike every other result in this file, these numbers are **hardware-dependent**
 ```{r}
 #| message: true
 
-timing_path <- paste0("results/validation_timing_fns", functions_hash, ".rds")
-
-timing <- cache_rds(timing_path,
-                    required_columns = c("implementation", "seconds_per_dataset"),
-                    computation = {
-
-  set.seed(1)
-  timing_lambda <- draw_lambda(k_indicators = 39)
-  timing_data   <- generate_data(lambda = timing_lambda, n_participants = 1000)
-
-  timing_psych <- system.time({
-    for (i in 1:5) {
-      sapply(seq_len(ncol(timing_data)), function(item) {
-        psych::alpha(timing_data[, -item], warnings = FALSE, discrete = FALSE)$total$raw_alpha
-      })
-    }
-  })[["elapsed"]] / 5
-
-  timing_custom <- system.time({
-    for (i in 1:5) alphas_if_each_item_removed_from_cov(cov(timing_data))
-  })[["elapsed"]] / 5
-
-  tibble(implementation = c("psych::alpha(), once per item",
-                            "alphas_if_each_item_removed_from_cov()"),
-         seconds_per_dataset = c(timing_psych, timing_custom))
-})
-
-timing |>
-  mutate(speedup = max(seconds_per_dataset) / seconds_per_dataset) |>
-  mutate(across(where(is.numeric), \(x) signif(x, 3))) |>
-  kable(caption = "Mean elapsed time to compute all k leave-one-out alphas for one dataset (k = 39, N = 1000), averaged over 5 runs. Measured on the machine listed in the provenance table below.") |>
-  kable_classic(full_width = FALSE)
+# timing_path <- paste0("results/validation_timing_fns", functions_hash, ".rds")
+# 
+# timing <- cache_rds(timing_path,
+#                     required_columns = c("implementation", "seconds_per_dataset"),
+#                     computation = {
+# 
+#   set.seed(1)
+#   timing_lambda <- draw_lambda(k_indicators = 39)
+#   timing_data   <- generate_data(lambda = timing_lambda, n_participants = 1000)
+# 
+#   timing_psych <- system.time({
+#     for (i in 1:5) {
+#       sapply(seq_len(ncol(timing_data)), function(item) {
+#         psych::alpha(timing_data[, -item], warnings = FALSE, discrete = FALSE)$total$raw_alpha
+#       })
+#     }
+#   })[["elapsed"]] / 5
+# 
+#   timing_custom <- system.time({
+#     for (i in 1:5) alphas_if_each_item_removed_from_cov(cov(timing_data))
+#   })[["elapsed"]] / 5
+# 
+#   tibble(implementation = c("psych::alpha(), once per item",
+#                             "alphas_if_each_item_removed_from_cov()"),
+#          seconds_per_dataset = c(timing_psych, timing_custom))
+# })
+# 
+# timing |>
+#   mutate(speedup = max(seconds_per_dataset) / seconds_per_dataset) |>
+#   mutate(across(where(is.numeric), \(x) signif(x, 3))) |>
+#   kable(caption = "Mean elapsed time to compute all k leave-one-out alphas for one dataset (k = 39, N = 1000), averaged over 5 runs. Measured on the machine listed in the provenance table below.") |>
+#   kable_classic(full_width = FALSE)
 
 ```
 
@@ -576,10 +576,12 @@ Where and when each cached result was actually computed. If these rows name the 
 
 ```{r}
 
-bind_rows(cache_provenance(validation,    validation_path),
-          cache_provenance(dgp_recovery,  dgp_recovery_path),
-          cache_provenance(timing,        timing_path)) |>
-  kable(caption = paste0("Provenance of each cached result. All three are keyed to ",
+bind_rows(
+  cache_provenance(validation,    validation_path),
+  cache_provenance(dgp_recovery,  dgp_recovery_path)
+  #cache_provenance(timing,        timing_path)
+) |>
+  kable(caption = paste0("Provenance of each cached result. All are keyed to ",
                          "simulation_functions.R hash ", functions_hash,
                          "; a change to that file invalidates them.")) |>
   kable_classic(full_width = TRUE)
