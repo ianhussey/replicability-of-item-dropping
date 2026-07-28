@@ -2,10 +2,4 @@
 *.DS_Store
 *.Rhistory
 old/*
-data/processed/data_drop_decisions.rds
-data/intermediary/data_replications.rds
 .Rproj.user
-data/processed/bainbridge et al/data_drop_decisions.rds
-data/processed/bainbridge et al/data_replications.rds
-data/raw/bainbridge et al/output.zip
-*.rds
