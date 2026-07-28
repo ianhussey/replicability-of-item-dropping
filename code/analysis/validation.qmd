@@ -1,0 +1,381 @@
+---
+title: "Validation of the fast alpha functions against psych::alpha()"
+author: "Ian Hussey"
+date: today
+format:
+  html:
+    embed-resources: true # ignored when rendering book
+    toc: true
+    toc_float: true
+    code-fold: false
+    code-overflow: wrap
+    code-tools: true
+    warning: false
+    df-print: kable
+    theme:
+      light: cosmo
+      dark: darkly
+    highlight-style:
+      light: breeze
+      dark: dracula
+    include-in-header:
+      text: |
+        <style>
+          .kable-table table { width: 70%; margin: 0 auto; }
+          .quarto-color-scheme-toggle::after { content: " Dark mode"; font-family: sans-serif; font-size: 0.85em; }
+        </style>
+---
+
+```{r}
+#| include: false
+
+# set default chunk options
+knitr::opts_chunk$set(message = FALSE,
+                      warning = FALSE)
+
+# disable scientific notation
+options(scipen = 999)
+
+```
+
+# Purpose
+
+`simulation.qmd` needs, for every replication, the sample Cronbach's alpha of the full item pool and the sample alpha of the pool with each item removed in turn. The obvious implementation calls `psych::alpha()` once per item, which builds a large object of item statistics (item-total correlations, item means and SDs, alpha standard errors) that the simulation never uses, and does so $k$ times per replication.
+
+`simulation_functions.R` instead computes both quantities directly from a single covariance matrix:
+
+$$\hat\alpha(S) \;=\; \frac{m}{m-1}\left(1 - \frac{\operatorname{tr}(\mathbf{S})}{\mathbf{1}^\top \mathbf{S}\mathbf{1}}\right), \qquad m = |S|$$
+
+and obtains all $k$ leave-one-out alphas from that same matrix using
+
+$$\operatorname{tr}(\mathbf{S}_{-j}) = \operatorname{tr}(\mathbf{S}) - S_{jj}, \qquad \mathbf{1}^\top \mathbf{S}_{-j}\mathbf{1} = \mathbf{1}^\top \mathbf{S}\mathbf{1} - 2\!\sum_i S_{ij} + S_{jj}$$
+
+This file checks that those functions return the same numbers as `psych::alpha()` before the simulation is allowed to rely on them. It also checks the two closed-form population targets (`population_alpha_from_loadings()`, `population_omega_from_loadings()`) against values computed independently from the model-implied population covariance matrix.
+
+Both this file and the simulation `source()` the same `simulation_functions.R`, so the functions validated here are the same objects the simulation runs — there are no second copies to drift out of sync.
+
+# Dependencies
+
+```{r}
+
+library(psych)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(tibble)
+library(ggplot2)
+library(scales)
+library(knitr)
+library(kableExtra)
+
+# the functions under validation, and the DGP used to generate validation cases
+source("simulation_functions.R")
+
+```
+
+# Validation cases
+
+Cases are drawn from the simulation's own DGP and its own design grid, so the validation covers exactly the item-pool sizes, sample sizes and loading distribution the simulation will use — including the small negative-loading tail of the fitted scaled Beta ($\approx$ 1.7% of items), which matters because neither implementation applies automatic reverse-keying and an item pool containing a negatively-loading item is the case most likely to expose a discrepancy.
+
+```{r}
+
+set.seed(42)
+
+n_cases_per_condition <- 40
+
+validation_cases <- expand_grid(
+  k_indicators = c(5, 9, 13, 21, 39),
+  n_participants = c(20, 30, 50, 200, 1000),
+  case = seq_len(n_cases_per_condition)
+)
+
+nrow(validation_cases)
+
+```
+
+# Validation
+
+For each case, both implementations are run on the identical dataset and their outputs compared.
+
+```{r}
+
+validate_one_case <- function(k_indicators, n_participants) {
+
+  lambda <- draw_lambda(k_indicators = k_indicators)
+  data   <- generate_data(lambda = lambda, n_participants = n_participants)
+
+  covariance_matrix <- cov(data)
+
+  # --- full-pool alpha ---
+  alpha_custom <- alpha_from_cov(covariance_matrix)
+  alpha_psych  <- psych::alpha(data, warnings = FALSE, discrete = FALSE)$total$raw_alpha
+
+  # --- alpha with each item removed in turn ---
+  alphas_if_removed_custom <- alphas_if_each_item_removed_from_cov(covariance_matrix)
+  alphas_if_removed_psych  <- sapply(seq_len(ncol(data)), function(item) {
+    psych::alpha(data[, -item], warnings = FALSE, discrete = FALSE)$total$raw_alpha
+  })
+
+  # --- population targets, checked against the model-implied population covariance ---
+  # Sigma = lambda lambda' + diag(1 - lambda^2), i.e. exactly the covariance structure
+  # generate_data() draws from. Applying the same alpha formula to Sigma is an independent
+  # route to the population alpha; omega is the common-factor share of sum-score variance,
+  # (sum lambda)^2 / (1' Sigma 1).
+  sigma <- tcrossprod(lambda) + diag(1 - lambda^2, nrow = length(lambda))
+  alpha_pop_custom <- population_alpha_from_loadings(lambda)
+  alpha_pop_sigma  <- alpha_from_cov(sigma)
+  omega_pop_custom <- population_omega_from_loadings(lambda)
+  omega_pop_sigma  <- sum(lambda)^2 / sum(sigma)
+
+  tibble(k_indicators   = k_indicators,
+         n_participants = n_participants,
+         any_negative_loading = any(lambda < 0),
+         # full-pool sample alpha
+         max_abs_diff_alpha_full = abs(alpha_custom - alpha_psych),
+         # leave-one-out sample alphas
+         max_abs_diff_alphas_if_removed = max(abs(alphas_if_removed_custom -
+                                                    alphas_if_removed_psych)),
+         # does each implementation nominate the same candidate item J*?
+         candidate_item_agrees = which.max(alphas_if_removed_custom) ==
+                                   which.max(alphas_if_removed_psych),
+         # population targets
+         max_abs_diff_alpha_pop = abs(alpha_pop_custom - alpha_pop_sigma),
+         max_abs_diff_omega_pop = abs(omega_pop_custom - omega_pop_sigma),
+         # structural inequality that the estimands rely on: alpha_pop <= omega
+         alpha_pop_leq_omega = alpha_pop_custom <= omega_pop_custom + 1e-12)
+}
+
+validation <- validation_cases |>
+  select(k_indicators, n_participants) |>
+  pmap(validate_one_case) |>
+  bind_rows()
+
+```
+
+## Overall result
+
+```{r}
+
+tolerance <- 1e-10
+
+validation_summary <-
+  tibble(check = c("Full-pool sample alpha vs. psych::alpha()",
+                   "Leave-one-out sample alphas vs. psych::alpha()",
+                   "Candidate item J* agrees",
+                   "Population alpha vs. model-implied covariance matrix",
+                   "Population omega vs. model-implied covariance matrix",
+                   "Population alpha <= population omega"),
+         max_abs_difference = c(max(validation$max_abs_diff_alpha_full),
+                                max(validation$max_abs_diff_alphas_if_removed),
+                                NA_real_,
+                                max(validation$max_abs_diff_alpha_pop),
+                                max(validation$max_abs_diff_omega_pop),
+                                NA_real_),
+         n_disagreements = c(sum(validation$max_abs_diff_alpha_full > tolerance),
+                             sum(validation$max_abs_diff_alphas_if_removed > tolerance),
+                             sum(!validation$candidate_item_agrees),
+                             sum(validation$max_abs_diff_alpha_pop > tolerance),
+                             sum(validation$max_abs_diff_omega_pop > tolerance),
+                             sum(!validation$alpha_pop_leq_omega))) |>
+  mutate(passed = n_disagreements == 0)
+
+validation_summary |>
+  kable(caption = paste0("Validation across ", nrow(validation),
+                         " cases drawn from the simulation's DGP and design grid. ",
+                         "Tolerance for numeric equality: ", tolerance, ".")) |>
+  kable_classic(full_width = TRUE)
+
+all_checks_passed <- all(validation_summary$passed)
+all_checks_passed
+
+```
+
+```{r}
+
+if (!all_checks_passed) {
+  stop("Validation failed: the fast alpha functions do not agree with psych::alpha(). ",
+       "Do not use them in the simulation until this is resolved.")
+}
+
+```
+
+## By condition
+
+Reported separately by item-pool size and sample size so that any discrepancy concentrated in a corner of the design (e.g. `n_participants` < `k_indicators`) would be visible rather than averaged away.
+
+```{r}
+
+validation |>
+  group_by(k_indicators, n_participants) |>
+  summarize(cases = n(),
+            cases_with_a_negative_loading = sum(any_negative_loading),
+            max_abs_diff_alpha_full = max(max_abs_diff_alpha_full),
+            max_abs_diff_alphas_if_removed = max(max_abs_diff_alphas_if_removed),
+            candidate_item_disagreements = sum(!candidate_item_agrees),
+            .groups = "drop") |>
+  kable(caption = "Maximum absolute discrepancy between the fast functions and psych::alpha(), by condition.") |>
+  kable_classic(full_width = TRUE)
+
+```
+
+## Cases containing a negatively-loading item
+
+The subset most likely to expose a keying difference between the two implementations.
+
+```{r}
+
+validation |>
+  group_by(any_negative_loading) |>
+  summarize(cases = n(),
+            max_abs_diff_alpha_full = max(max_abs_diff_alpha_full),
+            max_abs_diff_alphas_if_removed = max(max_abs_diff_alphas_if_removed),
+            candidate_item_disagreements = sum(!candidate_item_agrees),
+            .groups = "drop") |>
+  kable(caption = "Discrepancies split by whether the item pool contained at least one negatively-loading item.") |>
+  kable_classic(full_width = TRUE)
+
+```
+
+## Distribution of discrepancies
+
+```{r}
+#| fig-height: 4
+#| fig-width: 9
+
+validation |>
+  select(k_indicators,
+         `Full-pool alpha` = max_abs_diff_alpha_full,
+         `Leave-one-out alphas` = max_abs_diff_alphas_if_removed) |>
+  pivot_longer(cols = -k_indicators, names_to = "quantity", values_to = "abs_difference") |>
+  ggplot(aes(x = as.factor(k_indicators), y = pmax(abs_difference, 1e-18))) +
+  geom_boxplot(outlier.size = 0.6) +
+  facet_wrap(~ quantity) +
+  scale_y_log10(name = "Absolute difference from psych::alpha()\n(log scale, floored at 1e-18)",
+                labels = label_log()) +
+  scale_x_discrete(name = "Item-pool size (k_indicators)") +
+  theme_linedraw()
+
+```
+
+# Does the generated data actually have the intended population structure?
+
+The checks above establish that the sample-alpha functions agree with `psych::alpha()`, and that the closed-form population targets agree with the model-implied covariance matrix $\boldsymbol\Sigma = \boldsymbol\lambda\boldsymbol\lambda^\top + \operatorname{diag}(1 - \lambda_i^2)$. Neither establishes the link that actually matters for the simulation's bias estimands: that `generate_data()` draws from **that** $\boldsymbol\Sigma$ and not some other one.
+
+This is not a hypothetical concern. Given `lavaan` syntax that specifies loadings only, `lavaan::simulateData()` leaves the residual variances free and defaults them to 1, producing items with variance $\lambda_i^2 + 1$ rather than unit variance — so the population targets would describe a different population than the one sampled from, and every bias estimand would be offset by a constant that looks like (but is not) finite-sample bias. `build_cfa_model()` therefore states $\psi_i = 1 - \lambda_i^2$ explicitly; this section verifies that it worked.
+
+Each check draws one item pool per pool size, generates a very large sample from it, and compares the realised covariance structure and sample alpha against the intended population values.
+
+```{r}
+
+n_participants_large <- 100000
+
+check_dgp_recovery <- function(k_indicators) {
+
+  lambda <- draw_lambda(k_indicators = k_indicators)
+  data   <- generate_data(lambda = lambda, n_participants = n_participants_large)
+
+  covariance_matrix <- cov(data)
+  intended_sigma <- tcrossprod(lambda) + diag(1 - lambda^2, nrow = k_indicators)
+
+  tibble(k_indicators = k_indicators,
+         mean_item_variance = mean(diag(covariance_matrix)),
+         max_abs_diff_covariance = max(abs(covariance_matrix - intended_sigma)),
+         sample_alpha_large_n = alpha_from_cov(covariance_matrix),
+         population_alpha = population_alpha_from_loadings(lambda),
+         difference = sample_alpha_large_n - population_alpha)
+}
+
+set.seed(2024)
+
+dgp_recovery <- map(c(5, 9, 13, 21, 39), check_dgp_recovery) |> bind_rows()
+
+dgp_recovery |>
+  mutate(across(where(is.numeric), \(x) signif(x, 4))) |>
+  kable(caption = paste0("Recovery of the intended population structure at N = ",
+                         format(n_participants_large, big.mark = ","),
+                         ". Mean item variance should be 1, and the large-N sample alpha ",
+                         "should equal the closed-form population alpha up to Monte Carlo noise.")) |>
+  kable_classic(full_width = TRUE)
+
+```
+
+```{r}
+
+# Unlike the checks above, this one compares a sampled quantity against a population value,
+# so the tolerance is Monte Carlo noise rather than machine precision, and must scale with
+# n_participants_large -- a fixed tolerance would fail spuriously if that N were lowered.
+# 10 / sqrt(N) is ~0.032 at N = 100,000, comfortably above the ~0.001 discrepancies actually
+# observed but far below the ~0.08 offset that the psi = 1 misspecification produced.
+dgp_tolerance <- 10 / sqrt(n_participants_large)
+
+dgp_recovery_passed <-
+  all(abs(dgp_recovery$mean_item_variance - 1) < dgp_tolerance) &
+  all(abs(dgp_recovery$difference) < dgp_tolerance)
+
+if (!dgp_recovery_passed) {
+  stop("The generated data does not have the intended population covariance structure. ",
+       "The population targets would not describe the sampled population, so every bias ",
+       "estimand in the simulation would be offset. Do not run the simulation until this ",
+       "is resolved.")
+}
+
+dgp_recovery_passed
+
+```
+
+# Timing
+
+The reason for the swap. Both implementations produce the full set of leave-one-out alphas for one dataset.
+
+```{r}
+
+set.seed(1)
+timing_lambda <- draw_lambda(k_indicators = 39)
+timing_data   <- generate_data(lambda = timing_lambda, n_participants = 1000)
+
+timing_psych <- system.time({
+  for (i in 1:5) {
+    sapply(seq_len(ncol(timing_data)), function(item) {
+      psych::alpha(timing_data[, -item], warnings = FALSE, discrete = FALSE)$total$raw_alpha
+    })
+  }
+})[["elapsed"]] / 5
+
+timing_custom <- system.time({
+  for (i in 1:5) alphas_if_each_item_removed_from_cov(cov(timing_data))
+})[["elapsed"]] / 5
+
+tibble(implementation = c("psych::alpha(), once per item", "alphas_if_each_item_removed_from_cov()"),
+       seconds_per_dataset = c(timing_psych, timing_custom)) |>
+  mutate(speedup = max(seconds_per_dataset) / seconds_per_dataset) |>
+  mutate(across(where(is.numeric), \(x) signif(x, 3))) |>
+  kable(caption = "Mean elapsed time to compute all k leave-one-out alphas for one dataset (k = 39, N = 1000), averaged over 5 runs.") |>
+  kable_classic(full_width = FALSE)
+
+```
+
+# Conclusion
+
+```{r}
+#| output: asis
+
+cat(if (all_checks_passed && dgp_recovery_passed) {
+  paste0("All checks passed across ", nrow(validation), " cases. ",
+         "`alpha_from_cov()` and `alphas_if_each_item_removed_from_cov()` reproduce ",
+         "`psych::alpha()`'s `raw_alpha` to within ", tolerance,
+         ", nominate the same candidate item in every case, the closed-form population ",
+         "targets agree with the model-implied covariance matrix, and `generate_data()` ",
+         "draws from that same covariance matrix. The simulation may use them.")
+} else {
+  "Validation FAILED. See the tables above."
+})
+
+```
+
+# Session info
+
+```{r}
+
+sessionInfo()
+
+```

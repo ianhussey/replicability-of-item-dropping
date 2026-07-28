@@ -1,0 +1,202 @@
+---
+title: "Minimal HPC simulation template (Everything)"
+author: "Authors names go here"
+date: today
+format:
+  html:
+    embed-resources: true # ignored when rendering book
+    toc: true
+    toc_float: true
+    code-fold: false
+    code-overflow: wrap
+    code-tools: true
+    warning: false
+    df-print: kable
+    theme:
+      light: cosmo
+      dark: darkly
+    highlight-style:
+      light: breeze
+      dark: dracula
+    include-in-header:
+      text: |
+        <style>
+          .kable-table table { width: 70%; margin: 0 auto; }
+          .quarto-color-scheme-toggle::after { content: " Dark mode"; font-family: sans-serif; font-size: 0.85em; }
+        </style>
+---
+
+```{r, include=FALSE}
+# settings: hidden from rendered file
+# disable messages and warnings in rendered files
+knitr::opts_chunk$set(message = FALSE,
+                      warning = FALSE)
+
+# disable scientific numbers in output
+options(scipen=999)
+```
+
+# What this is
+
+A stripped-down template for running a parallel Monte Carlo simulation on the "Everything" HPC (SLURM + interactive RStudio Server, ~196 cores but 4-16 is the max you should use; little performance gains beyond this) that also runs locally without changes. It keeps only the cluster scaffolding — worker auto-detection, BLAS thread pinning, reproducible parallel seeding, condition-level parallelism with summarise-in-worker, and caching — wrapped around a single trivial simulation: the statistical power of a two-sample t-test. Swap the `simulate_trial()` and `run_condition()` functions for your own; the orchestration below is the reusable part.
+
+The design choices that matter on a cluster:
+
+- Parallelise over conditions, not replicates. Each worker runs all replicates for one condition and reduces them to a few summary numbers before returning, so the master process never holds the raw replicate rows. Memory stays flat regardless of how large the factorial gets.
+- One replication knob, auto-scaled. The same file does a fast local smoke test and the full cluster run; `on_hpc` detects which and sets `n_iterations`. Caches are tagged so the two never collide.
+- Cache the summaries, not the raw draws. Re-rendering the report reads a small `.rds` instead of recomputing.
+
+# Dependencies and parallel plan
+
+```{r}
+library(tidyr)
+library(dplyr)
+library(furrr)
+library(readr)
+library(ggplot2)
+
+# --- How many workers does THIS session/allocation actually have? -----------
+# parallelly::availableCores() honours the SLURM allocation, cgroup CPU quotas,
+# and affinity masks, so it returns the cores granted to THIS session -- not the
+# ~196 physical cores parallel::detectCores() would report. Set the override to
+# pin a count manually; leave NULL to auto-detect.
+n_workers_override <- NULL
+detected_cores <- unname(parallelly::availableCores())
+n_workers <- if (is.null(n_workers_override)) detected_cores else as.integer(n_workers_override)
+n_workers <- max(1L, as.integer(n_workers))
+message(sprintf("Parallel plan: %d workers (parallelly detected %d).", n_workers, detected_cores))
+
+# --- Pin BLAS/LAPACK to one thread BEFORE workers spawn. --------------------
+# Everything's R uses FlexiBLAS over OpenBLAS, which defaults to many threads
+# (blas_get_num_procs() reported 128). With dozens of worker processes that is
+# 64 x 128 threads fighting over the node. escalc()/rma() use tiny matrices, so
+# single-threaded BLAS loses nothing. Setting these in the master means the
+# multisession (PSOCK) workers inherit them at spawn.
+Sys.setenv(FLEXIBLAS_NUM_THREADS = "1", OMP_NUM_THREADS = "1",
+           OPENBLAS_NUM_THREADS = "1", MKL_NUM_THREADS = "1", BLIS_NUM_THREADS = "1",
+           VECLIB_MAXIMUM_THREADS = "1")  # VECLIB covers macOS Accelerate (local testing)
+if (requireNamespace("flexiblas", quietly = TRUE)) flexiblas::flexiblas_set_num_threads(1L)
+if (requireNamespace("RhpcBLASctl", quietly = TRUE)) {
+  RhpcBLASctl::blas_set_num_threads(1)
+  RhpcBLASctl::omp_set_num_threads(1)
+}
+
+# RStudio Server is not fork-safe, so use multisession (separate R processes),
+# not multicore. furrr_options(seed = TRUE) (below) advances an L'Ecuyer-CMRG
+# stream per task, giving reproducibility independent of worker count.
+plan(multisession, workers = n_workers)
+```
+
+# Replication knob (local vs cluster)
+
+```{r}
+# Detection note: RStudio Server does NOT pass the job's SLURM_* allocation
+# variables into the R session, but Everything sets SLURM_MPI_TYPE as a global
+# default that DOES survive and is absent on a laptop -- so "any SLURM_* variable
+# present" is a reliable cluster detector (more robust than core count, since an
+# allocation may be as small as 4 cores). run_full forces the choice manually.
+run_full <- NULL  # NULL = auto-detect; TRUE = full run; FALSE = quick local test
+
+on_hpc <- if (!is.null(run_full)) isTRUE(run_full) else any(grepl("^SLURM_", names(Sys.getenv())))
+n_iterations <- if (on_hpc) 1000L else 50L
+```
+
+# The simulation (swap these for your own)
+
+Two small functions: one replicate (simulate two groups and test them), and the condition-level reduction that runs many replicates and collapses them to a power estimate. Only the second is HPC-specific.
+
+```{r}
+# --- One replicate: two independent groups of size n, separated by delta. ----
+# Returns TRUE if the two-sample t-test rejects at the given alpha.
+simulate_trial <- function(n, delta, alpha = 0.05) {
+  x <- rnorm(n, mean = 0)
+  y <- rnorm(n, mean = delta)
+  t.test(x, y)$p.value < alpha
+}
+
+# --- Condition-level reduction (the HPC-relevant part). ----------------------
+# Run all n_iter replicates for ONE condition, then collapse to a single
+# performance number -- the rejection rate (power; or Type I error when
+# delta = 0) -- with its Monte Carlo standard error, before returning. The
+# worker hands back a couple of numbers, never the raw replicate results.
+run_condition <- function(n, delta, alpha, n_iter) {
+  rejects <- replicate(n_iter, simulate_trial(n, delta, alpha))
+  power   <- mean(rejects)
+  tibble(n_iter = n_iter,
+         power = power,
+         power_mcse = sqrt(power * (1 - power) / n_iter))   # SE of a proportion
+}
+```
+
+# Experiment grid
+
+```{r}
+# Locally, collapse to a small slice so a render takes seconds; on the HPC use
+# the full factorial.
+.n <- if (on_hpc) c(10, 20, 30, 50, 75, 100) else c(20, 100)
+
+experiment_parameters <- expand_grid(
+  n     = .n,                              # per-group sample size
+  delta = c(0, 0.2, 0.5, 0.8),             # true mean difference (delta = 0 -> Type I rate)
+  alpha = 0.05
+)
+
+# Shuffle so expensive conditions (large n) are spread across workers (load balancing).
+set.seed(101)
+experiment_parameters <- experiment_parameters[sample(nrow(experiment_parameters)), ]
+```
+
+# Run (cached)
+
+```{r}
+cache_file <- paste0("simulation_minimal_", if (on_hpc) "full" else "dev",
+                     "_k", n_iterations, ".rds")
+
+if (file.exists(cache_file)) {
+  simulation <- read_rds(cache_file)
+} else {
+  set.seed(42)
+  simulation <- experiment_parameters |>
+    mutate(summary = future_pmap(
+      .l = list(n = n, delta = delta, alpha = alpha),
+      .f = run_condition,
+      n_iter = n_iterations,
+      .progress = TRUE,
+      .options = furrr_options(
+        seed = TRUE, scheduling = 2,
+        packages = c("dplyr", "tibble"))
+    )) |>
+    unnest(summary) |>
+    arrange(delta, n)
+  write_rds(simulation, cache_file, compress = "gz")
+}
+```
+
+# A look at the result
+
+```{r fig.height=4.5, fig.width=8}
+simulation |>
+  ggplot(aes(n, power, colour = factor(delta))) +
+  geom_hline(yintercept = c(0.05, 0.80), linetype = "dashed", colour = "grey70") +
+  geom_line() +
+  geom_point(size = 1.8) +
+  scale_colour_viridis_d(name = "True delta", end = 0.85) +
+  scale_x_continuous(name = "Per-group sample size n") +
+  scale_y_continuous(name = "Rejection rate (power)", limits = c(0, 1)) +
+  theme_linedraw(base_size = 12) +
+  theme(panel.grid.minor = element_blank(), legend.position = "top") +
+  ggtitle("Power of a two-sample t-test",
+          subtitle = "delta = 0 traces the Type I error rate (~0.05); dashed lines at 0.05 and 0.80")
+```
+
+# Running on Everything (SLURM + RStudio Server)
+
+- Request a node and launch RStudio Server inside the allocation, e.g. `salloc --nodes=1 --cpus-per-task=64 --mem=128G --time=04:00:00`. The config chunk auto-detects the granted cores via `parallelly::availableCores()` and adapts.
+- Belt-and-braces for BLAS: export the thread limit in the shell before launching R — `export FLEXIBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1` — and confirm with `RhpcBLASctl::blas_get_num_procs()` (should print 1).
+- `multisession`, not `multicore`: RStudio is not fork-safe. If you run headless via `Rscript`/`quarto render` on Linux, `multicore` workers are cheaper.
+- Reproducible regardless of worker count: each condition gets its own L'Ecuyer stream by task index, so changing `n_workers` does not change the numbers.
+- Single-node (shared-memory) parallelism. Spanning nodes would need a different backend (e.g. `future.batchtools` with a SLURM template) and is unnecessary for this workload.
+
+```{r}
+sessionInfo()
+```

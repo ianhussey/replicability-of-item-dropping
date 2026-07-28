@@ -1,0 +1,919 @@
+---
+title: "Bias in in-sample reliability from Cronbach's-alpha-if-removed item dropping recommendations"
+subtitle: "Forced vs. conditional dropping of a single-item"
+author: "Ian Hussey & Ze Freeman"
+date: today
+format:
+  html:
+    embed-resources: true 
+    toc: true
+    toc_float: true
+    code-fold: false
+    code-overflow: wrap
+    code-tools: true
+    warning: false
+    df-print: kable
+    theme:
+      light: cosmo
+      dark: darkly
+    highlight-style:
+      light: breeze
+      dark: dracula
+    include-in-header:
+      text: |
+        <style>
+          .kable-table table { width: 70%; margin: 0 auto; }
+          .quarto-color-scheme-toggle::after { content: " Dark mode"; font-family: sans-serif; font-size: 0.85em; }
+        </style>
+---
+
+```{r}
+#| include: false
+
+# set default chunk options
+knitr::opts_chunk$set(message = FALSE,
+                      warning = FALSE)
+
+# disable scientific notation
+options(scipen = 999)
+
+```
+
+# Introduction
+
+This introduction is structured following the ADEMP framework (Aims, Data-generating process, Estimands, Methods, Performance) as described by Morris, White, and Crowther (2019) and operationalised for psychology by Siepe et al. (2024). The aim of working through the framework explicitly is to make the design decisions behind the simulation visible and auditable, so that a reader can judge whether the conclusions are supported by the conditions actually examined.
+
+## Project description
+
+Cronbach's alpha "if item dropped" is routinely presented by popular statistics software as a table alongside the overall reliability estimate: for each item, what would alpha be without it? This simulation studies two distinct ways an analyst might act on that table, both restricted to the removal of at most **one** item:
+
+1. **Forced drop:** remove whichever single item's removal maximises alpha, regardless of whether that maximum is actually higher than the full scale's alpha. This is a stylised version of "the table says this item is the worst — remove it", applied mechanically.
+2. **Conditional drop:** remove that same item, but *only if* its removal improves alpha relative to the full scale — otherwise remove nothing. This is a stylised version of "should I drop anything at all?"
+
+The research question is **bias**: to what degree does data-driven item dropping bias our estimates of reliability? Because our data-generating process (DGP) specifies the population factor loadings directly, two distinct population targets are available in closed form for whatever items a strategy retains: the **true population Cronbach's alpha** of those items, and their **true reliability** (McDonald's omega — which alpha understates whenever loadings are unequal, as they are under this DGP; see Estimands and Targets, below). This lets us separate (a) the *statistical* bias introduced by choosing the item using the same sample used to report the "improved" alpha (a winner's curse) from (b) the *structural* gap between the alpha coefficient and the reliability it is reported as measuring.
+
+Each replication generates exactly **one** dataset; both strategies are applied to it. The distinct question of whether the *item choice itself* would replicate across independent studies of the same design is deliberately out of scope here and will be addressed in a separate follow-up simulation.
+
+Every item pool simulated here is generated from a loading distribution and a set of pool sizes both estimated from real trait-scale data (Stage 1, `analysis_factor_loading_distribution.Rmd`; see DGP specification approach, below), so the simulated scales are intended to resemble the reliability properties of real trait scales rather than an arbitrary parametric grid.
+
+## Prior related work
+
+Kopalle, P. K., & Lehmann, D. R. (1997). Alpha inflation? The impact of eliminating scale items on Cronbach's alpha. *Organizational Behavior and Human Decision Processes*, 70(3), 189-197. K&L97 first showed by simulation that choosing which item(s) to drop using the same sample subsequently used to report the "improved" alpha capitalises on chance. The present simulation reuses their general logic (a parametric single-factor DGP; comparing sample alpha of a data-driven subset against a known population value) but replaces their arbitrary parametric loading distributions and single fixed pool size with an empirically-fitted loading distribution and empirically-derived pool sizes, both from `analysis_factor_loading_distribution.Rmd` (ported from Hussey's `granary` repository, which fits a scaled-Beta distribution to real trait-scale factor loadings pooled from Bainbridge et al. (2022), the AIID battery, and Brysbaert et al. (2024)). It additionally evaluates the reported alpha against true reliability (omega), not only against the population alpha of the retained items. No other preliminary simulations on this specific question were conducted by the contributors prior to this file.
+
+## Aims
+
+The statistical task is **estimation**. The estimator under study is the sample Cronbach's alpha of the retained items — the number the analyst actually reports — evaluated against two population targets defined for the specific items retained (see Estimands and Targets, below). A set of population-level *change* quantities (what the dropping did to the scale's true properties) is reported alongside; these are expectations of known per-replicate quantities rather than estimator-performance measures, and are summarised with the same replicate-and-summarise logic.
+
+The aims are:
+
+1. **Calibration (full pool, no dropping).** To estimate the bias of sample alpha as an estimator of the true population alpha of the full, undropped item pool — a check that the simulation and analysis pipeline behave as expected — and to quantify the baseline **structural gap** between population alpha and true reliability (omega) in the full pool, which exists before any item selection.
+2. **Bias in the reported reliability of the retained items.** For each strategy, to estimate how much the sample alpha of the retained items over- or under-states (a) the true population *alpha* of those same items (selection optimism / winner's curse) and (b) their true *reliability* (the applied question: researchers report alpha *as* an estimate of reliability). For the conditional strategy this is reported both marginally (across all replications, including those where nothing was dropped) and conditionally on a drop having occurred.
+3. **What dropping actually does to the scale.** To estimate, per strategy, the expected change from full pool to retained items on three scales — the observed sample alpha (the gain the researcher sees), the population alpha, and true reliability — the **optimism** gap between the first two (the winner's curse in its purest form), and the proportion of replications in which dropping actually *reduced* true reliability. For the conditional strategy, the proportion of replications in which any item is dropped at all is reported as a descriptive outcome.
+
+**Relation between the two strategies.** Both strategies nominate the *same* candidate item — the argmax of the alpha-if-removed table — and differ only in whether acting on it is gated on an observed improvement. Within a replicate, the conditional strategy's outcome therefore equals the forced strategy's outcome whenever the observed improvement is positive, and equals the full pool otherwise. Comparisons between the strategies are thus comparisons of the *gating rule*, holding the nomination rule fixed — this is an intended design feature, not a confound, and it is why the candidate item is computed only once per replicate in the code.
+
+## Data-Generating Process
+
+### DGP specification approach
+
+For every replication, item scores are generated from a standardised single-factor model fitted via `lavaan::simulateData()`: the common factor $Y$ is standard normal, item $i$ loads $\lambda_i$ on $Y$, and its unique/error variance is $\psi_i = 1 - \lambda_i^2$, so that every item has unit total variance and $\operatorname{Cov}(X_i, X_j) = \lambda_i \lambda_j$ for $i \neq j$. Because $\lambda_i$ is known exactly for every item in every replication (it is drawn by our own code, not estimated), the true population Cronbach's alpha *and* the true reliability (omega) of any subset of items are available in closed form (see Estimands and Targets, below) — no separate "population" simulation or large-*N* reference sample is needed.
+
+The $\lambda_i$ themselves are drawn from a scaled Beta distribution fitted to $n = 3{,}783$ single-factor CFA loadings pooled across 206 trait scales from Bainbridge et al. (2022), the AIID battery, and Brysbaert et al. (2024). That fit was produced by `analysis_factor_loading_distribution.Rmd`, ported with minimal changes from Hussey's `granary` repository, which compares six candidate single distributions for standardised loadings and selects the scaled Beta by AIC/BIC and Kolmogorov-Smirnov distance (see that file for the full derivation). The fitted model is $p = (\lambda+1)/2 \sim \mathrm{Beta}(11.77,\ 3.84)$, i.e.
+
+$$\lambda_i \sim 2 \times \mathrm{Beta}(11.77,\, 3.84) - 1$$
+
+giving a mean loading of 0.51 (mean inter-item correlation $\approx 0.26$) with the left skew and small negative-loading tail (~1.7%) typical of real trait scales. **The fitted shape parameters are estimated in that separate file and enter this simulation only as the fixed default arguments of `draw_lambda()`; the loading distribution is not a factor of this design and is not manipulated.** Two of its properties are nonetheless load-bearing for the estimands: loadings are unequal, which is what makes population alpha and true reliability distinct targets, and the small negative tail means some generated pools contain a genuinely alpha-harming item, so conditional dropping is not always chasing noise.
+
+### DGP factors
+
+Two factors were manipulated, crossed fully factorially:
+
+1. **Item-pool size** (`k_indicators`) — the size of the original item pool from which a single item may be dropped. Rather than a single fixed value, this is set from the *empirical distribution of items-per-scale* observed across the 206 real trait scales used to fit the loading distribution above (`analysis_factor_loading_distribution.Rmd`, "Per-scale item counts and reliability"), so the pool sizes studied reflect how long real scales actually are.
+2. **Sample size** (`n_participants`) — the number of simulated participants per replication, set to a fixed range of round numbers rather than derived from item-pool size, to reflect a range of plausible study sizes found in psychology research.
+
+Because both strategies remove at most one item, there is no "number of items retained" factor: the forced strategy always retains `k_indicators - 1` items, and how many items the conditional strategy retains (`k_indicators` or `k_indicators - 1`) is an *outcome* of the rule, not a manipulated input.
+
+### Factor values and settings
+
+**Factor values:**
+
+- `k_indicators` ∈ {5, 9, 13, 21, 39} — the 10th, 25th, 50th, 75th, and 90th percentiles of the items-per-scale distribution across the 206 trait scales pooled in `analysis_factor_loading_distribution.Rmd`.
+- `n_participants` ∈ {20, 30, 50, 200, 1000} — five levels spanning small pilot-style samples through to a large well-powered sample.
+
+**Settings held constant across all conditions:**
+
+- The loading distribution (see DGP specification approach, above) — every replication draws its $\lambda_i$ from the same fitted scaled Beta.
+- Both strategies are applied to every replication (they are not a manipulated DGP factor but the two **strategies** under comparison; see Methods, below).
+
+### Factor combination and number of conditions
+
+We use a **fully factorial** crossing of `k_indicators` and `n_participants`: 5 × 5 = **25 conditions**. There is no exclusion rule: Cronbach's alpha, unlike the maximum-likelihood factor analysis included in an earlier version of this design and since removed, does not require a full-rank sample correlation matrix, so every (`k_indicators`, `n_participants`) pairing — including `n_participants` < `k_indicators` — is retained. Each condition is replicated `niter` = 10000 times, for 250,000 independently generated datasets in total (pilot use lower `niter`; see Number of simulation repetitions, below). One dataset is generated per replication; both strategies are applied to it.
+
+## Estimands and Targets
+
+### Notation and closed-form population targets
+
+Per replicate, a pool $F$ of $k$ items has loadings $\lambda_1, \dots, \lambda_k$ drawn from the fitted scaled Beta. For any item set $S$ with $m = |S|$, write $S_1 = \sum_{i \in S} \lambda_i$ and $S_2 = \sum_{i \in S} \lambda_i^2$. Under the standardised congeneric model (unit item variances, $\psi_i = 1 - \lambda_i^2$), two population quantities are available in closed form:
+
+**Population Cronbach's alpha** (Cronbach, 1951; derivation ported from `alpha_from_loadings()` in Hussey's `granary` repository):
+
+$$\alpha_{\text{pop}}(S) \;=\; \frac{m}{m-1} \cdot \frac{S_1^2 - S_2}{m + S_1^2 - S_2}$$
+
+**True reliability of the unit-weighted sum score** — McDonald's omega, the proportion of sum-score variance due to the common factor:
+
+$$\rho(S) \;=\; \frac{S_1^2}{S_1^2 + \sum_{i \in S} \psi_i} \;=\; \frac{S_1^2}{S_1^2 + m - S_2}$$
+
+By the Cauchy–Schwarz inequality, $S_1^2 \leq m S_2$, so $\alpha_{\text{pop}}(S) \leq \rho(S)$ always, with equality only when all loadings in $S$ are equal (essential tau-equivalence). Because the fitted Beta produces unequal loadings, the inequality is strict in essentially every generated pool: **alpha structurally understates true reliability even at infinite sample size with no item selection at all.** This is why "does item dropping bias our estimate of reliability" is a two-part question — and why a congeneric DGP is the appropriate one for asking it (a tau-equivalent DGP would collapse the two targets into one by construction).
+
+### Selection rule and retained sets
+
+Both strategies nominate the same candidate item from the sample data:
+
+$$J^{*} \;=\; \arg\max_j \hat\alpha(-j)$$
+
+where $\hat\alpha(-j)$ is the sample alpha of the pool with item $j$ removed. The retained sets are:
+
+- **Forced:** $S_{\text{forced}} = F \setminus \{J^{*}\}$, always.
+- **Conditional:** $S_{\text{cond}} = F \setminus \{J^{*}\}$ if $\hat\alpha(-J^{*}) > \hat\alpha(F)$, else $S_{\text{cond}} = F$ (no drop).
+
+$J^{*}$ — and therefore each retained set $S_s$ — is a random variable across replicates: it depends on the sample. The population targets below are consequently **realised** (replication-specific, strategy-specific, data-dependent) estimands rather than fixed population parameters. This is deliberate: the applied question is never "is the best possible subset's reliability well estimated" but "how reliable, in truth, are the specific items this procedure just picked, and does the number I report for them tell me that?"
+
+### Targets and bias decomposition
+
+For each strategy $s$, the reported estimate is $\hat\alpha(S_s)$ — the sample Cronbach's alpha of the retained items, the number that would appear in the paper. It is evaluated against two targets:
+
+1. **Alpha-scale target**, $\alpha_{\text{pop}}(S_s)$ — is the reported alpha an accurate estimate of the population alpha of the items actually kept? Deviation from this target is pure *statistical* bias: ordinary sampling error plus the selection-induced winner's curse (the candidate item was chosen to maximise the sample alpha, so the sample alpha of the winner is biased high for its own population value).
+2. **Reliability-scale target**, $\rho(S_s)$ — is the reported alpha an accurate estimate of the true reliability of the items actually kept? This is the applied target, because alpha is reported *as* a reliability estimate.
+
+The two are linked by an exact per-replicate decomposition:
+
+$$\underbrace{\hat\alpha(S_s) - \rho(S_s)}_{\text{total bias vs. reliability}} \;=\; \underbrace{\big[\hat\alpha(S_s) - \alpha_{\text{pop}}(S_s)\big]}_{\text{statistical bias (sampling + selection)}} \;+\; \underbrace{\big[\alpha_{\text{pop}}(S_s) - \rho(S_s)\big]}_{\text{structural gap} \;\leq\; 0}$$
+
+The two components can pull in opposite directions: selection pushes the reported alpha *up* relative to its own population value, while the structural gap means that population value sits *below* true reliability. Whether the reported alpha ends up over- or under-stating true reliability — and at which sample sizes the sign flips — is an empirical question this simulation answers. The full-pool baselines $\hat\alpha(F) - \alpha_{\text{pop}}(F)$ (calibration; Aim 1) and $\alpha_{\text{pop}}(F) - \rho(F)$ (structural gap with no selection) anchor both components.
+
+### Change estimands (deltas)
+
+The bias quantities above evaluate the reported *number*. A second family evaluates the *decision*: what did dropping do to the scale, on three scales?
+
+- $\widehat{\Delta}_{\text{obs}} = \hat\alpha(S_s) - \hat\alpha(F)$ — the **observed sample gain**, the quantity the researcher sees and that (for the conditional strategy) triggers the decision. Under the forced strategy this can be negative (the best available drop may still hurt the sample alpha); under the conditional strategy it is $\geq 0$ by construction, and exactly 0 when nothing is dropped. It is not an estimand about truth — it is the researcher's-eye view and the benchmark the other two deltas are compared against.
+- $\Delta_{\text{pop}} = \alpha_{\text{pop}}(S_s) - \alpha_{\text{pop}}(F)$ — the **population alpha change** for the selected scale. Dropping an item genuinely changes population alpha: removal alters the item-variance sum, the sum-score variance, and the length multiplier $\frac{m}{m-1}$ simultaneously. The sign is a trade-off — *up* when the dropped item is worse than average (its removal raises the mean inter-item covariance enough to beat the length penalty), *down* when the item is average-or-better (only the length penalty remains). So $\Delta_{\text{pop}} \neq 0$ in general, and asking whether the sample-driven drop improved population alpha is not vacuous.
+- $\Delta_{\rho} = \rho(S_s) - \rho(F)$ — the **true reliability change**, the quantity that actually matters. The headline failure mode this design can detect: $\Delta_{\rho} < 0$ while $\widehat{\Delta}_{\text{obs}} > 0$ (and even $\Delta_{\text{pop}} > 0$) — dropping a low-consistency-but-valid item raises the alpha coefficient while degrading measurement.
+
+The findings live in the two gaps *between* the deltas, not in any single one:
+
+- $\widehat{\Delta}_{\text{obs}} - \Delta_{\text{pop}}$ = **selection optimism (winner's curse)**. Expected positive: because $J^{*}$ maximises the *sample* alpha, $\hat\alpha(-J^{*})$ is biased high for $\alpha_{\text{pop}}(-J^{*})$, while $\hat\alpha(F)$ is approximately unbiased for $\alpha_{\text{pop}}(F)$. Computed pairwise within replicate (both terms share the same data), so its Monte Carlo SE is much smaller than differencing the two expectations across separate summaries.
+- $\Delta_{\text{pop}} - \Delta_{\rho}$ = **criterion–target divergence**: alpha can rise where reliability does not.
+
+Because a mean $\Delta_\rho$ near zero can conceal frequent, offsetting harm, we additionally report the **harm rate** $\Pr(\Delta_\rho < 0)$: the proportion of replications in which the drop actually reduced true reliability.
+
+### Summary of estimands
+
+| # | Quantity | Definition | Role |
+|---|----------|------------|------|
+| 1a | Calibration bias (full pool) | $\mathbb{E}[\hat\alpha(F) - \alpha_{\text{pop}}(F)]$ | pipeline check; baseline for 2a |
+| 1b | Structural gap (full pool) | $\mathbb{E}[\alpha_{\text{pop}}(F) - \rho(F)]$ | $\leq 0$; baseline for 2b, exists with no selection |
+| 1c | Total full-pool bias | $\mathbb{E}[\hat\alpha(F) - \rho(F)]$ | 1a + 1b; the no-dropping benchmark for 2b |
+| 2a | Reported-alpha bias, alpha scale | $\mathbb{E}[\hat\alpha(S_s) - \alpha_{\text{pop}}(S_s)]$ | statistical bias incl. winner's curse |
+| 2b | Reported-alpha bias, reliability scale | $\mathbb{E}[\hat\alpha(S_s) - \rho(S_s)]$ | **headline**: total bias in the reported reliability estimate |
+| 3a | Observed gain | $\mathbb{E}[\widehat{\Delta}_{\text{obs}}]$ | the trigger; researcher's-eye view |
+| 3b | Population alpha change | $\mathbb{E}[\Delta_{\text{pop}}]$ | did the drop improve alpha in truth |
+| 3c | True reliability change | $\mathbb{E}[\Delta_{\rho}]$ | did the drop improve measurement; can be $< 0$ while 3a $> 0$ |
+| 3d | Selection optimism | $\mathbb{E}[\widehat{\Delta}_{\text{obs}} - \Delta_{\text{pop}}]$ | winner's curse, paired per replicate |
+| 3e | P(drop) | $\Pr(\hat\alpha(-J^{*}) > \hat\alpha(F))$ | descriptive; conditional strategy only (forced $\equiv 1$) |
+| 3f | Harm rate | $\Pr(\Delta_\rho < 0)$ | how often dropping reduced true reliability |
+
+All quantities in rows 2–3 are computed per strategy; for the conditional strategy they are additionally reported conditional on a drop having occurred (see Performance and Uncertainty, below).
+
+## Methods and extracted quantities
+
+Two data-driven item-dropping strategies are compared, both based on Cronbach's-alpha-if-removed, both applied to the single dataset generated per replication:
+
+1. **Forced:** remove item $J^{*}$ (the argmax of alpha-if-removed), always.
+2. **Conditional:** remove $J^{*}$ only if $\hat\alpha(-J^{*}) > \hat\alpha(F)$; otherwise remove nothing.
+
+Because the strategies share the nomination rule, the alpha-if-removed vector is computed once per replicate and both strategies' outcomes are derived from it. Sample alpha is computed directly from the covariance matrix rather than with `psych::alpha()`. The two agree to within $10^{-15}$ across 1,000 cases drawn from this design's own DGP and grid — including the 245 of those cases whose item pool contained a negatively-loading item — and nominate the same candidate item $J^{*}$ in every case; the direct computation is roughly 1000× faster in the largest condition (`k_indicators` = 39, `n_participants` = 1000), reducing the alpha computations for a full `niter` = 10000 run from hours to minutes See `validation.qmd`, which also verifies that `generate_data()` actually samples from the covariance structure the population targets assume.
+
+`analyse()` returns, per replication, a one-row tibble containing:
+
+- `alpha_full_sample` — sample alpha of the full pool, $\hat\alpha(F)$.
+- `candidate_item` — $J^{*}$, the argmax of the alpha-if-removed vector; `alpha_dropped_sample` — $\hat\alpha(-J^{*})$.
+- `alpha_full_pop`, `omega_full_pop` — $\alpha_{\text{pop}}(F)$ and $\rho(F)$, computed analytically from the replication's known loadings.
+- `alpha_dropped_pop`, `omega_dropped_pop` — $\alpha_{\text{pop}}(F \setminus \{J^{*}\})$ and $\rho(F \setminus \{J^{*}\})$.
+- `dropped_conditional` — whether the conditional strategy acted, i.e. $\hat\alpha(-J^{*}) > \hat\alpha(F)$.
+
+Per strategy, the retained-set quantities (`alpha_subset_sample`, `alpha_subset_pop`, `omega_subset_pop`) then resolve to the dropped or full-pool values according to whether that strategy dropped, and the per-replicate estimand components follow directly: `bias_vs_pop_alpha` (2a), `bias_vs_reliability` (2b), `delta_obs` (3a), `delta_pop` (3b), `delta_rho` (3c), and `optimism` (3d).
+
+Data generation and analysis are wrapped in a single function, `generate_and_analyse()`, so that the generated dataset and the loading vector exist only inside that function's frame and are never stored in the simulation data frame. Retaining them as list-columns across 25,000 replications of up to 39 items × 1000 participants would cost several GB and slow every downstream operation, and nothing downstream needs them: every quantity the estimands require is extracted before the data goes out of scope.
+
+## Performance and Uncertainty
+
+### Performance measures
+
+All continuous estimands in the table above are **means of a per-replicate difference**. Let $d_k$ denote the relevant difference (e.g. $\hat\alpha(S_s) - \rho(S_s)$ for estimand 2b) in replication $k$ of a condition:
+
+$$\widehat{\mathbb{E}}[d] \;=\; \frac{1}{K}\sum_{k=1}^{K} d_k$$
+
+For estimands 1a, 1c, 2a and 2b this is **bias** in the Siepe et al. (2024, Table 3) sense (estimator minus target); for 1b and 3a–3d it is the expectation of a known per-replicate population (or sample) change.
+
+These are computed with `simhelpers::calc_absolute()` (Joshi & Pustejovsky, 2022), which implements the Siepe et al. (2024, Table 3) bias and MCSE formulas. That function requires a single fixed `true_param` per condition, whereas here every replication draws its own loading vector and therefore has its own target $\theta_k$. We therefore pass the per-replicate difference $d_k$ itself as `estimates` with `true_param = 0`. This is algebraically identical to bias against a varying target — $\overline{d} - 0 = \overline{\hat\alpha - \theta}$ — and returns exactly the MCSE specified below, while using the package's implementation rather than a hand-rolled one. The per-replicate differencing is also what makes the paired optimism estimand (3d) precise: both of its terms come from the same replicate, so their shared sampling noise cancels before averaging.
+
+**Proportions** (estimands 3e and 3f) are computed with `simhelpers::calc_rejection()`, which returns a proportion with the binomial MCSE. It expects $p$-values and a threshold, so each logical indicator is passed as a pseudo-$p$-value of 0 when `TRUE` and 1 when `FALSE` with `alpha = 0.5`; $\Pr(p < 0.5)$ is then exactly the proportion of `TRUE`s. Only the input encoding is a device — the returned proportion and MCSE are the package's.
+
+**Presentation against the true value.** Estimands 2a and 2b are additionally presented as calibration curves, with the true value of the retained items on the x-axis and the reported α on the y-axis (see Results). Because each replication draws its own loadings, the true value is continuous within a condition rather than fixed, so replications are binned by it and summarised per bin. This binning is presentational only: no estimand or performance measure is defined in terms of it, every number in the tables is computed from unbinned replications, and the proportion of replications falling in bins too sparse to plot is reported alongside the figures.
+
+**Conditional-on-drop summaries.** For the conditional strategy, all estimand-2 and estimand-3 quantities are additionally summarised over only the replications in which a drop occurred. The number of such replications, $K_{\text{drop}}$, is itself random; summaries and their MCSEs are computed conditional on the realised $K_{\text{drop}}$, which is reported alongside them.
+
+### Monte Carlo uncertainty
+
+We report Monte Carlo uncertainty in tables (MCSEs next to each estimated quantity) and in plots (error bars of ±1 MCSE). For all mean-of-differences quantities the MCSE is the general form of the Siepe et al. (2024, Table 3) bias MCSE, applied to the per-replicate difference directly:
+
+$$\widehat{\text{MCSE}}\big(\widehat{\mathbb{E}}[d]\big) \;=\; \frac{S_{d}}{\sqrt K}, \qquad S_{d} = \text{SD of } d_k \text{ across the } K \text{ replications}$$
+
+For the proportion measures, the standard binomial MCSE is used:
+
+$$\widehat{\text{MCSE}}(\hat p) \;=\; \sqrt{\hat p\,(1-\hat p)\,/\,K}$$
+
+### Number of simulation repetitions
+
+We use `niter` = 10000 replications per condition for the full run (this pilot file: K = 200). At the worst case for a proportion measure ($\hat p = 0.5$), `niter` = 10000 gives $\widehat{\text{MCSE}}(\hat p) = \sqrt{0.25/10000} \approx 0.016$, i.e. P(drop) is uncertain to roughly ±1.6 percentage points; this is adequate for the visual and tabular comparisons reported here but would be too loose for a confirmatory study making a specific numeric claim. A future preregistered iteration targeting, say, an MCSE of 0.005 on a proportion near 0.5 would require $K \geq 0.5 \times 0.5 / 0.005^2 = 10{,}000$ replications per condition. With 25 conditions, `niter` = 10000 gives 250,000 replications, each generating one dataset.
+
+### Non-convergence and missing values
+
+An earlier version of this design included a second item-dropping method, exploratory factor analysis with maximum-likelihood extraction, which requires a full-rank sample correlation matrix and therefore fails deterministically whenever `n_participants` < `k_indicators` (confirmed empirically at 100% failure for `k_indicators` = 39, `n_participants` = 20). That method has since been removed from the design; Cronbach's alpha, which underlies both remaining strategies, does not have this failure mode — it is a closed-form function of the sample covariance matrix with no iterative optimisation step and no rank requirement. No exclusion rule is therefore needed, and the design is fully factorial. If any errors are nonetheless encountered in the full run, they will halt the run rather than being caught and logged case-wise, which remains a residual limitation for a future iteration.
+
+### Interpretation of performance measures
+
+**Aim 1 (calibration and baseline gap).** We will judge the pipeline check supported if the full-pool bias $\hat\alpha(F) - \alpha_{\text{pop}}(F)$ is small relative to the selection effects under study and shrinks toward zero as `n_participants` grows (sample alpha carries a known small negative finite-sample bias, so demanding it sit within ±1 MCSE of zero at `n_participants` = 20 with a large K would be too strict). The structural gap $\alpha_{\text{pop}}(F) - \rho(F)$ should be negative in every condition, since the fitted Beta guarantees unequal loadings.
+
+**Aim 2 (bias in the reported alpha).** We will judge the K&L97 optimism phenomenon replicated if the forced strategy's alpha-scale bias (2a) is reliably positive, larger at smaller `n_participants` (more sampling noise for the argmax to exploit) and larger at larger `k_indicators` (more candidates, so a larger expected maximum over noise). For the conditional strategy, the conditional-on-drop bias should be at least as large as the forced strategy's (acting is conditioned exactly on having found an exploitable improvement), while the marginal bias is diluted toward the full-pool baseline in proportion to $1 - \hat p$. The reliability-scale bias (2b) is the sum of the selection bias and the (negative) structural gap: we expect it to be negative at large `n_participants` (selection bias vanishes, the gap remains) and possibly positive at small `n_participants` (winner's curse dominates); where the sign crosses is an empirical result of interest, not a preregistered prediction.
+
+**Aim 3 (deltas).** Optimism (3d) is expected positive in every condition, for the reason given under Estimands. No directional predictions are preregistered for $\mathbb{E}[\Delta_{\text{pop}}]$ or $\mathbb{E}[\Delta_{\rho}]$: because the empirical loading distribution has a small negative tail, some pools contain a genuinely alpha-harming item whose removal improves both population alpha and true reliability, while in pools of uniformly adequate items a forced drop pays a pure length penalty — the estimands are designed to separate these cases in aggregate, and we report the observed pattern. P(drop) is expected to rise with `k_indicators` (more chances for some $\hat\alpha(-j)$ to exceed $\hat\alpha(F)$); its behaviour as `n_participants` grows is informative in itself — noise-driven drops should die out at large samples, leaving only drops of genuinely harmful items. No inferential models are fitted to the simulation output; results are summarised descriptively in tables and plots.
+
+# Notes for future iterations (not implemented in this version)
+
+This pass restricts both strategies to a single-item drop, evaluates the reported alpha against true reliability (omega) as well as against population alpha, and removes the out-of-sample replicability machinery from the design. The following remain open for future iterations:
+
+- **Replicability of the item choice** — whether an item-dropping recommendation made in one study agrees with the recommendation from an independent study of the same design. This was part of an earlier version of this file and is deliberately deferred to a separate follow-up simulation with its own design (paired independent samples per replicate and graded agreement measures), rather than being bolted onto this bias-focused one.
+- **Multi-item dropping** — the unconditional "drop down to a target length" rule (greedy repeated argmax) and a multi-step conditional rule (keep dropping while each additional drop improves alpha). Removed from this version so that the two strategies here differ only in the gating rule.
+- **A planted bad item** — purposefully include one poorly performing item in an otherwise good pool and estimate the probability of dropping *something* when a bad item is present vs. absent, and of dropping the *wrong* item when one is present.
+- **External-criterion validity** — add a criterion $Y$ with $\operatorname{corr}(\eta, Y) = r_{\eta Y}$, giving $\operatorname{corr}(X_S, Y) = r_{\eta Y}\sqrt{\rho(S)}$ and a validity delta analogous to $\Delta_\rho$.
+- **Sample omega as a comparator estimator** — evaluate whether reporting a sample omega instead of sample alpha removes the structural component of the bias, and whether it is equally exploitable by the same selection rule.
+- **Error handling** — a `tryCatch()`-based safety net for unanticipated estimation failures (see Non-convergence and missing values, above).
+
+# Methods
+
+## Dependencies
+
+```{r}
+
+library(furrr)
+library(readr)
+library(tidyr)
+library(dplyr)
+library(purrr)
+library(simhelpers)
+library(ggplot2)
+library(scales)
+library(janitor)
+library(knitr)
+library(kableExtra)
+
+dir.create("results")
+
+# The data-generating process, population targets, and analysis functions are defined in
+# simulation_functions.R rather than inline, so that the fast alpha functions validated in
+# validation.qmd are the same objects this file runs -- there is no second
+# copy that could drift out of sync with the validated one.
+source("simulation_functions.R")
+
+# set up parallelisation for {furrr}. `furrr_options(seed = TRUE)`
+# (used below in the future_pmap call) advances an L'Ecuyer-CMRG stream rather than
+# re-seeding per worker, giving parallel-safe reproducibility (Siepe et al., 2024, p. 8).
+plan(multisession)
+
+```
+
+## Functions
+
+Defined in `simulation_functions.R` (sourced above); listed here for reference.
+
+- `draw_lambda()` — draw one item pool's population loadings from the fitted scaled Beta.
+- `build_cfa_model()`, `generate_data()` — build the `lavaan` single-factor syntax and simulate item-level data from it.
+- `population_alpha_from_loadings()`, `population_omega_from_loadings()` — the two closed-form population targets, $\alpha_{\text{pop}}(S)$ and $\rho(S)$.
+- `alpha_from_cov()`, `alphas_if_each_item_removed_from_cov()` — sample alpha and all $k$ leave-one-out sample alphas, from a single covariance matrix.
+- `analyse()` — extract every quantity the estimands require from one dataset and its known loadings; returns a one-row tibble.
+- `generate_and_analyse()` — wrapper that draws loadings, generates data, and analyses it, returning only the extracted quantities so that the dataset is never stored.
+
+## Define experiment
+
+```{r}
+
+n_iterations <- 10000
+
+experiment_parameters <- expand_grid(
+  k_indicators = c(5, 9, 13, 21, 39),
+  n_participants = c(20, 30, 50, 200, 1000),
+  iteration = seq_len(n_iterations)
+) |>
+  # define unique conditions
+  mutate(condition = paste0("k = ", k_indicators, ", N = ", n_participants))
+
+```
+
+## Run simulation
+
+Results are cached to disk: if the `.rds` for this value of `niter` already exists it is loaded rather than recomputed, so the report can be re-rendered (and the plots and tables edited) without re-running the simulation.
+
+```{r}
+
+simulation_path <- paste0("results/simulation_alpha_item_dropping_niter", n_iterations, ".rds")
+
+if (file.exists(simulation_path)) {
+
+  simulation <- read_rds(simulation_path)
+
+} else {
+
+  set.seed(42)
+
+  simulation <- experiment_parameters |>
+    # generate and analyse data. The generated dataset and loadings live only inside
+    # generate_and_analyse() and are never returned, so no large list-columns are stored.
+    mutate(results = future_pmap(.l = list(k_indicators = k_indicators,
+                                           n_participants = n_participants),
+                                 .f = generate_and_analyse,
+                                 .progress = TRUE,
+                                 .options = furrr_options(seed = TRUE))) |>
+    unnest(results)
+
+  write_rds(x = simulation, file = simulation_path, compress = "gz")
+
+}
+
+```
+
+## Derive per-strategy outcomes and estimand components
+
+```{r}
+
+# one row per replication x strategy. The retained-set quantities resolve to the
+# dropped-J* or full-pool values according to whether that strategy dropped; the
+# per-replicate estimand components (see Estimands and Targets, above) follow directly.
+simulation_outcomes <-
+  bind_rows("forced"      = simulation |> mutate(dropped = TRUE),
+            "conditional" = simulation |> mutate(dropped = dropped_conditional),
+            .id = "strategy") |>
+  mutate(strategy = factor(strategy, levels = c("forced", "conditional"))) |>
+  mutate(alpha_subset_sample = if_else(dropped, alpha_dropped_sample, alpha_full_sample),
+         alpha_subset_pop    = if_else(dropped, alpha_dropped_pop,    alpha_full_pop),
+         omega_subset_pop    = if_else(dropped, omega_dropped_pop,    omega_full_pop)) |>
+  mutate(bias_vs_pop_alpha   = alpha_subset_sample - alpha_subset_pop,   # estimand 2a
+         bias_vs_reliability = alpha_subset_sample - omega_subset_pop,   # estimand 2b
+         delta_obs           = alpha_subset_sample - alpha_full_sample,  # estimand 3a
+         delta_pop           = alpha_subset_pop    - alpha_full_pop,     # estimand 3b
+         delta_rho           = omega_subset_pop    - omega_full_pop,     # estimand 3c
+         optimism            = delta_obs - delta_pop)                    # estimand 3d
+
+```
+
+## Summary helpers
+
+```{r}
+
+# Every continuous estimand is the mean of a per-replicate difference against a target that
+# varies by replication. simhelpers::calc_absolute() requires a single fixed true_param per
+# condition, so the difference itself is passed as `estimates` with true_param = 0: the
+# returned "bias" is then the mean difference and the returned MCSE is S_d / sqrt(K),
+# exactly the pre-specified formulas (see Performance measures, above).
+summarise_estimands <- function(data, grouping_variables) {
+  data |>
+    pivot_longer(cols = c(bias_vs_pop_alpha, bias_vs_reliability,
+                          delta_obs, delta_pop, delta_rho, optimism),
+                 names_to = "quantity",
+                 values_to = "difference") |>
+    mutate(true_value = 0) |>
+    group_by(across(all_of(c(grouping_variables, "quantity")))) |>
+    reframe(
+      calc_absolute(data       = pick(everything()),
+                    estimates  = difference,
+                    true_param = true_value,
+                    criteria   = "bias")
+    ) |>
+    rename(K = K_absolute, estimate = bias, estimate_mcse = bias_mcse)
+}
+
+# simhelpers::calc_rejection() returns a proportion with the binomial MCSE sqrt(p(1-p)/K).
+# It expects p-values and a threshold, so a logical indicator is encoded as a pseudo
+# p-value of 0 when TRUE and 1 when FALSE and compared against alpha = 0.5; mean(p < 0.5)
+# is then exactly the proportion of TRUEs. Only the encoding is a device -- the proportion
+# and its MCSE are the package's (see Performance measures, above).
+indicator_as_pseudo_p <- function(indicator) 1 - as.numeric(indicator)
+
+# readable labels for the estimand quantities, used in every table and plot below
+quantity_levels <- c("bias_vs_pop_alpha", "bias_vs_reliability",
+                     "delta_obs", "delta_pop", "delta_rho", "optimism")
+
+quantity_labels <- c("2a. Bias vs. population α of retained items",
+                     "2b. Bias vs. true reliability of retained items",
+                     "3a. Observed change (sample α)",
+                     "3b. Population α change",
+                     "3c. True reliability (ω) change",
+                     "3d. Selection optimism")
+
+label_quantities <- function(data) {
+  data |> mutate(quantity = factor(quantity,
+                                   levels = quantity_levels,
+                                   labels = quantity_labels))
+}
+
+# ordered facet labels for sample size, so "N = 1000" does not sort before "N = 20"
+label_sample_sizes <- function(data) {
+  data |> mutate(n_label = factor(paste0("N = ", n_participants),
+                                  levels = paste0("N = ", sort(unique(n_participants)))))
+}
+
+```
+
+# Results
+
+For each condition, we summarise across the `niter` replications the estimated quantities and their Monte Carlo uncertainty as defined in Performance and Uncertainty, above.
+
+## Aim 1 — calibration and structural gap in the full item pool (no dropping)
+
+```{r}
+
+simulation_summary_full_pool <- simulation |>
+  mutate(calibration_bias = alpha_full_sample - alpha_full_pop,   # estimand 1a
+         structural_gap   = alpha_full_pop    - omega_full_pop,   # estimand 1b
+         total_bias       = alpha_full_sample - omega_full_pop) |># estimand 1c
+  pivot_longer(cols = c(calibration_bias, structural_gap, total_bias),
+               names_to = "quantity",
+               values_to = "difference") |>
+  mutate(true_value = 0) |>
+  group_by(condition, k_indicators, n_participants, quantity) |>
+  reframe(
+    calc_absolute(data       = pick(everything()),
+                  estimates  = difference,
+                  true_param = true_value,
+                  criteria   = "bias")
+  ) |>
+  rename(K = K_absolute, estimate = bias, estimate_mcse = bias_mcse) |>
+  mutate(quantity = factor(quantity,
+                           levels = c("calibration_bias", "structural_gap", "total_bias"),
+                           labels = c("1a. Calibration bias (α̂ vs. population α)",
+                                      "1b. Structural gap (population α vs. ω)",
+                                      "1c. Total bias (α̂ vs. ω)")))
+
+```
+
+### Table
+
+```{r}
+
+simulation_summary_full_pool |>
+  # design columns to character before formatting, so they are not also rounded
+  mutate(k_indicators = as.character(k_indicators),
+         n_participants = as.character(n_participants)) |>
+  mutate(across(where(is.numeric), \(x) scales::number(x, accuracy = 0.0001))) |>
+  mutate(estimate_string = paste0(estimate, " (", estimate_mcse, ")")) |>
+  select(k_indicators, n_participants, quantity, estimate_string) |>
+  pivot_wider(names_from = quantity, values_from = estimate_string) |>
+  kable(caption = "Full item pool, no dropping: estimate (±1 MCSE) of the calibration bias of sample alpha against population alpha (1a), the structural gap between population alpha and true reliability (1b), and their sum (1c), by item-pool size and sample size.") |>
+  kable_classic(full_width = TRUE)
+
+```
+
+### Plot
+
+```{r}
+#| fig-height: 4
+#| fig-width: 11
+
+ggplot(simulation_summary_full_pool,
+       aes(x = k_indicators, y = estimate, color = as.factor(n_participants))) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_linerange(aes(ymin = estimate - estimate_mcse,
+                     ymax = estimate + estimate_mcse), color = "black") +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~ quantity, scales = "free_y") +
+  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = c(5, 9, 13, 21, 39)) +
+  scale_y_continuous(name = "Estimate", breaks = breaks_pretty(n = 6)) +
+  theme_linedraw() +
+  guides(color = guide_legend(title = "N participants"))
+
+```
+
+## Aim 2 — bias in the reported alpha of the retained items
+
+### Marginal (all replications)
+
+```{r}
+
+simulation_summary_estimands <-
+  summarise_estimands(simulation_outcomes,
+                      grouping_variables = c("strategy", "condition",
+                                             "k_indicators", "n_participants")) |>
+  label_quantities()
+
+```
+
+#### Table
+
+```{r}
+
+simulation_summary_estimands |>
+  filter(quantity %in% quantity_labels[1:2]) |>
+  # design columns to character before formatting, so they are not also rounded
+  mutate(k_indicators = as.character(k_indicators),
+         n_participants = as.character(n_participants)) |>
+  mutate(across(where(is.numeric), \(x) scales::number(x, accuracy = 0.0001))) |>
+  mutate(estimate_string = paste0(estimate, " (", estimate_mcse, ")")) |>
+  select(strategy, k_indicators, n_participants, quantity, estimate_string) |>
+  pivot_wider(names_from = quantity, values_from = estimate_string) |>
+  kable(caption = "Bias (±1 MCSE) of the reported (sample) alpha of the retained items against the true population alpha of those same items (2a) and against their true reliability (2b), by strategy, item-pool size, and sample size. The forced strategy drops in every replication by definition; conditional-strategy rows are marginal, so no-drop replications contribute the full-pool values.") |>
+  kable_classic(full_width = TRUE)
+
+```
+
+#### Plot
+
+```{r}
+#| fig-height: 7
+#| fig-width: 11
+
+simulation_summary_estimands |>
+  filter(quantity %in% quantity_labels[1:2]) |>
+  ggplot(aes(x = k_indicators, y = estimate, color = as.factor(n_participants))) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_linerange(aes(ymin = estimate - estimate_mcse,
+                     ymax = estimate + estimate_mcse), color = "black") +
+  geom_line() +
+  geom_point() +
+  facet_grid(quantity ~ strategy, scales = "free_y", labeller = label_wrap_gen(width = 32)) +
+  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = c(5, 9, 13, 21, 39)) +
+  scale_y_continuous(name = "Bias in the reported α of the retained items",
+                     breaks = breaks_pretty(n = 6)) +
+  theme_linedraw() +
+  guides(color = guide_legend(title = "N participants"))
+
+```
+
+### Calibration view: the reported α against the truth
+
+The plots above are indexed by the design coordinates (`k_indicators`, `n_participants`), which is the right way to see how the bias *behaves*, but not the scale a reader of an applied paper thinks in. This section presents the same estimands on the reader's own scale: **the true value of the retained items on the x-axis, the reported (sample) α of those same items on the y-axis**, with the identity line as the reference. Vertical distance above the identity line is exactly the bias of estimand 2a (against the population α of the retained items) or 2b (against their true reliability). Read across: *"if the true reliability of the items I kept is 0.7, what α will I report?"*
+
+This is also the form in which Kopalle and Lehmann (1997) summarised their results — they regressed the observed α of the chosen items on the true α — so it is the directly comparable presentation.
+
+**These curves must not be read backwards.** They give $\mathbb{E}[\hat\alpha(S_s) \mid \text{true value} = x]$: *given the truth, what gets reported*. The question an applied researcher actually faces is the reverse one — they know their reported α and want the truth — but $\mathbb{E}[\text{true value} \mid \hat\alpha(S_s) = y]$ is a different quantity that these curves do not provide, since it also depends on how often each true value arises in the first place. Reading horizontally from a reported α on the y-axis across to a curve would overstate what can be inferred from it.
+
+Three series are shown: both dropping strategies plus a **no-dropping (full pool)** reference, so that the effect of selection is visible against the baseline of not selecting at all. Because every replication draws its own loadings, the true value is continuous and varies across replications rather than being fixed within a condition; replications are therefore binned by their true value and the mean reported α is plotted per bin. The binning is purely presentational — no estimand is defined in terms of it, and the numbers in the tables above are computed from unbinned replications.
+
+```{r}
+
+bin_width <- 0.05
+min_replicates_per_bin <- 20
+
+# per-replicate, long over the two population targets, with a no-dropping reference series
+calibration_replicates <-
+  bind_rows(
+    simulation_outcomes |>
+      transmute(series = as.character(strategy),
+                k_indicators, n_participants,
+                observed     = alpha_subset_sample,
+                target_alpha = alpha_subset_pop,
+                target_omega = omega_subset_pop),
+    simulation |>
+      transmute(series = "full pool",
+                k_indicators, n_participants,
+                observed     = alpha_full_sample,
+                target_alpha = alpha_full_pop,
+                target_omega = omega_full_pop)
+  ) |>
+  mutate(series = factor(series,
+                         levels = c("full pool", "forced", "conditional"),
+                         labels = c("No dropping (full pool)", "Forced drop", "Conditional drop"))) |>
+  pivot_longer(cols = c(target_alpha, target_omega),
+               names_to = "target", values_to = "true_value") |>
+  mutate(target = factor(target,
+                         levels = c("target_alpha", "target_omega"),
+                         labels = c("Target: population α of those items",
+                                    "Target: true reliability (ω) of those items")))
+
+# Bin by the true value, then summarise both the reported alpha (for the calibration plot)
+# and its deviation from the truth (for the bias plot) with the same calc_absolute() device
+# used throughout: passing true_param = 0 returns the mean and its MCSE, S/sqrt(K).
+#
+# Binning by the true value is faithful to the marginal estimands even though the true value
+# is itself a consequence of the selection: the K-weighted mean of the binned deviations
+# reproduces the pooled bias of estimand 2a/2b exactly. (Only an *unweighted* mean over bins
+# differs, and misleadingly so, because bins are very unequally populated -- so read the
+# bin-level curves, not an eyeballed average across them.)
+calibration_binned <- calibration_replicates |>
+  mutate(true_binned = round(true_value / bin_width) * bin_width,
+         deviation   = observed - true_value,
+         zero        = 0) |>
+  pivot_longer(cols = c(observed, deviation),
+               names_to = "quantity", values_to = "value") |>
+  group_by(series, target, n_participants, true_binned, quantity) |>
+  reframe(
+    calc_absolute(data       = pick(everything()),
+                  estimates  = value,
+                  true_param = zero,
+                  criteria   = "bias")
+  ) |>
+  rename(K = K_absolute, estimate = bias, estimate_mcse = bias_mcse)
+
+# bins too sparse to be informative are not plotted; report what that removes rather than
+# letting it look like full coverage
+calibration_binned_plotted <- calibration_binned |> filter(K >= min_replicates_per_bin)
+
+```
+
+```{r}
+#| output: asis
+
+replicates_all <- calibration_binned |> filter(quantity == "observed")
+replicates_kept <- calibration_binned_plotted |> filter(quantity == "observed")
+
+cat(sprintf(
+  "Bins containing fewer than %d replications are not plotted: this drops %d of %d bins, containing %.2f%% of replications (the sparse tails of the true-value distribution).\n",
+  min_replicates_per_bin,
+  nrow(replicates_all) - nrow(replicates_kept),
+  nrow(replicates_all),
+  100 * (1 - sum(replicates_kept$K) / sum(replicates_all$K))))
+
+```
+
+#### Plot — reported α against the true value
+
+Points on the dashed identity line would mean the reported α is exactly right for the items retained. Points above it mean the reported α overstates the truth.
+
+```{r}
+#| fig-height: 8
+#| fig-width: 12
+
+calibration_binned_plotted |>
+  filter(quantity == "observed") |>
+  ggplot(aes(x = true_binned, y = estimate, color = as.factor(n_participants))) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  geom_linerange(aes(ymin = estimate - estimate_mcse,
+                     ymax = estimate + estimate_mcse), color = "black") +
+  geom_line() +
+  geom_point(size = 1) +
+  facet_grid(target ~ series, labeller = label_wrap_gen(width = 30)) +
+  scale_x_continuous(name = "True value for the retained items",
+                     breaks = breaks_pretty(n = 6)) +
+  scale_y_continuous(name = "Reported (sample) α of the retained items",
+                     breaks = breaks_pretty(n = 6)) +
+  coord_equal() +
+  theme_linedraw() +
+  guides(color = guide_legend(title = "N participants"))
+
+```
+
+#### Plot — bias against the true value
+
+The same information with the identity line subtracted off, since a bias of a few hundredths is hard to see against a 0-to-1 axis. This is the plot to read for the *size* of the distortion; the one above is the plot to read for what a reported α of a given magnitude actually corresponds to.
+
+```{r}
+#| fig-height: 8
+#| fig-width: 12
+
+calibration_binned_plotted |>
+  filter(quantity == "deviation") |>
+  ggplot(aes(x = true_binned, y = estimate, color = as.factor(n_participants))) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_linerange(aes(ymin = estimate - estimate_mcse,
+                     ymax = estimate + estimate_mcse), color = "black") +
+  geom_line() +
+  geom_point(size = 1) +
+  facet_grid(target ~ series, labeller = label_wrap_gen(width = 30)) +
+  scale_x_continuous(name = "True value for the retained items",
+                     breaks = breaks_pretty(n = 6)) +
+  scale_y_continuous(name = "Reported α − true value\n(bias in the reported α)",
+                     breaks = breaks_pretty(n = 6)) +
+  theme_linedraw() +
+  guides(color = guide_legend(title = "N participants"))
+
+```
+
+### Conditional strategy, given a drop occurred
+
+Summarised over only the replications in which the conditional strategy dropped an item; `niter` here is the realised $K_{\text{drop}}$, itself random, and is reported per condition.
+
+```{r}
+
+simulation_summary_given_drop <- simulation_outcomes |>
+  filter(strategy == "conditional", dropped) |>
+  summarise_estimands(grouping_variables = c("condition", "k_indicators", "n_participants")) |>
+  label_quantities()
+
+```
+
+#### Table
+
+```{r}
+
+simulation_summary_given_drop |>
+  # design columns to character before formatting, so they are not also rounded
+  mutate(k_indicators = as.character(k_indicators),
+         n_participants = as.character(n_participants),
+         K = as.character(K)) |>
+  mutate(across(where(is.numeric), \(x) scales::number(x, accuracy = 0.0001))) |>
+  mutate(estimate_string = paste0(estimate, " (", estimate_mcse, ")")) |>
+  select(k_indicators, n_participants, K, quantity, estimate_string) |>
+  pivot_wider(names_from = quantity, values_from = estimate_string) |>
+  kable(caption = "Conditional strategy, replications with a drop only: estimate (±1 MCSE) of every per-strategy estimand, by item-pool size and sample size. K is the realised number of replications in which a drop occurred.") |>
+  kable_classic(full_width = TRUE)
+
+```
+
+## Aim 3 — what dropping does: observed vs. population-alpha vs. true-reliability change
+
+### Table
+
+```{r}
+
+simulation_summary_estimands |>
+  filter(quantity %in% quantity_labels[3:6]) |>
+  # design columns to character before formatting, so they are not also rounded
+  mutate(k_indicators = as.character(k_indicators),
+         n_participants = as.character(n_participants)) |>
+  mutate(across(where(is.numeric), \(x) scales::number(x, accuracy = 0.0001))) |>
+  mutate(estimate_string = paste0(estimate, " (", estimate_mcse, ")")) |>
+  select(strategy, k_indicators, n_participants, quantity, estimate_string) |>
+  pivot_wider(names_from = quantity, values_from = estimate_string) |>
+  kable(caption = "Mean change (±1 MCSE) from full pool to retained items on three scales — observed sample alpha (3a), population alpha (3b), true reliability (3c) — and selection optimism (3d = 3a - 3b, paired per replicate), by strategy, item-pool size, and sample size. Conditional-strategy rows are marginal, so no-drop replications contribute zeros.") |>
+  kable_classic(full_width = TRUE)
+
+```
+
+### Plot — the three deltas
+
+```{r}
+#| fig-height: 6
+#| fig-width: 12
+
+simulation_summary_estimands |>
+  filter(quantity %in% quantity_labels[3:5]) |>
+  label_sample_sizes() |>
+  ggplot(aes(x = k_indicators, y = estimate, color = quantity)) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_linerange(aes(ymin = estimate - estimate_mcse,
+                     ymax = estimate + estimate_mcse), color = "black") +
+  geom_line() +
+  geom_point() +
+  facet_grid(strategy ~ n_label) +
+  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = c(5, 9, 13, 21, 39)) +
+  scale_y_continuous(name = "Mean change from full pool to retained items",
+                     breaks = breaks_pretty(n = 6)) +
+  theme_linedraw() +
+  guides(color = guide_legend(title = "Scale of change", ncol = 1))
+
+```
+
+### Plot — selection optimism
+
+```{r}
+#| fig-height: 4
+#| fig-width: 11
+
+simulation_summary_estimands |>
+  filter(quantity == quantity_labels[6]) |>
+  ggplot(aes(x = k_indicators, y = estimate, color = as.factor(n_participants))) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_linerange(aes(ymin = estimate - estimate_mcse,
+                     ymax = estimate + estimate_mcse), color = "black") +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~ strategy) +
+  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = c(5, 9, 13, 21, 39)) +
+  scale_y_continuous(name = "Selection optimism\n(observed gain − population α gain)",
+                     breaks = breaks_pretty(n = 6)) +
+  theme_linedraw() +
+  guides(color = guide_legend(title = "N participants"))
+
+```
+
+### Proportions: P(drop) and the harm rate
+
+```{r}
+
+# P(the conditional strategy drops an item) -- estimand 3e
+simulation_summary_p_drop <- simulation |>
+  mutate(pseudo_p = indicator_as_pseudo_p(dropped_conditional)) |>
+  group_by(condition, k_indicators, n_participants) |>
+  reframe(
+    calc_rejection(data     = pick(everything()),
+                   p_values = pseudo_p,
+                   alpha    = 0.5)
+  ) |>
+  rename(K = K_rejection,
+         proportion_dropped = rej_rate,
+         proportion_dropped_mcse = rej_rate_mcse)
+
+# P(the drop reduced true reliability) -- estimand 3f
+simulation_summary_harm <- simulation_outcomes |>
+  mutate(pseudo_p = indicator_as_pseudo_p(delta_rho < 0)) |>
+  group_by(strategy, condition, k_indicators, n_participants) |>
+  reframe(
+    calc_rejection(data     = pick(everything()),
+                   p_values = pseudo_p,
+                   alpha    = 0.5)
+  ) |>
+  rename(K = K_rejection,
+         harm_rate = rej_rate,
+         harm_rate_mcse = rej_rate_mcse)
+
+```
+
+#### Table
+
+```{r}
+
+simulation_summary_p_drop |>
+  select(k_indicators, n_participants, K, proportion_dropped, proportion_dropped_mcse) |>
+  left_join(simulation_summary_harm |>
+              select(strategy, k_indicators, n_participants, harm_rate, harm_rate_mcse) |>
+              pivot_wider(names_from = strategy,
+                          values_from = c(harm_rate, harm_rate_mcse)),
+            by = c("k_indicators", "n_participants")) |>
+  mutate(across(where(is.numeric), \(x) janitor::round_half_up(x, digits = 4))) |>
+  kable(caption = "Proportion of replications in which the conditional strategy dropped an item (3e; the forced strategy drops in all replications), and the proportion in which the drop reduced true reliability (3f, harm rate), each ±1 MCSE, by item-pool size and sample size.") |>
+  kable_classic(full_width = TRUE)
+
+```
+
+#### Plot
+
+```{r}
+#| fig-height: 7
+#| fig-width: 11
+
+bind_rows(simulation_summary_p_drop |>
+            mutate(strategy = "conditional",
+                   quantity = "3e. P(conditional strategy drops an item)") |>
+            rename(estimate = proportion_dropped, estimate_mcse = proportion_dropped_mcse),
+          simulation_summary_harm |>
+            mutate(quantity = "3f. P(drop reduced true reliability)") |>
+            rename(estimate = harm_rate, estimate_mcse = harm_rate_mcse)) |>
+  ggplot(aes(x = k_indicators, y = estimate, color = as.factor(n_participants))) +
+  geom_linerange(aes(ymin = estimate - estimate_mcse,
+                     ymax = estimate + estimate_mcse), color = "black") +
+  geom_line() +
+  geom_point() +
+  facet_grid(strategy ~ quantity) +
+  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = c(5, 9, 13, 21, 39)) +
+  scale_y_continuous(name = "Proportion of replications",
+                     limits = c(0, 1), breaks = breaks_pretty(n = 6)) +
+  theme_linedraw() +
+  guides(color = guide_legend(title = "N participants"),
+         linetype = guide_legend(title = "Strategy"),
+         shape = guide_legend(title = "Strategy"))
+
+```
+
+# Discussion
+
+<!-- TODO: interpret the tables/plots above once the full-K run has been executed and rendered; the summary below should be checked and edited against the actual rendered output, not assumed from the design. -->
+
+## Performance across conditions
+
+*To be completed once this file has been rendered end-to-end with the full `niter` = 1000 (25,000 replications) run.*
+
+## Conclusions with regard to the aims
+
+*To be completed after Results are interpreted, above.*
+
+## Limitations and intended use
+
+- **No non-convergence handling for residual, unanticipated failures.** The one confirmed systematic failure mode from an earlier version of this design (ML factor analysis when `n_participants` < `k_indicators`) no longer applies, since that method has been removed entirely; but no general `tryCatch()`-based safety net exists for any other unanticipated estimation failure.
+- **Single-item, single-step rules only.** Both strategies consider dropping at most one item per replication; neither iterates (drop, re-check, possibly drop again) nor drops to a target scale length. Multi-item dropping was part of an earlier version of this design and is deferred (see Notes for future iterations, above) so that the two strategies here differ only in the gating rule.
+- **Realised, not idealised, subset targets.** The Aim 2 targets $\alpha_{\text{pop}}(S_s)$ and $\rho(S_s)$ are the true values for whichever items a strategy happened to retain, not for the best possible subset; this is the right target for the applied question ("how good, in truth, is the scale I ended up with, and does my reported alpha tell me that?"), but it means the targets vary by strategy and by replication rather than being a single fixed population value per condition — a departure from the classical ADEMP estimation setup that is deliberate and is flagged here so it is not mistaken for an oversight.
+- **Sample alpha is the only estimator evaluated.** We evaluate the field-standard reported quantity (sample Cronbach's alpha) against the reliability-scale target; we do not evaluate sample omega estimators as an alternative reporting practice, which would be a natural comparator in a future iteration.
+- **The empirical loading distribution is a marginal, i.i.d.-item fit, not a scale-level model.** As documented in `analysis_factor_loading_distribution.Rmd`, the fitted scaled Beta ignores between-scale clustering (e.g. that negative loadings concentrate within particular multidimensional scales) and under/over-predicts reliability at the shortest/longest real scales; it is a reasonable single-distribution summary of pooled trait-scale loadings, not a claim that any given generated item pool drawn from it resembles a specific real scale.
+
+# References
+
+Cronbach, L. J. (1951). Coefficient alpha and the internal structure of tests. *Psychometrika*, 16(3), 297-334. https://doi.org/10.1007/BF02310555
+
+Hussey, I. `granary` [GitHub repository]. `code/analysis/analysis_factor_loading_distribution.Rmd`. https://github.com/ianhussey/granary
+
+Joshi, M., & Pustejovsky, J. E. (2022). *simhelpers: Helper functions for simulation studies* [R package]. https://CRAN.R-project.org/package=simhelpers
+
+Kopalle, P. K., & Lehmann, D. R. (1997). Alpha inflation? The impact of eliminating scale items on Cronbach's alpha. *Organizational Behavior and Human Decision Processes*, 70(3), 189-197. https://doi.org/10.1006/obhd.1997.2702
+
+McDonald, R. P. (1999). *Test theory: A unified treatment*. Lawrence Erlbaum.
+
+Morris, T. P., White, I. R., & Crowther, M. J. (2019). Using simulation studies to evaluate statistical methods. *Statistics in Medicine*, 38(11), 2074-2102. https://doi.org/10.1002/sim.8086
+
+Siepe, B. S., Bartoš, F., Morris, T. P., Boulesteix, A.-L., Heck, D. W., & Pawel, S. (2024). Simulation studies for methodological research in psychology: A standardized template for planning, preregistration, and reporting. *Psychological Methods*. https://doi.org/10.1037/met0000695
+
+# Session info
+
+```{r}
+
+sessionInfo()
+
+```

@@ -1,0 +1,615 @@
+---
+title: "Simulation template: estimation"
+author: "Authors names go here"
+date: today
+format:
+  html:
+    embed-resources: true # ignored when rendering book
+    toc: true
+    toc_float: true
+    code-fold: false
+    code-overflow: wrap
+    code-tools: true
+    warning: false
+    df-print: kable
+    theme:
+      light: cosmo
+      dark: darkly
+    highlight-style:
+      light: breeze
+      dark: dracula
+    include-in-header:
+      text: |
+        <style>
+          .kable-table table { width: 70%; margin: 0 auto; }
+          .quarto-color-scheme-toggle::after { content: " Dark mode"; font-family: sans-serif; font-size: 0.85em; }
+        </style>
+---
+
+```{r, include=FALSE}
+# settings: hidden from rendered file
+# disable messages and warnings in rendered files
+knitr::opts_chunk$set(message = FALSE,
+                      warning = FALSE)
+
+# disable scientific numbers in output
+options(scipen=999)
+```
+
+# Introduction
+
+<!-- Specify the simulation that will be run here. -->
+
+This introduction is structured following the ADEMP framework (Aims, Data-generating process, Estimands, Methods, Performance) as described by Morris, White, and Crowther (2019) and operationalised for psychology by Siepe et al. (2024). The aim of working through the framework explicitly is to make the design decisions behind the simulation visible and auditable, so that a reader can judge whether the conclusions are supported by the conditions actually examined.
+
+## Project description
+
+<!-- Provide a brief description of the project, including any empirical examples. -->
+
+This is a worked example simulation study that evaluates the *estimation* properties of the two-sample mean-difference estimator and its Wald confidence interval (as produced by Student's independent-samples *t*-test) as the per-condition sample size and the population effect size are varied. The motivating empirical context is a two-arm between-subjects randomised controlled trial in which a continuous outcome is compared between a control group and an intervention group, and the analyst wishes to know how well the difference in sample means recovers the population mean difference: specifically, (a) whether the estimator is unbiased, (b) how its variance scales with sample size, and (c) whether the 95% confidence interval attains its nominal coverage and how its width shrinks with sample size.
+
+This template is the estimation-task companion to `simulation_template_hypothesis_testing.qmd`: the data-generating process and the analysis are identical, but the performance measures focus on the continuous estimate and its CI rather than on the binary reject/retain decision based on the *p*-value.
+
+The example is intentionally small and self-contained so that it can serve as a template for more substantive simulations: every section of the introduction maps onto an ADEMP heading, every parameter manipulated in the code maps onto a "DGP factor", and every metric reported in the results section is justified in the "Performance measures" subsection.
+
+## Prior related work
+
+<!-- Did any contributors already conduct related simulation studies on this specific question, including any preliminary simulations? -->
+
+The estimation behaviour of the two-sample mean-difference estimator under the assumptions of Student's *t*-test is one of the most extensively studied results in classical statistics. Under the DGP defined below, the difference in sample means $\bar Y_{\text{int}} - \bar Y_{\text{ctrl}}$ is exactly unbiased for $\mu_{\text{int}} - \mu_{\text{ctrl}}$ at every sample size; its sampling variance is $2\sigma^2/n_{\text{per\_condition}}$ (so $\sqrt{2/n_{\text{per\_condition}}}$ for $\sigma = 1$); and the Student's *t* 95% confidence interval has *exact* 95% coverage at every sample size. The expected interval width is approximately $2 \cdot t_{0.975,\,2n-2} \cdot \sqrt{2/n_{\text{per\_condition}}}$, which converges to $2 \cdot 1.96 \cdot \sqrt{2/n_{\text{per\_condition}}}$ as *n* grows. We therefore do not expect the simulation to produce novel methodological findings; rather, it is a calibration exercise that confirms the simulation infrastructure is implemented correctly and provides a reference against which future, more substantive simulations (e.g. estimators under non-normal data, unequal variances, or shrinkage methods) can be compared.
+
+No preliminary simulations were conducted by the contributors on this specific question prior to this template.
+
+## Aims
+
+<!-- What is the aim of the simulation study? Be specific about the statistical task (estimation, hypothesis testing, model selection, prediction, design). -->
+
+The statistical task is **estimation**, specifically of the population mean difference between two independent groups using the difference in sample means and its associated 95% Student's *t* confidence interval. For each replicated dataset the analyst produces a continuous point estimate $\widehat{\Delta} = \bar Y_{\text{int}} - \bar Y_{\text{ctrl}}$ together with a 95% CI; no reject/retain decision is made.
+
+The aims are:
+
+1. To estimate the **bias** and **empirical sampling variance** of $\widehat{\Delta}$ under the equal-variance Normal DGP, and to verify that bias is indistinguishable from zero at every sample size and that the empirical variance tracks the analytic value $2\sigma^2/n_{\text{per\_condition}}$.
+2. To estimate the **coverage** of the 95% Student's *t* confidence interval and the **mean CI width**, and to verify that coverage is close to the nominal 95% across all sample sizes considered, and that mean width shrinks at the expected $\propto 1/\sqrt{n_{\text{per\_condition}}}$ rate.
+
+## Data-Generating Process
+
+### DGP specification approach
+
+<!-- How will the parameters for the DGP be specified? (parametric based on real data / parametric / resampled) If based on real data, describe the dataset and model used. -->
+
+The DGP is **fully parametric** and is not anchored to any empirical dataset. Outcome scores in each of the two conditions are drawn independently from a univariate Normal distribution with a known mean and a known, common standard deviation. Formally, for each replication:
+
+$$Y_{ij} \;\overset{\text{iid}}{\sim}\; \mathcal{N}(\mu_j,\,\sigma^2), \qquad i = 1, \ldots, n_{\text{per condition}}; \quad j \in \{\text{control},\, \text{intervention}\}$$
+
+with $\mu_{\text{control}} = 0$, $\mu_{\text{intervention}} \in \{0,\,0.2,\,0.5,\,0.8\}$, and $\sigma = 1$ in both conditions. This is exactly what `generate_data()` (defined below) produces by calling `rnorm()` once per condition.
+
+This DGP exactly satisfies the assumptions of the equal-variance Student's *t*-test (independent observations, normality within group, homogeneity of variance), which is the desired baseline for a calibration study of the test. By setting $\sigma = 1$ and $\mu_{\text{control}} = 0$, the unstandardised mean difference and the standardised mean difference (Cohen's *d*) are numerically identical, ignoring the small finite-sample bias in *d*.
+
+### DGP factors
+
+<!-- What will be the different factors of the DGP — i.e., parameters/settings varied across simulation conditions? -->
+
+Two factors are varied across simulation conditions:
+
+1. **`n_per_condition`** — the per-group sample size.
+2. **`mean_intervention`** — the population mean in the intervention condition. Because the control mean is fixed at 0 and the within-group standard deviation is fixed at 1, this directly equals the population standardised mean difference (Cohen's *d*).
+
+### Factor values and settings
+
+<!-- Provide specific factor values and any settings held constant across conditions. Include justification for chosen values where relevant. -->
+
+**Factor values:**
+
+- `n_per_condition` ∈ {10, 20, 30, …, 200}, i.e. 20 levels in steps of 10. This range spans from very small samples (where asymptotic approximations should still be benign for Normal data) to samples larger than most single-site psychology studies.
+- `mean_intervention` ∈ {0, 0.2, 0.5, 0.8}, i.e. 4 levels corresponding to a true null and to Cohen's (1988) conventional small, medium, and large effect-size benchmarks.
+
+**Settings held constant across all conditions:**
+
+- `mean_control` = 0 (control group population mean).
+- `sd` = 1 in both conditions, so the equal-variance assumption holds exactly and the population effect size in standardised units equals `mean_intervention`.
+- Balanced design (the same `n_per_condition` is drawn for both groups in every replication).
+- Single analytic method: equal-variance Student's two-sample *t*-test, two-sided alternative, α = .05.
+
+### Factor combination and number of conditions
+
+<!-- If there is more than one factor: how will factor levels be combined? (fully factorial / partially factorial / one-at-a-time / scattershot) How many conditions does this create? -->
+
+Of the four factor-combination strategies enumerated by Siepe et al. (2024, Figure 1) — fully factorial, partially factorial, one-at-a-time, and scattershot — we use a **fully factorial** crossing, which is the default recommendation when it is computationally feasible because it allows the main effects of, and interaction between, the two factors to be disentangled. With 20 sample sizes × 4 effect sizes this yields **80 unique conditions**, each replicated 1000 times for 80,000 simulated datasets in total.
+
+## Estimands and Targets
+
+<!-- What are the estimands and/or targets of the simulation study? Distinguish primary and secondary targets if applicable. -->
+
+The statistical task is estimation, so each condition has a single **estimand** — the population mean difference
+
+$$\theta \;=\; \mu_{\text{intervention}} - \mu_{\text{control}}$$
+
+whose true value under the DGP is `mean_intervention - mean_control`, equivalently `mean_intervention` since `mean_control` is fixed at 0. This same estimand is targeted by two complementary methodological aspects of the analysis:
+
+- **Point estimation target.** The point estimator is $\widehat{\Delta} = \bar Y_{\text{int}} - \bar Y_{\text{ctrl}}$. The performance measures evaluated against it are bias and empirical sampling variance.
+- **Interval estimation target.** The interval estimator is the 95% Student's *t* confidence interval for $\theta$. The performance measures evaluated against it are CI coverage (the proportion of replications whose CI contains the true $\theta$) and mean CI width.
+
+Following Siepe et al.'s (2024, footnote 1) target/performance-measure distinction: the *target* is $\theta$ itself in every condition, and bias, variance, coverage, and width are *performance measures* used to evaluate how well the estimator and CI procedure recover that target.
+
+## Methods and extracted quantities
+
+<!-- How many and which methods will be included? What quantities will be extracted from each? Include code or pseudocode where helpful. Justify method and parameter choices; note where package defaults are used. -->
+
+A single analytic method is included: the equal-variance Student's two-sample *t*-test, fitted with `stats::t.test(formula = score ~ condition, var.equal = TRUE, alternative = "two.sided", conf.level = 1 - alpha)`. We use it not for its *p*-value but for its point estimate of the mean difference and its analytic 95% CI. The equal-variance form is chosen rather than Welch's *t*-test because the DGP guarantees equal population variances; this is the procedure whose nominal coverage we wish to verify.
+
+For each replication the following quantities are extracted from the fitted model (via `parameters::model_parameters()`):
+
+- `mean_diff` — the estimated difference in sample means, $\widehat{\Delta}$.
+- `ci_lower`, `ci_upper` — the bounds of the 95% confidence interval for the mean difference.
+
+The two-sided *p*-value is not extracted in this estimation-task version of the template; see `simulation_template_hypothesis_testing.qmd` for the corresponding hypothesis-testing analysis.
+
+## Performance and Uncertainty
+
+### Performance measures
+
+<!-- Which performance measures will be used? Provide formulas and justification. If multiple parameters are aggregated, specify how. -->
+
+Four performance measures are reported, all taken from Siepe et al. (2024, Table 3), which itself reproduces Morris et al. (2019, Table A1). Let $\widehat{\Delta}_k$ denote the point estimate from replication $k$ and $(\text{CI}_{k,\text{lower}},\,\text{CI}_{k,\text{upper}})$ its 95% CI; $\theta$ is the true mean difference under the DGP for the condition.
+
+**Bias** — the mean signed deviation of the estimator from the truth (Siepe Table 3, "Bias" row):
+
+$$\widehat{\text{Bias}} \;=\; \frac{1}{n_{\text{sim}}}\sum_{k=1}^{n_{\text{sim}}} \widehat{\Delta}_k \;-\; \theta$$
+
+**Empirical variance** — the sampling variance of the estimator across replications (Siepe Table 3, "Empirical variance" row):
+
+$$S^2_{\widehat{\Delta}} \;=\; \frac{1}{n_{\text{sim}} - 1}\sum_{k=1}^{n_{\text{sim}}} \bigl(\widehat{\Delta}_k - \overline{\widehat{\Delta}}\bigr)^2$$
+
+**Coverage** — the proportion of replications whose 95% CI contains $\theta$ (Siepe Table 3, "Coverage" row):
+
+$$\widehat{\text{Cov}} \;=\; \frac{1}{n_{\text{sim}}}\sum_{k=1}^{n_{\text{sim}}} \mathbb{1}\bigl\{\text{CI}_{k,\text{lower}} \leq \theta \leq \text{CI}_{k,\text{upper}}\bigr\}$$
+
+**Mean CI width** (Siepe Table 3, "Mean CI width" row):
+
+$$\widehat{W} \;=\; \frac{1}{n_{\text{sim}}}\sum_{k=1}^{n_{\text{sim}}} \bigl(\text{CI}_{k,\text{upper}} - \text{CI}_{k,\text{lower}}\bigr)$$
+
+Bias and variance are computed via `simhelpers::calc_absolute()`; coverage and width are computed via `simhelpers::calc_coverage()`. Both helpers also return the corresponding Monte Carlo standard errors.
+
+### Monte Carlo uncertainty
+
+<!-- How will Monte Carlo Standard Errors (MCSEs) be calculated and reported? -->
+
+We report Monte Carlo uncertainty in tables (MCSEs next to each estimated performance measure) and in plots (error bars with ±1 MCSE). MCSEs are taken from the third column of the same Siepe et al. (2024, Table 3) rows used above (Joshi & Pustejovsky, 2022):
+
+$$\widehat{\text{MCSE}}(\widehat{\text{Bias}}) \;=\; \sqrt{S^2_{\widehat{\Delta}}\,/\,n_{\text{sim}}}$$
+
+$$\widehat{\text{MCSE}}(S^2_{\widehat{\Delta}}) \;=\; S^2_{\widehat{\Delta}} \sqrt{2\,/\,(n_{\text{sim}}-1)}$$
+
+$$\widehat{\text{MCSE}}(\widehat{\text{Cov}}) \;=\; \sqrt{\widehat{\text{Cov}}\,(1 - \widehat{\text{Cov}})\,/\,n_{\text{sim}}}$$
+
+$$\widehat{\text{MCSE}}(\widehat{W}) \;=\; \sqrt{S^2_W\,/\,n_{\text{sim}}}, \qquad S^2_W = \frac{1}{n_{\text{sim}}-1}\sum_{k} (\text{width}_k - \widehat{W})^2$$
+
+### Number of simulation repetitions
+
+<!-- How many repetitions per condition? Justify the number (sample size calculation, computational constraints, rule of thumb, etc.). -->
+
+We use **K = 1000 replications per condition** ($n_{\text{sim}} = 1000$ in Siepe et al.'s notation). The required number of replications can be derived for each performance measure separately by inverting its MCSE formula (Siepe et al., 2024, Table 3, last column). For the binary-valued coverage measure the relevant inversion is
+
+$$n_{\text{sim}} \;\geq\; \frac{\widehat{\text{Cov}}\,(1-\widehat{\text{Cov}})}{\text{MCSE}_*^2}$$
+
+At the nominal coverage of 0.95 this gives an MCSE of $\sqrt{0.95 \cdot 0.05 / 1000} \approx 0.0069$, i.e. coverage estimates are uncertain to roughly ±0.7 percentage points. For bias and CI width, the MCSE is bounded by sample standard deviations of $\widehat{\Delta}$ and the CI widths respectively; under the DGP, $\text{Var}(\widehat{\Delta}) = 2\sigma^2/n_{\text{per\_condition}}$, so the bias MCSE worst case is $\sqrt{2/(10 \cdot 1000)} \approx 0.014$ at the smallest sample size and shrinks monotonically as $n_{\text{per\_condition}}$ grows. K = 1000 is loose for a publishable methodological study but adequate for a teaching example that needs to re-render quickly; a preregistered simulation targeting an MCSE of 0.005 on coverage at $\widehat{\text{Cov}} = 0.95$ would require $n_{\text{sim}} \geq 0.95 \cdot 0.05 / 0.005^2 = 1{,}900$ — and considerably more if it also targeted that MCSE on bias at small $n_{\text{per\_condition}}$.
+
+### Non-convergence and missing values
+
+<!-- How will missing values due to non-convergence or other failures be handled? -->
+
+Student's *t*-test has a closed-form solution and does not iterate, so non-convergence cannot occur. The only failure modes are degenerate samples (e.g. zero within-group variance), which have probability zero under a continuous Normal DGP. We therefore expect no missing values; if any are nevertheless observed in the simulation log we will report them per condition and exclude the affected replications case-wise.
+
+### Interpretation of performance measures *(optional)*
+
+<!-- What constitutes acceptable/unacceptable performance? Are any regression models or effect sizes planned for analysing simulation results? -->
+
+We will judge the simulation a success if all of the following hold across the 80 conditions:
+
+- **Bias.** The estimated bias is within ±1 MCSE of zero at every sample size and effect size; there is no systematic drift with either factor.
+- **Variance.** The empirical sampling variance tracks the analytic value $2\sigma^2/n_{\text{per\_condition}}$ within Monte Carlo noise, and is invariant to `mean_intervention` (the variance of $\widehat{\Delta}$ does not depend on the population mean difference under this DGP).
+- **Coverage.** The empirical coverage of the 95% CI falls within ±1 MCSE of the nominal 0.95 at every sample size; this is the analogue of Bradley's (1978) "stringent" calibration applied to interval estimation.
+- **CI width.** The mean CI width shrinks monotonically with `n_per_condition` and is invariant to `mean_intervention`, and the rate of shrinkage is consistent with the analytic $\propto 1/\sqrt{n_{\text{per\_condition}}}$ expectation.
+
+No inferential models are fitted to the simulation output; results are summarised descriptively in tables and plots.
+
+# Methods
+
+## Dependencies
+
+```{r}
+library(tidyr)
+library(dplyr)
+library(furrr)
+library(janitor)
+library(parameters)
+library(simhelpers)
+library(ggplot2)
+library(scales)
+library(knitr)
+library(kableExtra)
+
+# set up parallelisation for {furrr}
+# `furrr_options(seed = TRUE)` (used below in future_pmap calls) advances an
+# L'Ecuyer-CMRG stream rather than re-seeding per worker, giving the
+# parallel-safe reproducibility recommended in Siepe et al. (2024, p. 8).
+plan(multisession)
+```
+
+## Functions 
+
+### Data generating process
+
+```{r}
+generate_data <- function(n_per_condition,
+                          mean_control,
+                          mean_intervention,
+                          sd) {
+  
+  data_control <- 
+    tibble(condition = "control",
+           score = rnorm(n = n_per_condition, mean = mean_control, sd = sd))
+  
+  data_intervention <- 
+    tibble(condition = "intervention",
+           score = rnorm(n = n_per_condition, mean = mean_intervention, sd = sd))
+  
+  # combine
+  data <- bind_rows(data_control,
+                    data_intervention) |>
+    # ensure control is the reference condition
+    mutate(condition = factor(condition, levels = c("intervention", "control")))
+  
+  return(data)
+}
+```
+
+### Analysis
+
+```{r}
+analyse <- function(data, alpha = 0.05) {
+  # fit Students' t-test
+  fit <- t.test(formula = score ~ condition,
+                data = data,
+                var.equal = TRUE,
+                conf.level = 1 - alpha,
+                alternative = "two.sided")
+  
+  # extract p value
+  results <- fit %>%
+    model_parameters() %>%
+    as_tibble() %>% 
+    clean_names() %>% 
+    # select columns of interest
+    select(mean_diff = difference,
+           ci_lower = ci_low,
+           ci_upper = ci_high)
+    
+  return(results)
+}
+```
+
+## Define experiment
+
+```{r}
+experiment_parameters_grid <- expand_grid(
+  n_per_condition = seq(from = 10, to = 200, by = 10),
+  mean_control = 0,
+  mean_intervention = c(0, 0.2, 0.5, 0.8),
+  sd = 1,
+  iteration = 1:1000L
+) |>
+  # define population values
+  mutate(population_mean_diff = mean_intervention - mean_control) |>
+  # define unique conditions
+  mutate(condition = paste0("N = ", n_per_condition,
+                            ", Pop mean diff = ", population_mean_diff))
+```
+
+## Run simulation
+
+```{r}
+set.seed(42)
+
+simulation <- experiment_parameters_grid |>
+  # generate data
+  mutate(data = future_pmap(.l = list(n_per_condition = n_per_condition, 
+                                      mean_control = mean_control, 
+                                      mean_intervention = mean_intervention, 
+                                      sd = sd),
+                            .f = generate_data,
+                            .progress = TRUE,
+                            .options = furrr_options(seed = TRUE))) |>
+  # analyse data
+  mutate(results = future_pmap(.l = list(data = data),
+                               .f = analyse,
+                               .progress = TRUE,
+                               .options = furrr_options(seed = TRUE)))
+
+# optionally save to disk
+#write_rds(x = simulation, file = "simulation.rds", compress = "gz")
+```
+
+# Results
+
+<!-- For each condition, summarize across iterations the performance and uncertainty of the method(s) -->
+
+```{r}
+simulation_summary_biasvariance <- simulation |>
+  unnest(results) |>
+  group_by(n_per_condition,
+           population_mean_diff,
+           condition) |>
+  # performance and uncertainty metrics for parameter estimation (continuous estimates)
+  reframe(
+    calc_absolute(data         = pick(everything()),
+                  estimates    = mean_diff,
+                  true_param   = population_mean_diff,
+                  criteria     = c("bias", "variance"))
+  )
+
+# # identical summarize results, more manual:
+#   summarize(
+#     bias      = mean(mean_diff - population_mean_diff),
+#     bias_mcse = sd(mean_diff - population_mean_diff) / sqrt(n()),
+#     var       = var(mean_diff),
+#     var_mcse  = var * sqrt(2 / (n() - 1)),
+#     .groups   = "drop"
+#   )
+
+simulation_summary_coverage <- simulation |>
+  unnest(results) |>
+  group_by(n_per_condition,
+           population_mean_diff,
+           condition) |>
+  # performance and uncertainty metrics for parameter estimation (continuous estimates)
+  reframe(
+    calc_coverage(data         = pick(everything()),
+                  lower_bound  = ci_lower,
+                  upper_bound  = ci_upper,
+                  true_param   = population_mean_diff,
+                  criteria     = c("coverage", "width"))
+  )
+
+# # identical summarize results, more manual:
+  # summarize(
+  #   K            = n(),
+  #   coverage     = mean(between(population_mean_diff, ci_lower, ci_upper)),
+  #   coverage_mcse = sqrt(coverage * (1 - coverage) / K),
+  #   width        = mean(ci_upper - ci_lower),
+  #   width_mcse   = sqrt(var(ci_upper - ci_lower) / K),
+  #   .groups      = "drop"
+  # )
+```
+
+### Bias and variance
+
+#### Table
+
+```{r}
+# # simple long table
+# simulation_summary_biasvariance |>
+#   select(n_per_condition,
+#          population_mean_diff,
+#          bias,
+#          bias_mcse,
+#          var,
+#          var_mcse) |>
+#   mutate_if(is.numeric, janitor::round_half_up, digits = 3) |>
+#   kable() |>
+#   kable_styling(full_width = FALSE)
+
+# better wider table — bias
+simulation_summary_biasvariance |>
+  mutate(`n per condition` = as.character(n_per_condition),
+         population_mean_diff = as.character(population_mean_diff)) |>
+  mutate(across(where(is.numeric), \(x) scales::number(x, accuracy = 0.001))) |>
+  mutate(bias_string = paste0(bias,
+                              " (",
+                              bias_mcse,
+                              ")")) |>
+  select(`n per condition`,
+         population_mean_diff,
+         bias_string) |>
+  pivot_wider(names_from = population_mean_diff,
+              values_from = bias_string) |>
+  kable(caption = "Bias (±1 MCSE) of the mean-difference estimator by sample size and population mean difference") |>
+  kable_styling(full_width = FALSE) |>
+  add_header_above(c(" " = 1, "Population mean difference" = 4))
+
+# better wider table — empirical sampling variance
+simulation_summary_biasvariance |>
+  mutate(`n per condition` = as.character(n_per_condition),
+         population_mean_diff = as.character(population_mean_diff)) |>
+  mutate(across(where(is.numeric), \(x) scales::number(x, accuracy = 0.001))) |>
+  mutate(var_string = paste0(var,
+                             " (",
+                             var_mcse,
+                             ")")) |>
+  select(`n per condition`,
+         population_mean_diff,
+         var_string) |>
+  pivot_wider(names_from = population_mean_diff,
+              values_from = var_string) |>
+  kable(caption = "Empirical sampling variance (±1 MCSE) of the mean-difference estimator by sample size and population mean difference") |>
+  kable_styling(full_width = FALSE) |>
+  add_header_above(c(" " = 1, "Population mean difference" = 4))
+```
+
+#### Plot
+
+```{r}
+ggplot(simulation_summary_biasvariance, 
+       aes(x = n_per_condition, 
+           y = bias, 
+           color = as.factor(population_mean_diff))) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_linerange(aes(ymin = bias - bias_mcse,
+                     ymax = bias + bias_mcse),
+                 color = "black") +
+  geom_line() +
+  geom_point() +
+  scale_x_continuous(name = "N per condition",
+                     breaks = breaks_pretty(n = 8)) +
+  scale_y_continuous(name = "Bias in estimation\nof population mean difference", 
+                     limits = c(-1, 1),
+                     breaks = breaks_pretty(n = 8)) +
+  theme_linedraw() +
+  theme(panel.grid.minor = element_blank()) +
+  guides(color = guide_legend(title = "Population mean difference"))
+```
+
+### Coverage
+
+#### Table
+
+```{r}
+# # simple long table
+# simulation_summary_coverage |>
+#   select(n_per_condition,
+#          population_mean_diff,
+#          coverage,
+#          coverage_mcse,
+#          width,
+#          width_mcse) |>
+#   mutate_if(is.numeric, janitor::round_half_up, digits = 3) |>
+#   kable() |>
+#   kable_styling(full_width = FALSE)
+
+# better wider table — coverage
+simulation_summary_coverage |>
+  mutate(`n per condition` = as.character(n_per_condition),
+         population_mean_diff = as.character(population_mean_diff)) |>
+  mutate(across(where(is.numeric), \(x) scales::number(x, accuracy = 0.001))) |>
+  mutate(coverage_string = paste0(coverage,
+                                  " (",
+                                  coverage_mcse,
+                                  ")")) |>
+  select(`n per condition`,
+         population_mean_diff,
+         coverage_string) |>
+  pivot_wider(names_from = population_mean_diff,
+              values_from = coverage_string) |>
+  kable(caption = "Coverage (±1 MCSE) of the 95% confidence interval by sample size and population mean difference") |>
+  kable_styling(full_width = FALSE) |>
+  add_header_above(c(" " = 1, "Population mean difference" = 4))
+
+# better wider table — mean CI width
+simulation_summary_coverage |>
+  mutate(`n per condition` = as.character(n_per_condition),
+         population_mean_diff = as.character(population_mean_diff)) |>
+  mutate(across(where(is.numeric), \(x) scales::number(x, accuracy = 0.001))) |>
+  mutate(width_string = paste0(width,
+                               " (",
+                               width_mcse,
+                               ")")) |>
+  select(`n per condition`,
+         population_mean_diff,
+         width_string) |>
+  pivot_wider(names_from = population_mean_diff,
+              values_from = width_string) |>
+  kable(caption = "Mean width (±1 MCSE) of the 95% Confidence Interval by sample size and population mean difference") |>
+  kable_styling(full_width = FALSE) |>
+  add_header_above(c(" " = 1, "Population mean difference" = 4))
+```
+
+#### Plot coverage
+
+```{r}
+ggplot(simulation_summary_coverage, 
+       aes(x = n_per_condition, 
+           y = coverage, 
+           color = as.factor(population_mean_diff))) +
+  geom_hline(yintercept = 0.95, linetype = "dashed") +
+  geom_linerange(aes(ymin = coverage - coverage_mcse,
+                     ymax = coverage + coverage_mcse),
+                 color = "black") +
+  geom_line() +
+  geom_point() +
+  scale_x_continuous(name = "N per condition",
+                     breaks = breaks_pretty(n = 8)) +
+  scale_y_continuous(name = "Coverage of 95% CIs\nfor population mean difference", 
+                     limits = c(0, 1),
+                     breaks = c(0, .25, .5, .75, .95, 1)) +
+  theme_linedraw() +
+  theme(panel.grid.minor = element_blank()) +
+  guides(color = guide_legend(title = "Population mean difference"))
+```
+
+#### Plot interval widths
+
+```{r}
+ggplot(simulation_summary_coverage, 
+       aes(x = n_per_condition, 
+           y = width, 
+           color = as.factor(population_mean_diff))) +
+  geom_linerange(aes(ymin = width - width_mcse,
+                     ymax = width + width_mcse),
+                 color = "black") +
+  geom_line() +
+  geom_point() +
+  scale_x_continuous(name = "N per condition",
+                     breaks = breaks_pretty(n = 8)) +
+  scale_y_continuous(name = "Mean width of 95% CIs", 
+                     breaks = breaks_pretty(n = 8)) +
+  theme_linedraw() +
+  theme(panel.grid.minor = element_blank()) +
+  guides(color = guide_legend(title = "Population mean difference"))
+```
+
+# Discussion
+
+<!-- Discuss and interpret results of the simulation here: what was the performance of the method(s) across the conditions? What can we conclude with regard to the aims? -->
+
+## Performance of the method across conditions
+
+**Bias of $\widehat{\Delta}$.** Across all 80 conditions the estimated bias of the difference in sample means fluctuates around zero, with the ±1 MCSE intervals overlapping zero at every sample size and effect size. There is no systematic drift with either `n_per_condition` or `mean_intervention`, which is the expected behaviour: under the equal-variance Normal DGP, $\widehat{\Delta}$ is exactly unbiased at every sample size, not just asymptotically. The visible scatter is consistent with Monte Carlo noise — at K = 1000 and the smallest sample size ($n_{\text{per\_condition}} = 10$), the bias MCSE is $\sqrt{2/(10 \cdot 1000)} \approx 0.014$, shrinking to roughly 0.003 at $n_{\text{per\_condition}} = 200$.
+
+**Empirical sampling variance.** The empirical variance of $\widehat{\Delta}$ tracks the analytic value $2\sigma^2/n_{\text{per\_condition}} = 2/n_{\text{per\_condition}}$ closely at every sample size and is, as expected, invariant to `mean_intervention`. The variance halves as $n_{\text{per\_condition}}$ doubles, the textbook $\propto 1/n$ behaviour.
+
+**Coverage of 95% CIs.** Empirical coverage hovers tightly around 0.95 at every sample size and effect size, with ±1 MCSE intervals overlapping 0.95 in essentially every condition. Coverage is invariant to `mean_intervention`, as it should be: shifting the population mean does not affect the calibration of a translation-equivariant interval. The MCSE near nominal coverage is $\sqrt{0.95 \cdot 0.05 / 1000} \approx 0.007$, so single-condition deviations of one percentage point carry no methodological meaning.
+
+**Mean CI width.** Mean CI width decreases monotonically with `n_per_condition` and is invariant to `mean_intervention`. The decay matches the analytic expectation $\approx 2 \cdot 1.96 \cdot \sqrt{2/n_{\text{per\_condition}}}$ for moderate-to-large *n*, with the small-*n* widths slightly inflated above the asymptotic curve because the $t_{0.975,\,2n-2}$ critical value exceeds 1.96 (e.g. $t_{0.975,\,18} \approx 2.10$ at $n_{\text{per\_condition}} = 10$).
+
+None of these patterns are surprising — the value of reproducing them in simulation is that they verify our infrastructure is implemented correctly, which is a prerequisite for trusting any later, more substantive simulation built from the same template.
+
+## Conclusions with regard to the aims
+
+The two aims set out in the introduction are met:
+
+1. $\widehat{\Delta}$ is unbiased and its empirical sampling variance matches the analytic $2\sigma^2/n_{\text{per\_condition}}$ across the entire range of sample sizes considered, with no dependence on the population mean difference.
+2. The 95% Student's *t* CI attains its nominal coverage at every sample size, and its mean width shrinks at the analytic $\propto 1/\sqrt{n_{\text{per\_condition}}}$ rate.
+
+Together these results provide a calibration baseline for estimation-task performance. Any future simulation that perturbs this DGP (e.g. by introducing non-normality, unequal variances, unbalanced designs, or contamination) — or that swaps the estimator (e.g. trimmed means, robust M-estimators, shrinkage) — can be compared against the present results to isolate the consequences of that single perturbation.
+
+## Limitations and intended use
+
+This simulation is a teaching template, not a methodological contribution, and its conclusions should be read in that light:
+
+- **A single estimator.** No comparator (Welch CI, bootstrap percentile interval, robust M-estimator, shrinkage estimator) is included; the simulation cannot be used to argue for or against the equal-variance estimator on the grounds of relative performance.
+- **A best-case DGP.** Data are drawn from a Normal distribution with equal variances and balanced *n*. Real psychology data routinely violate one or more of these assumptions, and the unbiasedness, nominal coverage, and analytic-width behaviour observed here should not be expected to generalise to skewed, heavy-tailed, or heteroscedastic data.
+- **Few replications.** K = 1000 is too small for a publishable simulation. The MCSEs reported alongside every estimate make this transparent in the figures, and any user adapting this template should increase K (an MCSE of 0.005 on coverage at the nominal 0.95 requires K ≈ 1,900; an MCSE of 0.005 on bias at the smallest sample size considered would require K ≈ 8,000) before drawing methodological conclusions.
+- **A narrow effect-size grid.** Only `mean_intervention` ∈ {0, 0.2, 0.5, 0.8} is simulated. Because bias, variance, coverage, and width of $\widehat{\Delta}$ are all (theoretically) invariant to `mean_intervention` under this DGP, this grid is adequate for verifying that invariance — but a study targeting effect-size-dependent estimators would need finer granularity.
+
+Used as intended — as a worked example demonstrating the ADEMP planning framework, the structure of a `tidyr` + `furrr` + `simhelpers` simulation pipeline, and the reporting of Monte Carlo uncertainty alongside every performance estimate — the template provides a starting point that other studies can extend by varying the DGP, adding comparator estimators, or adopting performance measures appropriate to other statistical tasks (hypothesis testing, prediction, model selection).
+
+# References
+
+Bradley, J. V. (1978). Robustness? *British Journal of Mathematical and Statistical Psychology*, 31(2), 144–152. https://doi.org/10.1111/j.2044-8317.1978.tb00581.x
+
+Cohen, J. (1988). *Statistical power analysis for the behavioral sciences* (2nd ed.). Lawrence Erlbaum Associates.
+
+Joshi, M., & Pustejovsky, J. E. (2022). *simhelpers: Helper functions for simulation studies* [R package]. https://CRAN.R-project.org/package=simhelpers
+
+Morris, T. P., White, I. R., & Crowther, M. J. (2019). Using simulation studies to evaluate statistical methods. *Statistics in Medicine*, 38(11), 2074–2102. https://doi.org/10.1002/sim.8086
+
+Siepe, B. S., Bartoš, F., Morris, T. P., Boulesteix, A.-L., Heck, D. W., & Pawel, S. (2024). Simulation studies for methodological research in psychology: A standardized template for planning, preregistration, and reporting. *Psychological Methods*. https://doi.org/10.1037/met0000695
+
+# Session info
+
+<!-- Recorded for reproducibility -->
+
+```{r}
+sessionInfo()
+```
+
