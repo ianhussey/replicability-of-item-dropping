@@ -69,6 +69,9 @@ The aims are:
 1. **Calibration (full pool, no dropping).** To estimate the bias of sample alpha as an estimator of the true population alpha of the full, undropped item pool — a check that the simulation and analysis pipeline behave as expected — and to quantify the baseline **structural gap** between population alpha and true reliability (omega) in the full pool, which exists before any item selection.
 2. **Bias in the reported reliability of the retained items.** For each strategy, to estimate how much the sample alpha of the retained items over- or under-states (a) the true population *alpha* of those same items (selection optimism / winner's curse) and (b) their true *reliability* (the applied question: researchers report alpha *as* an estimate of reliability). For the conditional strategy this is reported both marginally (across all replications, including those where nothing was dropped) and conditionally on a drop having occurred.
 3. **What dropping actually does to the scale.** To estimate, per strategy, the expected change from full pool to retained items on three scales — the observed sample alpha (the gain the researcher sees), the population alpha, and true reliability — the **optimism** gap between the first two (the winner's curse in its purest form), and the proportion of replications in which dropping actually *reduced* true reliability. For the conditional strategy, the proportion of replications in which any item is dropped at all is reported as a descriptive outcome.
+4. **How much a *single* study can gain or be misled.** Aims 1–3 are all long-run expectations: they describe the average distortion across many studies. They are silent on the question that matters for research practice, which is about the tail rather than the mean — *how large a gain can one researcher, running one study, plausibly obtain by dropping the item their software nominates?* To answer it we estimate the **spread of the per-replication quantities**, summarised as 95% prediction intervals, alongside every mean reported under Aims 2 and 3.
+
+**Why the mean is not enough for Aim 4.** The Monte Carlo standard errors attached to every estimate below describe uncertainty *about the mean* — how precisely `niter` replications pin down the long-run average — and they shrink towards zero as `niter` grows. They are not a statement about how much individual studies vary, and they will be tiny at `niter` = 10000 no matter how wide the underlying distribution is. A mean observed gain of 0.01 is consistent both with every study gaining almost exactly 0.01 (nothing exploitable) and with most studies gaining nothing while some gain 0.10 (highly exploitable). Only the spread distinguishes these, and only the second is a story about researcher degrees of freedom. Reporting means and MCSEs alone would systematically understate what alpha-hacking can achieve in a single study.
 
 **Relation between the two strategies.** Both strategies nominate the *same* candidate item — the argmax of the alpha-if-removed table — and differ only in whether acting on it is gated on an observed improvement. Within a replicate, the conditional strategy's outcome therefore equals the forced strategy's outcome whenever the observed improvement is positive, and equals the full pool otherwise. Comparisons between the strategies are thus comparisons of the *gating rule*, holding the nomination rule fixed — this is an intended design feature, not a confound, and it is why the candidate item is computed only once per replicate in the code.
 
@@ -181,6 +184,7 @@ Because a mean $\Delta_\rho$ near zero can conceal frequent, offsetting harm, we
 | 3d | Selection optimism | $\mathbb{E}[\widehat{\Delta}_{\text{obs}} - \Delta_{\text{pop}}]$ | winner's curse, paired per replicate |
 | 3e | P(drop) | $\Pr(\hat\alpha(-J^{*}) > \hat\alpha(F))$ | descriptive; conditional strategy only (forced $\equiv 1$) |
 | 3f | Harm rate | $\Pr(\Delta_\rho < 0)$ | how often dropping reduced true reliability |
+| 4 | Prediction interval | $[q_{2.5}(d),\ q_{97.5}(d)]$ for each $d$ in 2a–3d | **spread, not precision**: the range a single study can expect |
 
 All quantities in rows 2–3 are computed per strategy; for the conditional strategy they are additionally reported conditional on a drop having occurred (see Performance and Uncertainty, below).
 
@@ -223,9 +227,22 @@ These are computed with `simhelpers::calc_absolute()` (Joshi & Pustejovsky, 2022
 
 **Conditional-on-drop summaries.** For the conditional strategy, all estimand-2 and estimand-3 quantities are additionally summarised over only the replications in which a drop occurred. The number of such replications, $K_{\text{drop}}$, is itself random; summaries and their MCSEs are computed conditional on the realised $K_{\text{drop}}$, which is reported alongside them.
 
+**Prediction intervals (Aim 4).** For every continuous quantity $d$ in 2a–3d we additionally report the empirical 2.5th and 97.5th percentiles of $d_k$ across the `niter` replications of a condition, together with the median and the SD:
+
+$$\widehat{\text{PI}}_{95}(d) \;=\; \big[\,\hat q_{2.5}(d_k),\ \hat q_{97.5}(d_k)\,\big]$$
+
+Because each replication *is* an independently simulated study, these percentiles estimate the distribution of what a single study would observe, so the interval is read as a prediction interval for one new study rather than as a confidence statement about the mean. Two points of precision:
+
+- **Empirical percentiles, not a strict prediction interval.** A strict prediction interval would be slightly wider, since it would also carry the uncertainty in estimating the percentiles themselves. At `niter` = 10000 that inflation is negligible relative to the interval width, so we report the empirical percentiles directly and treat them as the prediction interval. The bounds are still Monte Carlo estimates and carry their own (small) error; a bootstrap would quantify it if a specific bound were ever load-bearing for a claim.
+- **The interval marginalises over two sources of variation**, and this matters for how it is read. A replication varies both in *which item pool was drawn* (a fresh $\lambda$ vector from the fitted Beta) and in *which sample was drawn from it*. The reported interval therefore describes the range across "studies of psychology trait scales in general" — the right quantity for a field-level claim such as *"a study using this rule can obtain an apparent gain this large"*. It is **not** the range available to one researcher holding one fixed scale, which would be the sampling variation alone. Separating the two would require a nested design (several samples per drawn $\lambda$); this is noted as a future iteration rather than claimed here.
+
+There is no `simhelpers` helper for quantiles, so these are computed with `stats::quantile()` inside `dplyr::summarize()`.
+
 ### Monte Carlo uncertainty
 
-We report Monte Carlo uncertainty in tables (MCSEs next to each estimated quantity) and in plots (error bars of ±1 MCSE). For all mean-of-differences quantities the MCSE is the general form of the Siepe et al. (2024, Table 3) bias MCSE, applied to the per-replicate difference directly:
+We report Monte Carlo uncertainty in tables (MCSEs next to each estimated quantity) and in plots (error bars of ±1 MCSE). **MCSEs and the prediction intervals of Aim 4 are different quantities and should not be confused**: an MCSE is $S_d/\sqrt{\texttt{niter}}$ and describes how precisely the mean is pinned down (it vanishes as `niter` grows); a prediction interval is driven by $S_d$ itself and describes how much individual studies differ (it does not vanish, however large `niter` becomes). At `niter` = 10000 the MCSE is roughly 1/100th of the SD, so the error bars in the plots below are far narrower than the study-to-study spread — which is exactly why Aim 4 needs its own figures rather than wider error bars on the existing ones.
+
+For all mean-of-differences quantities the MCSE is the general form of the Siepe et al. (2024, Table 3) bias MCSE, applied to the per-replicate difference directly:
 
 $$\widehat{\text{MCSE}}\big(\widehat{\mathbb{E}}[d]\big) \;=\; \frac{S_{d}}{\sqrt K}, \qquad S_{d} = \text{SD of } d_k \text{ across the } K \text{ replications}$$
 
@@ -247,7 +264,11 @@ An earlier version of this design included a second item-dropping method, explor
 
 **Aim 2 (bias in the reported alpha).** We will judge the K&L97 optimism phenomenon replicated if the forced strategy's alpha-scale bias (2a) is reliably positive, larger at smaller `n_participants` (more sampling noise for the argmax to exploit) and larger at larger `k_indicators` (more candidates, so a larger expected maximum over noise). For the conditional strategy, the conditional-on-drop bias should be at least as large as the forced strategy's (acting is conditioned exactly on having found an exploitable improvement), while the marginal bias is diluted toward the full-pool baseline in proportion to $1 - \hat p$. The reliability-scale bias (2b) is the sum of the selection bias and the (negative) structural gap: we expect it to be negative at large `n_participants` (selection bias vanishes, the gap remains) and possibly positive at small `n_participants` (winner's curse dominates); where the sign crosses is an empirical result of interest, not a preregistered prediction.
 
-**Aim 3 (deltas).** Optimism (3d) is expected positive in every condition, for the reason given under Estimands. No directional predictions are preregistered for $\mathbb{E}[\Delta_{\text{pop}}]$ or $\mathbb{E}[\Delta_{\rho}]$: because the empirical loading distribution has a small negative tail, some pools contain a genuinely alpha-harming item whose removal improves both population alpha and true reliability, while in pools of uniformly adequate items a forced drop pays a pure length penalty — the estimands are designed to separate these cases in aggregate, and we report the observed pattern. P(drop) is expected to rise with `k_indicators` (more chances for some $\hat\alpha(-j)$ to exceed $\hat\alpha(F)$); its behaviour as `n_participants` grows is informative in itself — noise-driven drops should die out at large samples, leaving only drops of genuinely harmful items. No inferential models are fitted to the simulation output; results are summarised descriptively in tables and plots.
+**Aim 3 (deltas).** Optimism (3d) is expected positive in every condition, for the reason given under Estimands. No directional predictions are preregistered for $\mathbb{E}[\Delta_{\text{pop}}]$ or $\mathbb{E}[\Delta_{\rho}]$: because the empirical loading distribution has a small negative tail, some pools contain a genuinely alpha-harming item whose removal improves both population alpha and true reliability, while in pools of uniformly adequate items a forced drop pays a pure length penalty — the estimands are designed to separate these cases in aggregate, and we report the observed pattern. P(drop) is expected to rise with `k_indicators` (more chances for some $\hat\alpha(-j)$ to exceed $\hat\alpha(F)$); its behaviour as `n_participants` grows is informative in itself — noise-driven drops should die out at large samples, leaving only drops of genuinely harmful items.
+
+**Aim 4 (prediction intervals).** We expect the intervals to be wide relative to the means wherever selection has room to operate — that is, widening as `n_participants` falls and as `k_indicators` rises — and to narrow towards a point at large `n_participants`, where the sample alphas approach their population values and there is little noise left to capitalise on. The substantive claim this aim can support is about the **upper bound of $\widehat\Delta_{\text{obs}}$**: if the mean observed gain is small but its 97.5th percentile is substantial, then the mean understates the practice, because a researcher is free to report the gain they happened to get rather than the one they should have expected. The corresponding lower bound of $\Delta_\rho$ carries the cost side: how much true reliability a single study can destroy while reporting an apparent improvement. We make no directional prediction about the *asymmetry* of the intervals, which is an empirical question about the shape of these distributions.
+
+No inferential models are fitted to the simulation output; results are summarised descriptively in tables and plots.
 
 # Notes for future iterations (not implemented in this version)
 
@@ -258,6 +279,7 @@ This pass restricts both strategies to a single-item drop, evaluates the reporte
 - **A planted bad item** — purposefully include one poorly performing item in an otherwise good pool and estimate the probability of dropping *something* when a bad item is present vs. absent, and of dropping the *wrong* item when one is present.
 - **External-criterion validity** — add a criterion $Y$ with $\operatorname{corr}(\eta, Y) = r_{\eta Y}$, giving $\operatorname{corr}(X_S, Y) = r_{\eta Y}\sqrt{\rho(S)}$ and a validity delta analogous to $\Delta_\rho$.
 - **Sample omega as a comparator estimator** — evaluate whether reporting a sample omega instead of sample alpha removes the structural component of the bias, and whether it is equally exploitable by the same selection rule.
+- **A nested design, to decompose the Aim 4 spread.** The prediction intervals reported here marginalise over two sources of variation at once: which item pool was drawn, and which sample was drawn from it. Drawing several independent samples per drawn $\lambda$ vector would let the two be separated by a variance decomposition, isolating the pure sampling component — which is the quantity that corresponds to "how much could *this* researcher, with *this* scale, have gained by chance". That is the sharper form of the researcher-degrees-of-freedom question and is a natural next step.
 - **Error handling** — a `tryCatch()`-based safety net for unanticipated estimation failures (see Non-convergence and missing values, above).
 
 # Methods
@@ -324,12 +346,26 @@ Defined in `simulation_functions.R` (sourced above); listed here for reference.
 n_iterations <- 10000
 
 experiment_parameters <- expand_grid(
-  k_indicators = c(5, 9, 13, 21, 39),
+  k_indicators = c(5, 10, 15, 20, 40), # changed from c(5, 9, 13, 21, 39) for even numbers
   n_participants = c(20, 30, 50, 200, 1000),
   iteration = seq_len(n_iterations)
 ) |>
   # define unique conditions
   mutate(condition = paste0("k = ", k_indicators, ", N = ", n_participants))
+
+# Shuffle so expensive conditions (large k, large n) are spread across workers (load
+# balancing). furrr splits the input into one CONTIGUOUS chunk per worker by default, and
+# expand_grid() emits the rows sorted by k then n -- so unshuffled, whichever worker gets
+# the k = 39, n = 1000 block does far more work than the one handed k = 5, n = 20, and the
+# whole run waits on it. Shuffling mixes cheap and expensive rows into every chunk.
+#
+# The shuffle seed is fixed, so the run stays reproducible. Note that it does change which
+# L'Ecuyer stream each row draws (furrr assigns streams by position in the input), so
+# results differ from an unshuffled run -- reproducibly, but not identically. An existing
+# cached .rds is not invalidated by this, since the cache is keyed on niter alone; delete it
+# if you want the shuffled run's numbers.
+set.seed(101)
+experiment_parameters <- experiment_parameters[sample(nrow(experiment_parameters)), ]
 
 ```
 
@@ -357,7 +393,11 @@ if (file.exists(simulation_path)) {
                                  .f = generate_and_analyse,
                                  .progress = TRUE,
                                  .options = furrr_options(seed = TRUE))) |>
-    unnest(results)
+    unnest(results) |>
+    # undo the load-balancing shuffle so the cached object is stored in a readable order.
+    # Purely cosmetic: everything downstream groups by condition, so order is irrelevant to
+    # the results.
+    arrange(k_indicators, n_participants, iteration)
 
   write_rds(x = simulation, file = simulation_path, compress = "gz")
 
@@ -413,6 +453,32 @@ summarise_estimands <- function(data, grouping_variables) {
                     criteria   = "bias")
     ) |>
     rename(K = K_absolute, estimate = bias, estimate_mcse = bias_mcse)
+}
+
+# Aim 4: the SPREAD of the per-replication quantities, not the precision of their mean.
+# Returns, per condition and quantity, the mean and its MCSE (for reference) alongside the
+# SD and the empirical 2.5th/50th/97.5th percentiles across replications. simhelpers has no
+# quantile helper, so these come from stats::quantile() directly. Note what the two
+# uncertainty columns mean: estimate_mcse shrinks as niter grows and describes the mean; sd
+# and the interval do not shrink and describe individual studies (see Performance measures).
+summarise_prediction_intervals <- function(data, grouping_variables, level = 0.95) {
+
+  tail_probability <- (1 - level) / 2
+
+  data |>
+    pivot_longer(cols = all_of(quantity_levels),
+                 names_to = "quantity",
+                 values_to = "difference") |>
+    group_by(across(all_of(c(grouping_variables, "quantity")))) |>
+    summarize(K             = n(),
+              estimate      = mean(difference),
+              estimate_mcse = sd(difference) / sqrt(n()),
+              sd            = sd(difference),
+              pi_lower      = unname(quantile(difference, probs = tail_probability)),
+              median        = median(difference),
+              pi_upper      = unname(quantile(difference, probs = 1 - tail_probability)),
+              .groups = "drop") |>
+    mutate(pi_width = pi_upper - pi_lower)
 }
 
 # simhelpers::calc_rejection() returns a proportion with the binomial MCSE sqrt(p(1-p)/K).
@@ -887,6 +953,162 @@ bind_rows(simulation_summary_p_drop |>
 
 ```
 
+## Aim 4 — how much a single study can gain or be misled
+
+Everything above is a long-run average. This section reports the **spread** across replications: the range of outcomes an individual study can expect, summarised as the 95% prediction interval (the empirical 2.5th and 97.5th percentiles) alongside the median and SD.
+
+Read these as *"a study run under this rule, at this item-pool size and sample size, will land somewhere in this range"*. Two reminders from the Performance section: (i) the ±1 MCSE error bars shown elsewhere describe the precision of the mean and are roughly 1/100th the width of these intervals at `niter` = 10000 — they are not a measure of study-to-study variation; (ii) these intervals marginalise over both which item pool was drawn and which sample was drawn from it, so they describe the range across trait-scale studies in general, not the range available to one researcher holding one fixed scale.
+
+```{r}
+
+simulation_prediction_intervals <-
+  summarise_prediction_intervals(simulation_outcomes,
+                                 grouping_variables = c("strategy", "condition",
+                                                        "k_indicators", "n_participants")) |>
+  label_quantities()
+
+```
+
+### Table
+
+```{r}
+
+simulation_prediction_intervals |>
+  filter(quantity %in% quantity_labels[c(3, 5, 6, 2)]) |>
+  # design columns to character before formatting, so they are not also rounded
+  mutate(k_indicators = as.character(k_indicators),
+         n_participants = as.character(n_participants)) |>
+  mutate(across(where(is.numeric), \(x) scales::number(x, accuracy = 0.001))) |>
+  mutate(summary_string = paste0(estimate, " [", pi_lower, ", ", pi_upper, "]")) |>
+  select(strategy, k_indicators, n_participants, quantity, summary_string) |>
+  pivot_wider(names_from = quantity, values_from = summary_string) |>
+  kable(caption = "Mean [95% prediction interval] of each per-replication quantity, by strategy, item-pool size, and sample size. The interval is the empirical 2.5th-97.5th percentile range across replications and describes individual studies, not the precision of the mean.") |>
+  kable_classic(full_width = TRUE)
+
+```
+
+### Plot — the headline: how large an apparent gain can one study report?
+
+$\widehat\Delta_{\text{obs}}$ is the number the researcher sees and can choose to report. The point is the mean; the bar spans the 95% prediction interval. Where the bar reaches much higher than the point, the average understates what a single study can obtain.
+
+```{r}
+#| fig-height: 5
+#| fig-width: 11
+
+simulation_prediction_intervals |>
+  filter(quantity == quantity_labels[3]) |>
+  ggplot(aes(x = k_indicators, y = estimate, color = as.factor(n_participants))) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_linerange(aes(ymin = pi_lower, ymax = pi_upper),
+                 position = position_dodge(width = 3), linewidth = 0.6) +
+  geom_point(position = position_dodge(width = 3), size = 1.6) +
+  facet_wrap(~ strategy) +
+  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = c(5, 9, 13, 21, 39)) +
+  scale_y_continuous(name = "Observed gain in sample α from dropping\n(mean and 95% prediction interval)",
+                     breaks = breaks_pretty(n = 8)) +
+  theme_linedraw() +
+  guides(color = guide_legend(title = "N participants"))
+
+```
+
+### Plot — spread of the other key quantities
+
+The cost side (3c, true reliability change) and the distortion in what gets reported (2b), on the same footing.
+
+```{r}
+#| fig-height: 9
+#| fig-width: 11
+
+simulation_prediction_intervals |>
+  filter(quantity %in% quantity_labels[c(2, 5, 6)]) |>
+  ggplot(aes(x = k_indicators, y = estimate, color = as.factor(n_participants))) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_linerange(aes(ymin = pi_lower, ymax = pi_upper),
+                 position = position_dodge(width = 3), linewidth = 0.6) +
+  geom_point(position = position_dodge(width = 3), size = 1.6) +
+  facet_grid(quantity ~ strategy, scales = "free_y", labeller = label_wrap_gen(width = 32)) +
+  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = c(5, 9, 13, 21, 39)) +
+  scale_y_continuous(name = "Mean and 95% prediction interval", breaks = breaks_pretty(n = 6)) +
+  theme_linedraw() +
+  guides(color = guide_legend(title = "N participants"))
+
+```
+
+### Plot — how far apart are the mean and the spread?
+
+The direct statement of the point behind this aim: the Monte Carlo standard error of the mean against the SD across replications, on a log scale. The gap between the two series is the factor by which reporting only means-with-MCSEs would understate study-to-study variation.
+
+```{r}
+#| fig-height: 5
+#| fig-width: 11
+
+simulation_prediction_intervals |>
+  filter(quantity == quantity_labels[3]) |>
+  select(strategy, k_indicators, n_participants,
+         `SD across replications\n(individual studies vary this much)` = sd,
+         `MCSE of the mean\n(the mean is pinned down this precisely)` = estimate_mcse) |>
+  pivot_longer(cols = c(-strategy, -k_indicators, -n_participants),
+               names_to = "uncertainty", values_to = "value") |>
+  ggplot(aes(x = k_indicators, y = value,
+             color = as.factor(n_participants), linetype = uncertainty)) +
+  geom_line() +
+  geom_point(size = 1.2) +
+  facet_wrap(~ strategy) +
+  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = c(5, 9, 13, 21, 39)) +
+  scale_y_log10(name = "Spread in the observed gain (log scale)",
+                labels = label_number(accuracy = 0.0001)) +
+  theme_linedraw() +
+  guides(color = guide_legend(title = "N participants"),
+         linetype = guide_legend(title = "Quantity", ncol = 1))
+
+```
+
+### Conditional strategy, given a drop occurred
+
+The marginal intervals for the conditional strategy are compressed by the replications in which nothing was dropped, which contribute an exact zero to $\widehat\Delta_{\text{obs}}$ and leave the other quantities at their full-pool values. That point mass at zero makes the marginal interval a mixture of two very different cases. Conditioning on a drop having occurred gives the quantity that speaks to research practice directly: *given that the software nominated an item and the rule said to drop it, how much can this study gain?*
+
+```{r}
+
+simulation_prediction_intervals_given_drop <- simulation_outcomes |>
+  filter(strategy == "conditional", dropped) |>
+  summarise_prediction_intervals(grouping_variables = c("condition", "k_indicators",
+                                                        "n_participants")) |>
+  label_quantities()
+
+simulation_prediction_intervals_given_drop |>
+  filter(quantity %in% quantity_labels[c(3, 5, 6, 2)]) |>
+  mutate(k_indicators = as.character(k_indicators),
+         n_participants = as.character(n_participants),
+         K = as.character(K)) |>
+  mutate(across(where(is.numeric), \(x) scales::number(x, accuracy = 0.001))) |>
+  mutate(summary_string = paste0(estimate, " [", pi_lower, ", ", pi_upper, "]")) |>
+  select(k_indicators, n_participants, K, quantity, summary_string) |>
+  pivot_wider(names_from = quantity, values_from = summary_string) |>
+  kable(caption = "Conditional strategy, replications with a drop only: mean [95% prediction interval] of each per-replication quantity. K is the realised number of replications in which a drop occurred.") |>
+  kable_classic(full_width = TRUE)
+
+```
+
+```{r}
+#| fig-height: 5
+#| fig-width: 11
+
+simulation_prediction_intervals_given_drop |>
+  filter(quantity %in% quantity_labels[c(3, 5)]) |>
+  ggplot(aes(x = k_indicators, y = estimate, color = as.factor(n_participants))) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_linerange(aes(ymin = pi_lower, ymax = pi_upper),
+                 position = position_dodge(width = 3), linewidth = 0.6) +
+  geom_point(position = position_dodge(width = 3), size = 1.6) +
+  facet_wrap(~ quantity, scales = "free_y", labeller = label_wrap_gen(width = 34)) +
+  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = c(5, 9, 13, 21, 39)) +
+  scale_y_continuous(name = "Mean and 95% prediction interval\n(conditional strategy, drops only)",
+                     breaks = breaks_pretty(n = 6)) +
+  theme_linedraw() +
+  guides(color = guide_legend(title = "N participants"))
+
+```
+
 # Discussion
 
 <!-- TODO: interpret the tables/plots above once the full-K run has been executed and rendered; the summary below should be checked and edited against the actual rendered output, not assumed from the design. -->
@@ -905,6 +1127,7 @@ bind_rows(simulation_summary_p_drop |>
 - **Single-item, single-step rules only.** Both strategies consider dropping at most one item per replication; neither iterates (drop, re-check, possibly drop again) nor drops to a target scale length. Multi-item dropping was part of an earlier version of this design and is deferred (see Notes for future iterations, above) so that the two strategies here differ only in the gating rule.
 - **Realised, not idealised, subset targets.** The Aim 2 targets $\alpha_{\text{pop}}(S_s)$ and $\rho(S_s)$ are the true values for whichever items a strategy happened to retain, not for the best possible subset; this is the right target for the applied question ("how good, in truth, is the scale I ended up with, and does my reported alpha tell me that?"), but it means the targets vary by strategy and by replication rather than being a single fixed population value per condition — a departure from the classical ADEMP estimation setup that is deliberate and is flagged here so it is not mistaken for an oversight.
 - **Sample alpha is the only estimator evaluated.** We evaluate the field-standard reported quantity (sample Cronbach's alpha) against the reliability-scale target; we do not evaluate sample omega estimators as an alternative reporting practice, which would be a natural comparator in a future iteration.
+- **The Aim 4 prediction intervals mix two sources of variation.** They describe the range of outcomes across studies of trait scales *in general*, because each replication redraws both the item pool and the sample. They therefore support a field-level claim ("a study using this rule can obtain an apparent gain this large") but not an individual-level one ("a researcher holding this particular scale could have gained this much by chance"), which would require the nested design noted above. Read as the former, they are the right quantity for Aim 4; read as the latter, they overstate the sampling variation available to a fixed scale.
 - **The empirical loading distribution is a marginal, i.i.d.-item fit, not a scale-level model.** As documented in `analysis_factor_loading_distribution.Rmd`, the fitted scaled Beta ignores between-scale clustering (e.g. that negative loadings concentrate within particular multidimensional scales) and under/over-predicts reliability at the shortest/longest real scales; it is a reasonable single-distribution summary of pooled trait-scale loadings, not a claim that any given generated item pool drawn from it resembles a specific real scale.
 
 # References
