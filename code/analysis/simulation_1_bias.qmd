@@ -286,10 +286,23 @@ dir.create("results")
 # copy that could drift out of sync with the validated one.
 source("simulation_functions.R")
 
-# set up parallelisation for {furrr}. `furrr_options(seed = TRUE)`
-# (used below in the future_pmap call) advances an L'Ecuyer-CMRG stream rather than
-# re-seeding per worker, giving parallel-safe reproducibility (Siepe et al., 2024, p. 8).
-plan(multisession)
+# --- How many workers does THIS session/allocation actually have? -----------
+# parallelly::availableCores() honours the SLURM allocation, cgroup CPU quotas,
+# and affinity masks, so it returns the cores granted to THIS session -- not the
+# ~196 physical cores parallel::detectCores() would report. Set the override to
+# pin a count manually; leave NULL to auto-detect.
+n_workers_override <- NULL
+detected_cores <- unname(parallelly::availableCores())
+n_workers <- if (is.null(n_workers_override)) detected_cores else as.integer(n_workers_override)
+n_workers <- max(1L, as.integer(n_workers))
+message(sprintf("Parallel plan: %d workers (parallelly detected %d).", n_workers, detected_cores))
+
+# RStudio Server is not fork-safe, so use multisession (separate R processes), not multicore.
+# `furrr_options(seed = TRUE)` (used below in the future_pmap call) advances an L'Ecuyer-CMRG
+# stream per task rather than re-seeding per worker, giving parallel-safe reproducibility
+# (Siepe et al., 2024, p. 8) that is also independent of how many workers are available --
+# so a cluster run and a local re-run produce identical numbers.
+plan(multisession, workers = n_workers)
 
 ```
 
@@ -326,7 +339,7 @@ Results are cached to disk: if the `.rds` for this value of `niter` already exis
 
 ```{r}
 
-simulation_path <- paste0("results/simulation_alpha_item_dropping_niter", n_iterations, ".rds")
+simulation_path <- paste0("results/simulation_1_bias_niter", n_iterations, ".rds")
 
 if (file.exists(simulation_path)) {
 

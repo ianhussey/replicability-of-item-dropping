@@ -2,7 +2,7 @@
 #
 # Sourced by both:
 #   - validation.qmd  (validates the fast alpha functions against psych::alpha)
-#   - simulation.qmd  (runs the simulation)
+#   - simulation_1_bias.qmd  (runs the simulation)
 #
 # Kept in one file rather than duplicated into each .qmd so that the functions
 # validated in the first file are provably the same objects used by the second.
@@ -39,7 +39,7 @@ draw_lambda <- function(k_indicators, shape1 = 11.7748, shape2 = 3.8375) {
 # targets describe different populations -- at k = 8, N = 200,000 the generated data's alpha
 # was 0.733 against a stated population alpha of 0.812. Stating psi explicitly makes the
 # generated covariance structure exactly Cov(X_i, X_j) = lambda_i * lambda_j, Var(X_i) = 1,
-# which is the model documented in the DGP section of simulation.qmd.
+# which is the model documented in the DGP section of simulation_1_bias.qmd.
 #
 # Numbers are written in fixed notation at full double precision rather than via format()
 # (which rounds) or %g (which can emit scientific notation such as "1e-05" for a near-zero
@@ -146,7 +146,7 @@ alphas_if_each_item_removed_from_cov <- function(S) {
 
 # Extract, from one generated dataset and its known population loadings, every quantity
 # the estimands require (see "Estimands and Targets" and "Methods and extracted
-# quantities" in simulation.qmd). Returns a one-row tibble.
+# quantities" in simulation_1_bias.qmd). Returns a one-row tibble.
 #
 # Both strategies nominate the same candidate item J* (the argmax of the alpha-if-removed
 # table) and differ only in whether acting on it is gated on an observed improvement, so
