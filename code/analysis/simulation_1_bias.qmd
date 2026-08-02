@@ -100,7 +100,7 @@ Because both strategies remove at most one item, there is no "number of items re
 
 **Factor values:**
 
-- `k_indicators` ∈ {5, 9, 13, 21, 39} — the 10th, 25th, 50th, 75th, and 90th percentiles of the items-per-scale distribution across the 206 trait scales pooled in `analysis_factor_loading_distribution.Rmd`.
+- `k_indicators` ∈ {5, 10, 15, 20, 40} — the 10th, 25th, 50th, 75th, and 90th percentiles of the items-per-scale distribution across the 206 trait scales pooled in `analysis_factor_loading_distribution.Rmd` are 5, 9, 13, 21 and 39; these are rounded to round numbers for even spacing. The rounding is cosmetic and does not change which part of the empirical distribution is being sampled.
 - `n_participants` ∈ {20, 30, 50, 200, 1000} — five levels spanning small pilot-style samples through to a large well-powered sample.
 
 **Settings held constant across all conditions:**
@@ -195,7 +195,7 @@ Two data-driven item-dropping strategies are compared, both based on Cronbach's-
 1. **Forced:** remove item $J^{*}$ (the argmax of alpha-if-removed), always.
 2. **Conditional:** remove $J^{*}$ only if $\hat\alpha(-J^{*}) > \hat\alpha(F)$; otherwise remove nothing.
 
-Because the strategies share the nomination rule, the alpha-if-removed vector is computed once per replicate and both strategies' outcomes are derived from it. Sample alpha is computed directly from the covariance matrix rather than with `psych::alpha()`. The two agree to within $10^{-15}$ across 1,000 cases drawn from this design's own DGP and grid — including the 245 of those cases whose item pool contained a negatively-loading item — and nominate the same candidate item $J^{*}$ in every case; the direct computation is roughly 1000× faster in the largest condition (`k_indicators` = 39, `n_participants` = 1000), reducing the alpha computations for a full `niter` = 10000 run from hours to minutes See `validation.qmd`, which also verifies that `generate_data()` actually samples from the covariance structure the population targets assume.
+Because the strategies share the nomination rule, the alpha-if-removed vector is computed once per replicate and both strategies' outcomes are derived from it. Sample alpha is computed directly from the covariance matrix rather than with `psych::alpha()`. The two agree to within $10^{-15}$ across 360 cases drawn from this design's own DGP and grid — including the 69 of those cases whose item pool contained a negatively-loading item — and nominate the same candidate item $J^{*}$ in every case; the direct computation is far faster in the largest condition (`k_indicators` = 40, `n_participants` = 1000), reducing the alpha computations for a full `niter` = 10000 run from hours to minutes. See `validation.qmd`, which also verifies that `generate_data()` actually samples from the covariance structure the population targets assume.
 
 `analyse()` returns, per replication, a one-row tibble containing:
 
@@ -252,11 +252,11 @@ $$\widehat{\text{MCSE}}(\hat p) \;=\; \sqrt{\hat p\,(1-\hat p)\,/\,K}$$
 
 ### Number of simulation repetitions
 
-We use `niter` = 10000 replications per condition for the full run (this pilot file: K = 200). At the worst case for a proportion measure ($\hat p = 0.5$), `niter` = 10000 gives $\widehat{\text{MCSE}}(\hat p) = \sqrt{0.25/10000} \approx 0.005$, i.e. P(drop) is uncertain to roughly ±0.5 percentage points. With 25 conditions, `niter` = 10000 gives 250,000 replications, each generating one dataset.
+We use `niter` = 10000 replications per condition. At the worst case for a proportion measure ($\hat p = 0.5$), `niter` = 10000 gives $\widehat{\text{MCSE}}(\hat p) = \sqrt{0.25/10000} \approx 0.005$, i.e. P(drop) is uncertain to roughly ±0.5 percentage points. With 25 conditions, `niter` = 10000 gives 250,000 replications, each generating one dataset.
 
 ### Non-convergence and missing values
 
-An earlier version of this design included a second item-dropping method, exploratory factor analysis with maximum-likelihood extraction, which requires a full-rank sample correlation matrix and therefore fails deterministically whenever `n_participants` < `k_indicators` (confirmed empirically at 100% failure for `k_indicators` = 39, `n_participants` = 20). That method has since been removed from the design; Cronbach's alpha, which underlies both remaining strategies, does not have this failure mode — it is a closed-form function of the sample covariance matrix with no iterative optimisation step and no rank requirement. No exclusion rule is therefore needed, and the design is fully factorial. If any errors are nonetheless encountered in the full run, they will halt the run rather than being caught and logged case-wise, which remains a residual limitation for a future iteration.
+An earlier version of this design included a second item-dropping method, exploratory factor analysis with maximum-likelihood extraction, which requires a full-rank sample correlation matrix and therefore fails deterministically whenever `n_participants` < `k_indicators` (confirmed empirically at 100% failure for `k_indicators` = 40, `n_participants` = 20). That method has since been removed from the design; Cronbach's alpha, which underlies both remaining strategies, does not have this failure mode — it is a closed-form function of the sample covariance matrix with no iterative optimisation step and no rank requirement. No exclusion rule is therefore needed, and the design is fully factorial. If any errors are nonetheless encountered in the full run, they will halt the run rather than being caught and logged case-wise, which remains a residual limitation for a future iteration.
 
 ### Interpretation of performance measures
 
@@ -345,8 +345,16 @@ Defined in `simulation_functions.R` (sourced above); listed here for reference.
 
 n_iterations <- 10000
 
+# The item-pool sizes are the 10th/25th/50th/75th/90th percentiles of the empirical
+# items-per-scale distribution (5, 9, 13, 21, 39), rounded to round numbers for even
+# spacing. Held in a variable rather than written inline twice: every plot below takes its
+# x-axis breaks from `k_levels`, so changing this vector relabels the figures automatically.
+# It previously did not -- the breaks were hardcoded to the pre-rounding values, so every
+# point in every figure was drawn at its true k but labelled with the wrong one.
+k_levels <- c(5, 10, 15, 20, 40)
+
 experiment_parameters <- expand_grid(
-  k_indicators = c(5, 10, 15, 20, 40), # changed from c(5, 9, 13, 21, 39) for even numbers
+  k_indicators = k_levels,
   n_participants = c(20, 30, 50, 200, 1000),
   iteration = seq_len(n_iterations)
 ) |>
@@ -576,7 +584,7 @@ ggplot(simulation_summary_full_pool,
   geom_line() +
   geom_point() +
   facet_wrap(~ quantity, scales = "free_y") +
-  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = c(5, 9, 13, 21, 39)) +
+  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = k_levels) +
   scale_y_continuous(name = "Estimate", breaks = breaks_pretty(n = 6)) +
   theme_linedraw() +
   guides(color = guide_legend(title = "N participants"))
@@ -630,7 +638,7 @@ simulation_summary_estimands |>
   geom_line() +
   geom_point() +
   facet_grid(quantity ~ strategy, scales = "free_y", labeller = label_wrap_gen(width = 32)) +
-  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = c(5, 9, 13, 21, 39)) +
+  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = k_levels) +
   scale_y_continuous(name = "Bias in the reported α of the retained items",
                      breaks = breaks_pretty(n = 6)) +
   theme_linedraw() +
@@ -844,7 +852,7 @@ simulation_summary_estimands |>
   geom_line() +
   geom_point() +
   facet_grid(strategy ~ n_label) +
-  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = c(5, 9, 13, 21, 39)) +
+  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = k_levels) +
   scale_y_continuous(name = "Mean change from full pool to retained items",
                      breaks = breaks_pretty(n = 6)) +
   theme_linedraw() +
@@ -867,7 +875,7 @@ simulation_summary_estimands |>
   geom_line() +
   geom_point() +
   facet_wrap(~ strategy) +
-  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = c(5, 9, 13, 21, 39)) +
+  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = k_levels) +
   scale_y_continuous(name = "Selection optimism\n(observed gain − population α gain)",
                      breaks = breaks_pretty(n = 6)) +
   theme_linedraw() +
@@ -943,7 +951,7 @@ bind_rows(simulation_summary_p_drop |>
   geom_line() +
   geom_point() +
   facet_grid(strategy ~ quantity) +
-  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = c(5, 9, 13, 21, 39)) +
+  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = k_levels) +
   scale_y_continuous(name = "Proportion of replications",
                      limits = c(0, 1), breaks = breaks_pretty(n = 6)) +
   theme_linedraw() +
@@ -1003,7 +1011,7 @@ simulation_prediction_intervals |>
                  position = position_dodge(width = 3), linewidth = 0.6) +
   geom_point(position = position_dodge(width = 3), size = 1.6) +
   facet_wrap(~ strategy) +
-  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = c(5, 9, 13, 21, 39)) +
+  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = k_levels) +
   scale_y_continuous(name = "Observed gain in sample α from dropping\n(mean and 95% prediction interval)",
                      breaks = breaks_pretty(n = 8)) +
   theme_linedraw() +
@@ -1027,7 +1035,7 @@ simulation_prediction_intervals |>
                  position = position_dodge(width = 3), linewidth = 0.6) +
   geom_point(position = position_dodge(width = 3), size = 1.6) +
   facet_grid(quantity ~ strategy, scales = "free_y", labeller = label_wrap_gen(width = 32)) +
-  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = c(5, 9, 13, 21, 39)) +
+  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = k_levels) +
   scale_y_continuous(name = "Mean and 95% prediction interval", breaks = breaks_pretty(n = 6)) +
   theme_linedraw() +
   guides(color = guide_legend(title = "N participants"))
@@ -1054,7 +1062,7 @@ simulation_prediction_intervals |>
   geom_line() +
   geom_point(size = 1.2) +
   facet_wrap(~ strategy) +
-  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = c(5, 9, 13, 21, 39)) +
+  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = k_levels) +
   scale_y_log10(name = "Spread in the observed gain (log scale)",
                 labels = label_number(accuracy = 0.0001)) +
   theme_linedraw() +
@@ -1101,7 +1109,7 @@ simulation_prediction_intervals_given_drop |>
                  position = position_dodge(width = 3), linewidth = 0.6) +
   geom_point(position = position_dodge(width = 3), size = 1.6) +
   facet_wrap(~ quantity, scales = "free_y", labeller = label_wrap_gen(width = 34)) +
-  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = c(5, 9, 13, 21, 39)) +
+  scale_x_continuous(name = "Item-pool size (k_indicators)", breaks = k_levels) +
   scale_y_continuous(name = "Mean and 95% prediction interval\n(conditional strategy, drops only)",
                      breaks = breaks_pretty(n = 6)) +
   theme_linedraw() +
@@ -1111,15 +1119,11 @@ simulation_prediction_intervals_given_drop |>
 
 # Discussion
 
-<!-- TODO: interpret the tables/plots above once the full-K run has been executed and rendered; the summary below should be checked and edited against the actual rendered output, not assumed from the design. -->
+## Performance across conditions and conclusions with regard to the aims
 
-## Performance across conditions
+The full `niter` = 10000 run (250,000 replications across 25 conditions) has been executed and is cached under `results/`. Its interpretation is not duplicated here: it is written up in `communication/manuscript/manuscript.qmd`, which reads the same cache and recomputes every number, figure and table in its Results section at render time from it. That file is the canonical interpretation; this one is the canonical specification and implementation. Keeping the narrative in one place is deliberate, because two hand-maintained interpretations of the same cache would inevitably drift apart, which is the failure mode this compendium is otherwise designed to prevent.
 
-*To be completed once this file has been rendered end-to-end with the full `niter` = 1000 (25,000 replications) run.*
-
-## Conclusions with regard to the aims
-
-*To be completed after Results are interpreted, above.*
+The tables and figures above are the per-condition results in full, at more precision and covering more quantities than the manuscript has room for (notably the calibration-curve views, the conditional-on-drop summaries, and the SD-versus-MCSE comparison).
 
 ## Limitations and intended use
 

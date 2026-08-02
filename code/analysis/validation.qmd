@@ -466,7 +466,12 @@ dgp_recovery <- cache_rds(dgp_recovery_path,
 
   set.seed(2024)
 
-  future_map(.x = c(5, 9, 13, 21, 39),
+  # the simulation's own item-pool sizes, so recovery is checked at exactly the pool sizes
+  # the population targets will be evaluated at. These were {5, 9, 13, 21, 39} before the
+  # design rounded them; note that the cache key is (n_participants_large, functions hash)
+  # and does NOT include this vector, so changing it requires deleting the cached .rds --
+  # otherwise the old pool sizes would be silently re-reported.
+  future_map(.x = c(5, 10, 15, 20, 40),
              .f = check_dgp_recovery,
              .options = furrr_options(seed = TRUE)) |>
     bind_rows()
