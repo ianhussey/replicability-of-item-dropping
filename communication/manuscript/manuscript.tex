@@ -291,11 +291,22 @@ interpretation (\citeproc{ref-cortina_what_1993}{Cortina, 1993};
 for acceptable reliability are less universal for \(\alpha\) than for
 other metrics (e.g., the \emph{p} \textless{} .05 convention for
 statistical significance), there is commonly pressure to meet a
-threshold of reliability. Indeed, recent research has shown that
-reported \(\alpha\) values in the psychology literature cluster
-anomalously just above common rule-of-thumb thresholds such as .70,
-consistent with this kind of pressure influencing the values that are
-reported (\citeproc{ref-hussey_aberrant_2025}{Hussey et al., 2025}).
+threshold of reliability. Indeed, Hussey et al.
+(\citeproc{ref-hussey_aberrant_2025}{2025}) extracted more than 180,000
+reported \(\alpha\) values from three very large corpora, covering the
+general psychology literature, the industrial and organizational
+psychology literature, and the American Psychological Association's
+PsycTests database, and found robust excesses of values sitting just
+above the .70 rule-of-thumb threshold that could not be explained by
+justifiable measurement practices. They give this the name
+\(\alpha\)-hacking, defined as altering a measure ad hoc after seeing
+the results, with the goal or effect of raising the in-sample
+\(\alpha\), thereby conditioning the analytic choices on the results and
+overfitting to the data at hand. Because their approach can detect only
+those distortions that land an \(\alpha\) at one of the thresholds, and
+not the presumably far more common ones that land it anywhere else, they
+describe what they observe as an extreme lower bound on the true
+prevalence.
 
 There have been calls for an increased focus on measurement when
 considering the validity of study conclusions
@@ -340,15 +351,33 @@ and can be an important part of ongoing scale refinement. However, item
 dropping can also occur in more ad hoc contexts. It can be used in ways
 that cannot aid cumulative understanding of scale reliability, for
 example when it is not reported
-(\citeproc{ref-heggestad_scale_2019}{Heggestad et al., 2019}). Item
-dropping can serve to improve \(\alpha\) in a given sample, for example
-to meet a cut-off value for acceptable reliability, or as an
-experimenter degree of freedom that may influence the results of a
-subsequent hypothesis test using scores on the scale. Both represent
-instances of overfitting, or of conditioning analyses on their results,
-which reduces the replicability and validity of claims. Distortions in
-the \(\alpha\) values reported in articles serve to undermine the
-credibility of the broader literature.
+(\citeproc{ref-heggestad_scale_2019}{Heggestad et al., 2019}). Elson et
+al. (\citeproc{ref-elson_psychological_2023}{2023}) make this point
+directly: researchers frequently drop items they argue to be poorly
+performing in order to boost a scale's reliability coefficient, but
+without an out-of-sample norm for the modified measure, or a replication
+showing that the same drop consistently improves measurement, doing so
+improves neither the present nor the future use of the measure, and the
+modification is often not fully reported in any case. Item dropping can
+serve to improve \(\alpha\) in a given sample, for example to meet a
+cut-off value for acceptable reliability, or as an experimenter degree
+of freedom that may influence the results of a subsequent hypothesis
+test using scores on the scale. Both represent instances of overfitting,
+or of conditioning analyses on their results, which reduces the
+replicability and validity of claims. Such overfitting is also unlikely
+to be caught. Psychological measures are overwhelmingly used once and
+then abandoned: 43\% appear only a single time in the APA PsycInfo
+record of tests used in studies
+(\citeproc{ref-elson_psychological_2023}{Elson et al., 2023}), and 79\%
+are not reused more than twice
+(\citeproc{ref-anvari_defragmenting_2025}{Anvari, Alsalti, Oehler,
+Hussey, et al., 2025}; \citeproc{ref-anvari_fragmented_2025}{Anvari,
+Alsalti, Oehler, Marion, et al., 2025}). For most measures there is
+therefore never a second sample in which an apparent in-sample gain
+could fail to replicate, and a researcher may be overfitting
+considerably more than they realise. Distortions in the \(\alpha\)
+values reported in articles serve to undermine the credibility of the
+broader literature.
 
 The downstream cost of this particular practice is already established.
 Stefan \& Schönbrodt (\citeproc{ref-stefan_big_2023}{2023}) show by
@@ -384,20 +413,34 @@ This article informs this discussion by asking whether item dropping, on
 average and in the individual case, improves or worsens estimation of
 the true reliability of a scale. We focus on one item-selection
 mechanism, maximising alpha-if-item-removed, because of its ubiquitous
-availability in statistical software including SPSS and the R packages
-\emph{psych} and \emph{performance}
+availability in statistical software: SPSS, JASP, jamovi, and the R
+packages \emph{psych} and \emph{performance} all present it
 (\citeproc{ref-ludecke_performance_2021}{Lüdecke et al., 2021};
-\citeproc{ref-revelle_psych_2024}{Revelle, 2024}). The user is presented
-with the \(\alpha\) observed in the study sample alongside a table of
-what \(\alpha\) would be if each scale item were excluded in turn. The
-software therefore highlights one possible action that would improve the
-reported \(\alpha\), without any indication of the bias this choice
-could introduce, especially when applied flexibly. By extending the
-simulation approach of Kopalle and Lehmann with an empirically grounded
-data-generating process, substantially more replications, and population
-targets that separate the reported number from the underlying decision,
-the current work demonstrates the effects of item dropping on both what
-is reported and what is measured.
+\citeproc{ref-revelle_psych_2024}{Revelle, 2024}). The user is shown the
+\(\alpha\) observed in the study sample alongside a table of what
+\(\alpha\) would be if each scale item were excluded in turn. Hussey et
+al. (\citeproc{ref-hussey_aberrant_2025}{2025}) argue that presenting
+this information may itself act as a cue that raises the probability of
+a researcher dropping an item post hoc, without prompting any deeper
+engagement with the relative performance of the items or with the
+appropriateness of removing one. The software highlights an action that
+would improve the reported \(\alpha\), and gives no indication of the
+bias that action could introduce.
+
+The same authors pose the question this simulation is built to answer:
+without replication in a new sample, how can researchers know whether a
+given item was genuinely performing poorly and should be dropped, or
+whether they are simply conditioning their analysis on their own
+results? In real data that question is unanswerable, because the truth
+is not observed. In a simulation it is answerable directly, because the
+population loadings are known, so the two cases can be distinguished
+within every simulated study and the rate at which they are confused can
+be estimated. By extending the simulation approach of Kopalle and
+Lehmann with an empirically grounded data-generating process,
+substantially more replications, and population targets that separate
+the reported number from the underlying decision, the current work
+quantifies the effects of item dropping on both what is reported and
+what is measured.
 
 \section{Method}\label{method}
 
@@ -461,22 +504,43 @@ defined for the specific items retained. The aims are:
 
 \subsection{Data}\label{data}
 
-For the empirically fitted data-generating process, a large, openly
-available corpus of individual differences and personality scale data
-was used (\citeproc{ref-hussey_granary_2026}{Hussey, 2026}). Single-item
-measures do not yield a factor loading and were excluded. For each
-pairing of scale and study source, participants who completed fewer than
-80\% of the items from that measure were excluded prior to any model
-fitting, using a threshold applied uniformly across datasets.
+For the empirically fitted data-generating process we used
+\emph{granary}, a very large aggregation of other open datasets of
+granular item-level psychological traits and attitudes
+(\citeproc{ref-hussey_granary_2026}{Hussey, 2026}). Single-item measures
+do not yield a factor loading and were excluded. For each pairing of
+scale and study source, participants who completed fewer than 80\% of
+the items from that measure were excluded prior to any model fitting,
+using a threshold applied uniformly across datasets.
 
 \subsubsection{Fitted parametric distribution of
 loadings}\label{fitted-parametric-distribution-of-loadings}
 
 The pooled distribution comprised 3,783 standardised single-factor
-loadings across 206 (scale, source) units. It was best fit, among six
-candidate distributions compared by AIC, BIC, and Kolmogorov-Smirnov
-distance, by a scaled Beta distribution obtained by rescaling the
-loading onto \([0, 1]\) before fitting:
+loadings across 206 (scale, source) units, contributed by 196,769
+distinct participants. Each loading comes from a separate single-factor
+confirmatory factor analysis fitted to one (scale, source) dataset
+rather than from a single pooled model, and because a participant may
+complete several scales, those 206 analyses together rest on 252,478
+scale-level observations. The number of participants per unit is large
+on average but highly variable and strongly right-skewed: mean 1,226 (SD
+2,564), median 468, interquartile range 255 to 1,027, minimum 99,
+maximum 19,330. Given that skew, the minimum and maximum are reported
+alongside the mean and standard deviation because the latter pair is on
+its own misleading here: the standard deviation exceeds twice the mean,
+86\% of units fall below the mean rather than the mean sitting near
+their centre, and the largest unit is nearly 200 times the smallest. The
+median is the more representative summary of a typical contributing
+scale. Scale length was similarly skewed, with a mean of 18.4 items (SD
+15.0), median 13, minimum 3 and maximum 90. Loadings enter the pool
+unweighted, so each item counts once regardless of the sample size of
+the scale it came from, which is the appropriate target for a
+data-generating process that draws items rather than scales.
+
+The pooled distribution was best fit, among six candidate distributions
+compared by AIC, BIC, and Kolmogorov-Smirnov distance, by a scaled Beta
+distribution obtained by rescaling the loading onto \([0, 1]\) before
+fitting:
 
 \[\lambda_i \sim 2 \times \mathrm{Beta}(11.77,\, 3.84) - 1\]
 
@@ -1835,6 +1899,15 @@ on unknown population parameters that the researcher cannot inspect in
 advance; this one depends only on design choices that are already
 written down in the preregistration or method section.
 
+This gives a partial answer to the question Hussey et al.
+(\citeproc{ref-hussey_aberrant_2025}{2025}) raise, of how a researcher
+can tell a genuinely poor item from an artefact of their own sample
+without a second sample to check against. The answer these results
+support is that they cannot tell from the analysis, but they can bound
+how often they would be wrong from the design. At \(k = 40\) with
+\(N = 1000\) that bound is negligible; at \(k = 5\) with \(N = 20\) it
+is close to a coin flip.
+
 What cannot be known in advance is anything from inside the
 alpha-if-item-removed table itself. The table that
 \texttt{psych::alpha()}, or any equivalent, produces looks exactly the
@@ -1967,6 +2040,18 @@ available at
 
 \phantomsection\label{refs}
 \begin{CSLReferences}{1}{0}
+\bibitem[\citeproctext]{ref-anvari_defragmenting_2025}
+Anvari, F., Alsalti, T., Oehler, L. A., Hussey, I., Elson, M., \&
+Arslan, R. C. (2025). Defragmenting psychology. \emph{Nature Human
+Behaviour}, 1--4. \url{https://doi.org/10.1038/s41562-025-02138-0}
+
+\bibitem[\citeproctext]{ref-anvari_fragmented_2025}
+Anvari, F., Alsalti, T., Oehler, L. A., Marion, Z., Hussey, I., Elson,
+M., \& Arslan, R. C. (2025). A {Fragmented} {Field}: {Construct} and
+{Measure} {Proliferation} in {Psychology}. \emph{Advances in Methods and
+Practices in Psychological Science}, \emph{8}(3), 25152459251360642.
+\url{https://doi.org/10.1177/25152459251360642}
+
 \bibitem[\citeproctext]{ref-clark_constructing_1995}
 Clark, L. A., \& Watson, D. (1995). Constructing validity: {Basic}
 issues in objective scale development. \emph{Psychological Assessment},
@@ -1986,6 +2071,12 @@ theory and applications. \emph{Journal of Applied Psychology},
 \bibitem[\citeproctext]{ref-cronbach_coefficient_1951}
 Cronbach, L. J. (1951). Coefficient alpha and the internal structure of
 tests. \emph{Psychometrika}, \emph{16}(3), 297--334.
+
+\bibitem[\citeproctext]{ref-elson_psychological_2023}
+Elson, M., Hussey, I., Alsalti, T., \& Arslan, R. C. (2023).
+Psychological measures aren't toothbrushes. \emph{Communications
+Psychology}, \emph{1}(1), 25.
+\url{https://doi.org/10.1038/s44271-023-00026-9}
 
 \bibitem[\citeproctext]{ref-flake_measurement_2020}
 Flake, J. K., \& Fried, E. I. (2020). Measurement {Schmeasurement}:
@@ -2007,13 +2098,15 @@ recommendations. \emph{Journal of Management}, \emph{45}(6), 2596--2627.
 \url{https://doi.org/10.1177/0149206319850280}
 
 \bibitem[\citeproctext]{ref-hussey_granary_2026}
-Hussey, I. (2026). \emph{Ianhussey/granary: {V1}.0.1}. Zenodo.
-\url{https://doi.org/10.5281/ZENODO.21454571}
+Hussey, I. (2026). \emph{Granary: {A} very large item-level open dataset
+of psychological traits and attitudes}.
+\url{https://doi.org/10.5281/zenodo.21620120}
 
 \bibitem[\citeproctext]{ref-hussey_aberrant_2025}
 Hussey, I., Alsalti, T., Bosco, F., Elson, M., \& Arslan, R. (2025). An
-aberrant abundance of {Cronbach}'s alpha values at .70. \emph{Advances
-in Methods and Practices in Psychological Science}.
+{Aberrant} {Abundance} of {Cronbach}'s {Alpha} {Values} at .70.
+\emph{Advances in Methods and Practices in Psychological Science},
+\emph{8}(1), 25152459241287123.
 \url{https://doi.org/10.1177/25152459241287123}
 
 \bibitem[\citeproctext]{ref-hussey_hidden_2020}
