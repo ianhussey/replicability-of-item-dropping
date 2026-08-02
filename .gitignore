@@ -3,3 +3,4 @@
 *.Rhistory
 old/*
 .Rproj.user
+/literature/files
