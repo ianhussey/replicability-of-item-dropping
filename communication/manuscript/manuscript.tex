@@ -207,7 +207,7 @@
 \IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
 \urlstyle{same}
 \hypersetup{
-  pdftitle={Improving Cronbach's alpha can make measurement worse: A Monte Carlo simulation of item dropping based on in-sample improvements to Cronbach's alpha},
+  pdftitle={Item-dropping based on Cronbach's alpha improves in-sample alpha but not true reliability: A Monte Carlo simulation},
   pdfauthor={Ze Freeman; Ian Hussey},
   colorlinks=true,
   linkcolor={blue},
@@ -221,9 +221,8 @@
 \begin{document}
 
 \begin{frontmatter}
-\title{Improving Cronbach's alpha can make measurement worse:\\
-A Monte Carlo simulation of item dropping based on in-sample
-improvements to Cronbach's alpha}
+\title{Item-dropping based on Cronbach's alpha improves in-sample alpha
+but not true reliability: A Monte Carlo simulation}
 \author[1,2]{Ze Freeman%
 %
 }
@@ -868,6 +867,34 @@ estimate. For measure 4 we report the empirical 2.5th and 97.5th
 percentiles of \(d_k\),
 
 \[\widehat{\text{PI}}_{95}(d) = \big[\hat q_{2.5}(d_k),\ \hat q_{97.5}(d_k)\big]\]
+
+The prediction-interval bounds are themselves Monte Carlo estimates and
+carry their own uncertainty, which cannot be assumed negligible: unlike
+a mean, a sample quantile's standard error depends on the density of the
+distribution at that quantile,
+\(\mathrm{SE}(\hat q_p) \approx \sqrt{p(1-p)/K} \,/\, f(q_p)\), so it
+can be large wherever the tail is thin, and quantile estimates in
+heavy-tailed or sparse regions can be unstable. We therefore estimated a
+Monte Carlo standard error for every reported bound using the exact
+distribution-free order-statistic method (the 95\% confidence interval
+for a population quantile lies between the order statistics whose ranks
+are the Binomial(\(K\), \(p\)) percentiles), cross-checked against a
+nonparametric bootstrap, with which it agrees to within roughly 30\% in
+every cell. The bounds turn out to be stable: across all 300
+cell-by-quantity combinations, the larger of the two bound standard
+errors is at most 2.2\% of its interval's width (median 1.2\%), so every
+interval in Table~\ref{tbl-pi} and Figure~\ref{fig-pi} is accurate to
+well within the precision at which it is printed. As expected, quantiles
+are estimated less precisely than means, by a factor of up to 8 in the
+same cell, and the least stable bounds are the upper tails of the
+observed-gain and optimism distributions at the smallest sample size,
+which are the heaviest tails in the design. One degenerate case is worth
+noting: for the conditional strategy the lower bound of the observed
+gain sits on the point mass at zero contributed by the no-drop
+replications, so that bound has a Monte Carlo standard error of exactly
+zero, an artefact of the mixture rather than evidence of precision, and
+is another reason the conditional strategy's interval is more
+informative conditional on a drop having occurred.
 
 Monte Carlo standard errors and prediction intervals are different
 quantities and should not be confused. An MCSE is \(S_d/\sqrt{K}\) and

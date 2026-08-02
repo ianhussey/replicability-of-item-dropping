@@ -1,7 +1,6 @@
 ---
 title: |
-  Improving Cronbach's alpha can make measurement worse:\
-  A Monte Carlo simulation of item dropping based on in-sample improvements to Cronbach's alpha
+  Item-dropping based on Cronbach's alpha improves in-sample alpha but not true reliability: A Monte Carlo simulation
 author:
   - name: Ze Freeman
     affiliations:
@@ -199,6 +198,23 @@ nonpositive_gain <- simulation_outcomes |>
 # 97.5th percentiles. Each replication is an independently simulated study, so these
 # estimate the distribution of what a single study would observe.
 
+# A sample quantile's Monte Carlo error is NOT the mean's: asymptotically
+# SE(q_p) = sqrt(p(1-p)/K) / f(q_p), so it depends on the density at the bound and can be
+# large where the tail is thin. It therefore has to be estimated, not assumed negligible.
+# It is estimated here with the exact distribution-free order-statistic method: the 95% CI
+# for the population p-quantile runs between the order statistics whose ranks are the
+# Binomial(K, p) 2.5th and 97.5th percentiles, and an implied SE is that width / (2*1.96).
+# A nonparametric bootstrap (1,000 resamples per cell) agrees with this to within ~30%
+# everywhere (checked once, offline; the order-statistic form is used at render time
+# because it costs one sort per cell instead of a thousand).
+mcse_quantile <- function(x, p) {
+  n  <- length(x)
+  xs <- sort(x)
+  lo <- max(1, qbinom(0.025, n, p))
+  hi <- min(n, qbinom(0.975, n, p) + 1)
+  (xs[hi] - xs[lo]) / (2 * qnorm(0.975))
+}
+
 prediction_intervals <- simulation_outcomes |>
   pivot_longer(cols = c(bias_vs_pop_alpha, bias_vs_reliability,
                         delta_obs, delta_pop, delta_rho, optimism),
@@ -209,8 +225,21 @@ prediction_intervals <- simulation_outcomes |>
             sd       = sd(difference),
             pi_lower = unname(quantile(difference, 0.025)),
             pi_upper = unname(quantile(difference, 0.975)),
+            pi_lower_mcse = mcse_quantile(difference, 0.025),
+            pi_upper_mcse = mcse_quantile(difference, 0.975),
             .groups  = "drop") |>
-  mutate(pi_width = pi_upper - pi_lower)
+  mutate(pi_width = pi_upper - pi_lower,
+         # the larger of the two bound MCSEs, as a share of the interval width: the
+         # figure of merit for whether the plotted/tabulated interval is stable
+         pi_mcse_pct_width = 100 * pmax(pi_lower_mcse, pi_upper_mcse) / pi_width)
+
+# summary quantities for the prose: how unstable is the least stable bound anywhere?
+pi_stability <- list(
+  max_pct   = max(prediction_intervals$pi_mcse_pct_width),
+  median_pct = median(prediction_intervals$pi_mcse_pct_width),
+  # ratio of bound-MCSE to the same cell's mean-MCSE: how much worse a quantile is
+  max_ratio = max(pmax(prediction_intervals$pi_lower_mcse,
+                       prediction_intervals$pi_upper_mcse) / prediction_intervals$mcse))
 
 # ---- validation results -------------------------------------------------------------
 # Read at render time from the caches written by code/analysis/validation.qmd. Those
@@ -547,6 +576,8 @@ where $S_d$ is the standard deviation of $d_k$ across the $K$ replications. In t
 For the conditional strategy, all measure-2 and measure-3 quantities are additionally summarised over only the replications in which a drop occurred; the number of such replications, $K_{\text{drop}}$, is itself random and is reported alongside every conditional-on-drop estimate. For measure 4 we report the empirical 2.5th and 97.5th percentiles of $d_k$,
 
 $$\widehat{\text{PI}}_{95}(d) = \big[\hat q_{2.5}(d_k),\ \hat q_{97.5}(d_k)\big]$$
+
+The prediction-interval bounds are themselves Monte Carlo estimates and carry their own uncertainty, which cannot be assumed negligible: unlike a mean, a sample quantile's standard error depends on the density of the distribution at that quantile, $\mathrm{SE}(\hat q_p) \approx \sqrt{p(1-p)/K} \,/\, f(q_p)$, so it can be large wherever the tail is thin, and quantile estimates in heavy-tailed or sparse regions can be unstable. We therefore estimated a Monte Carlo standard error for every reported bound using the exact distribution-free order-statistic method (the 95% confidence interval for a population quantile lies between the order statistics whose ranks are the Binomial($K$, $p$) percentiles), cross-checked against a nonparametric bootstrap, with which it agrees to within roughly 30% in every cell. The bounds turn out to be stable: across all `r nrow(prediction_intervals)` cell-by-quantity combinations, the larger of the two bound standard errors is at most `r fmt(pi_stability$max_pct, 1)`% of its interval's width (median `r fmt(pi_stability$median_pct, 1)`%), so every interval in @tbl-pi and @fig-pi is accurate to well within the precision at which it is printed. As expected, quantiles are estimated less precisely than means, by a factor of up to `r fmt(pi_stability$max_ratio, 0)` in the same cell, and the least stable bounds are the upper tails of the observed-gain and optimism distributions at the smallest sample size, which are the heaviest tails in the design. One degenerate case is worth noting: for the conditional strategy the lower bound of the observed gain sits on the point mass at zero contributed by the no-drop replications, so that bound has a Monte Carlo standard error of exactly zero, an artefact of the mixture rather than evidence of precision, and is another reason the conditional strategy's interval is more informative conditional on a drop having occurred.
 
 Monte Carlo standard errors and prediction intervals are different quantities and should not be confused. An MCSE is $S_d/\sqrt{K}$ and describes how precisely the mean is pinned down; it vanishes as $K$ grows. A prediction interval is driven by $S_d$ itself and describes how much individual studies differ; it does not vanish, however large $K$ becomes. At $K$ = `r format(n_iterations, big.mark = ",")` the MCSE is roughly one hundredth of the standard deviation, which is precisely why Aim 4 requires its own summaries rather than wider error bars on the existing ones.
 
