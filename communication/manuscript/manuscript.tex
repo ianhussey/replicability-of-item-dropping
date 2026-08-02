@@ -549,13 +549,13 @@ approximately 0.51 (mean inter-item correlation \(\approx 0.26\)) and a
 left-skewed distribution with an approximately 1.7\% negative-loading
 tail. These shape parameters are estimated in a separate file
 (\citeproc{ref-hussey_granary_2026}{Hussey, 2026}) and enter this
-simulation only as fixed constants; the loading distribution is not a
+simulation only as fixed constants. The loading distribution is not a
 factor of this design and is not manipulated. Two of its properties are
-nonetheless load-bearing for the estimands: loadings are unequal, which
-is what makes population \(\alpha\) and true reliability distinct
-targets, and the small negative tail means some generated pools contain
-a genuinely \(\alpha\)-harming item, so conditional dropping is not
-always chasing noise.
+nonetheless important for the estimands: loadings are unequal, which is
+what makes population \(\alpha\) and true reliability distinct targets,
+and the small negative tail means some generated pools contain a
+genuinely \(\alpha\)-harming item, so conditional dropping is not always
+chasing noise.
 
 \subsubsection{Distribution of scale
 lengths}\label{distribution-of-scale-lengths}
@@ -625,12 +625,13 @@ gated on an observed improvement:
 \item
   Forced drop. Remove item \(J^{*}\) regardless of whether
   \(\hat\alpha(-J^{*})\) actually exceeds the full-scale
-  \(\hat\alpha(F)\). The retained set is
+  \(\hat\alpha(F)\). The retained set is therefore:
   \(S_{\text{forced}} = F \setminus \{J^{*}\}\) always.
 \item
-  Conditional drop. Remove item \(J^{*}\) only if
-  \(\hat\alpha(-J^{*}) > \hat\alpha(F)\); otherwise remove nothing, so
-  \(S_{\text{cond}} = F \setminus \{J^{*}\}\) or \(F\).
+  Conditional drop. Remove item \(J^{*}\) only if it improves in-sample
+  alpha (\(\hat\alpha(-J^{*}) > \hat\alpha(F)\)), otherwise remove
+  nothing. Therefore: \(S_{\text{cond}} = F \setminus \{J^{*}\}\) or
+  \(F\).
 \end{itemize}
 
 Because the strategies share the nomination rule, comparisons between
@@ -668,8 +669,8 @@ Second, the closed-form population targets. \(\alpha_{\text{pop}}\) and
 \(\rho\) computed from the loadings were compared against the same
 quantities computed independently from the model-implied population
 covariance matrix
-\(\boldsymbol\Sigma = \boldsymbol\lambda\boldsymbol\lambda^\top + \operatorname{diag}(1 - \lambda_i^2)\);
-the largest discrepancy was \(1.3 \times 10^{-15}\). The inequality
+\(\boldsymbol\Sigma = \boldsymbol\lambda\boldsymbol\lambda^\top + \operatorname{diag}(1 - \lambda_i^2)\).
+The largest discrepancy was \(1.3 \times 10^{-15}\). The inequality
 \(\alpha_{\text{pop}}(S) \leq \rho(S)\) that the estimands rely on held
 in every case.
 
@@ -703,8 +704,8 @@ preregistered test.
 
 We expected the full-pool calibration bias to be small and negative and
 to shrink toward zero as \(N\) grew, since sample \(\alpha\) carries a
-known small-sample downward bias; and the structural gap to be negative
-in every condition, since the fitted loading distribution guarantees
+known small-sample downward bias. The structural gap to be negative in
+every condition, since the fitted loading distribution guarantees
 unequal loadings. We expected to reproduce the Kopalle \& Lehmann
 (\citeproc{ref-kopalle_alpha_1997}{1997}) optimism result, with the
 reported \(\alpha\) biased upward relative to the population \(\alpha\)
@@ -713,8 +714,8 @@ item-pool sizes, on the reasoning that more candidate items means a
 larger expected maximum over noise. We expected the reliability-scale
 bias to be negative at large \(N\), where selection has little noise to
 exploit and only the structural gap remains, and possibly positive at
-small \(N\), where the winner's curse might dominate; where the sign
-crossed we treated as an open empirical question. We expected
+small \(N\), where the winner's curse might dominate - where the sign
+crossed, we treated as an open empirical question. We expected
 \(\Pr(\text{drop})\) to rise with item-pool size. We made no directional
 prediction for the mean population-\(\alpha\) change or the mean
 reliability change, because the empirical loading distribution has a
@@ -777,8 +778,8 @@ reported number:
 observed sample gain: the quantity the researcher sees and that, for the
 conditional strategy, triggers the decision. Under the forced strategy
 this can be negative, since the best available drop may still hurt the
-sample \(\alpha\); under the conditional strategy it is \(\geq 0\) by
-construction, and exactly 0 when nothing is dropped.
+sample \(\alpha\), under the conditional strategy it is \(\geq 0\) by
+construction and exactly 0 when nothing is dropped.
 
 \(\Delta_{\text{pop}} = \alpha_{\text{pop}}(S_s) - \alpha_{\text{pop}}(F)\),
 the population \(\alpha\) change for the selected scale. Removal alters
@@ -786,18 +787,18 @@ the item-variance sum, the sum-score variance, and the length multiplier
 \(\tfrac{m}{m-1}\) simultaneously, so the sign is a trade-off and
 \(\Delta_{\text{pop}} \neq 0\) in general.
 
-\(\Delta_{\rho} = \rho(S_s) - \rho(F)\), the true reliability change:
-the quantity that actually matters. The headline failure mode this
-design can detect is \(\Delta_{\rho} < 0\) while
-\(\widehat{\Delta}_{\text{obs}} > 0\), that is, dropping a
-low-consistency but valid item raises the \(\alpha\) coefficient while
-degrading measurement.
+\(\Delta_{\rho} = \rho(S_s) - \rho(F)\), the true reliability change,
+which is the quantity that actually matters for genuine measure
+refinement. The primary failure mode this design can detect is
+\(\Delta_{\rho} < 0\) while \(\widehat{\Delta}_{\text{obs}} > 0\), that
+is, dropping a low-consistency but valid item raises the \(\alpha\)
+coefficient while degrading measurement.
 
 The findings live in the gaps between these deltas.
 \(\widehat{\Delta}_{\text{obs}} - \Delta_{\text{pop}}\) is the selection
 optimism (winner's curse), expected to be positive because \(J^{*}\)
 maximises the sample \(\alpha\) and is therefore biased high for its own
-population value; it is computed pairwise within replicate, so its Monte
+population value. It is computed pairwise within replicate, so its Monte
 Carlo standard error is much smaller than differencing two separate
 summaries would give. Because a mean \(\Delta_\rho\) near zero can
 conceal frequent, offsetting harm, we additionally report the harm rate,
@@ -852,7 +853,7 @@ which implements the Siepe et al.
 (\citeproc{ref-siepe_simulation_2024}{2024}) bias and Monte Carlo
 standard error formulas. That function requires a single fixed true
 parameter per condition, whereas here every replication draws its own
-loading vector and therefore has its own target; we therefore pass the
+loading vector and therefore has its own target. We therefore pass the
 per-replicate difference \(d_k\) itself as the estimate with a true
 parameter of 0, which is algebraically identical to bias against a
 varying target. Proportions take the binomial Monte Carlo standard
@@ -861,7 +862,7 @@ error,
 
 For the conditional strategy, all measure-2 and measure-3 quantities are
 additionally summarised over only the replications in which a drop
-occurred; the number of such replications, \(K_{\text{drop}}\), is
+occurred: the number of such replications, \(K_{\text{drop}}\), is
 itself random and is reported alongside every conditional-on-drop
 estimate. For measure 4 we report the empirical 2.5th and 97.5th
 percentiles of \(d_k\),
@@ -898,12 +899,13 @@ informative conditional on a drop having occurred.
 
 Monte Carlo standard errors and prediction intervals are different
 quantities and should not be confused. An MCSE is \(S_d/\sqrt{K}\) and
-describes how precisely the mean is pinned down; it vanishes as \(K\)
-grows. A prediction interval is driven by \(S_d\) itself and describes
-how much individual studies differ; it does not vanish, however large
-\(K\) becomes. At \(K\) = 10,000 the MCSE is roughly one hundredth of
-the standard deviation, which is precisely why Aim 4 requires its own
-summaries rather than wider error bars on the existing ones.
+describes how precisely the mean is estimated, decreasing as the number
+of iterations (\(K\)) grows. A prediction interval is driven by \(S_d\)
+itself and describes how much individual studies differ. It stabilizes
+with increasing \(K\). At \(K\) = 10,000 the MCSE is roughly one
+hundredth of the standard deviation, which is precisely why Aim 4
+requires its own summaries rather than wider error bars on the existing
+ones.
 
 Because each replication draws both a fresh item pool and a fresh sample
 from it, the prediction intervals marginalise over two sources of
@@ -924,6 +926,11 @@ design chosen here rather than over any population of real studies.
 
 \subsection{Calibration and the structural
 gap}\label{calibration-and-the-structural-gap}
+
+% Start this table at the top of a fresh page so it cannot split: Quarto re-emits
+% computational tables as longtables (see the note above Table 2), and each of these
+% 25-row tables fits a single page whole.
+\clearpage
 
 \begingroup\fontsize{9}{11}\selectfont
 
@@ -1051,6 +1058,11 @@ on the loadings, so its five sample-size series coincide.}
 \subsection{Bias in the reported alpha after item
 dropping}\label{bias-in-the-reported-alpha-after-item-dropping}
 
+% Quarto re-emits computational tables as longtables in this format, so a longtable-level
+% page break cannot be prevented from the chunk options. Starting the table at the top of
+% a fresh page instead: its 25 rows plus caption fit on one page, so it cannot split.
+\clearpage
+
 \begingroup\fontsize{8}{10}\selectfont
 
 \begin{longtable}[t]{lrrrrr}
@@ -1070,18 +1082,6 @@ nothing was dropped contribute the full-pool values.}
 \cmidrule(l{3pt}r{3pt}){3-4} \cmidrule(l{3pt}r{3pt}){5-6}
 k & N & 2a vs. pop. alpha & 2b vs. reliability & 2a vs. pop. alpha & 2b vs. reliability\\
 \midrule
-\endfirsthead
-\multicolumn{6}{@{}l}{\textit{(continued)}}\\
-\toprule
-\multicolumn{2}{c}{ } & \multicolumn{2}{c}{Forced} & \multicolumn{2}{c}{Conditional (marginal)} \\
-\cmidrule(l{3pt}r{3pt}){3-4} \cmidrule(l{3pt}r{3pt}){5-6}
-k & N & 2a vs. pop. alpha & 2b vs. reliability & 2a vs. pop. alpha & 2b vs. reliability\\
-\midrule
-\endhead
-
-\endfoot
-\bottomrule
-\endlastfoot
  & 20 & 0.0435 (0.0013) & 0.0239 (0.0013) & 0.0415 (0.0013) & 0.0220 (0.0012)\\
 \nopagebreak
  & 30 & 0.0315 (0.0011) & 0.0131 (0.0010) & 0.0293 (0.0010) & 0.0110 (0.0010)\\
@@ -1130,7 +1130,8 @@ k & N & 2a vs. pop. alpha & 2b vs. reliability & 2a vs. pop. alpha & 2b vs. reli
 \nopagebreak
  & 200 & -0.0003 (0.0001) & -0.0038 (0.0001) & -0.0003 (0.0001) & -0.0038 (0.0001)\\
 \nopagebreak
-\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 40} & 1000 & 0.0000 (0.0000) & -0.0034 (0.0000) & 0.0000 (0.0000) & -0.0034 (0.0000)\\*
+\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 40} & 1000 & 0.0000 (0.0000) & -0.0034 (0.0000) & 0.0000 (0.0000) & -0.0034 (0.0000)\\
+\bottomrule
 
 \end{longtable}
 
@@ -1149,7 +1150,7 @@ than the optimism the argmax can extract from a pool that is already
 long enough for \(\alpha\) to be estimated fairly stably. Selection
 optimism is therefore not uniformly larger in longer scales, contrary to
 the intuition that more candidate items means more opportunity to
-capitalise on noise; with \(k\) items there are more candidates, but
+capitalise on noise. With \(k\) items there are more candidates, but
 each contributes proportionally less to \(\alpha\), and the second
 effect dominates.
 
@@ -1195,7 +1196,7 @@ of selection is visible against the baseline of not selecting at all.
 Because every replication draws its own loadings, the true value varies
 continuously within a condition rather than being fixed, so replications
 are binned by it at a width of 0.05 and the mean reported \(\alpha\) is
-plotted per bin; bins containing fewer than 20 replications are not
+plotted per bin. Bins containing fewer than 20 replications are not
 plotted, which removes 0.05\% of replications in the sparse tails of the
 true-value distribution.
 
@@ -1249,11 +1250,11 @@ overstate what can be inferred from it.
 \caption{\label{fig-calibration}Calibration view: the reported (sample)
 alpha of the retained items against their true value, in the
 presentation used by Kopalle and Lehmann (1997). Columns are the two
-dropping strategies plus a no-dropping reference; rows are the two
+dropping strategies plus a no-dropping reference, rows are the two
 population targets. The dashed line is the identity: points on it mean
 the reported alpha is exactly right for the items retained, and points
 above it mean it overstates them. Replications are binned by their true
-value at a width of 0.05 and averaged within bin; bins with fewer than
+value at a width of 0.05 and averaged within bin. Bins with fewer than
 20 replications are omitted. Binning is presentational only and no
 estimand is defined in terms of it.}
 
@@ -1268,6 +1269,11 @@ the conditional rule declines to act increasingly often as \(N\) grows,
 from 9.0\% of replications at \(N = 20\) to 22.1\% at \(N = 1000\). This
 is consistent with greater sampling precision at larger \(N\) leaving
 less noise for the argmax to exploit.
+
+% Start this table at the top of a fresh page so it cannot split: Quarto re-emits
+% computational tables as longtables (see the note above Table 2), and each of these
+% 25-row tables fits a single page whole.
+\clearpage
 
 \begingroup\fontsize{8}{10}\selectfont
 
@@ -1362,6 +1368,11 @@ regardless of sample size: with more items available there is almost
 always some single item whose removal raises the sample \(\alpha\),
 whether or not that increase reflects a real improvement to the scale.
 
+% Start this table at the top of a fresh page so it cannot split: Quarto re-emits
+% computational tables as longtables (see the note above Table 2), and each of these
+% 25-row tables fits a single page whole.
+\clearpage
+
 \begingroup\fontsize{8}{10}\selectfont
 
 \begin{longtable}[t]{lrrrrr}
@@ -1453,7 +1464,7 @@ Harm falls steeply as either factor increases, but it does not vanish
 with sample size alone. At \(N = 1000\) the forced strategy still
 reduces true reliability in 25.3\% of replications at \(k = 5\), and the
 rate reaches 0.0\% only in the largest scale and sample combination.
-Long scales and large samples are both needed; neither alone is
+Long scales and large samples are both needed - neither alone is
 sufficient.
 
 The harm rate for the conditional strategy is lower than for the forced
@@ -1514,6 +1525,11 @@ gain of 0.090 in sample \(\alpha\) corresponds to a mean change in true
 reliability of -0.0007, which is to say essentially none at all: almost
 the entire apparent improvement is selection optimism.
 
+% Start this table at the top of a fresh page so it cannot split: Quarto re-emits
+% computational tables as longtables (see the note above Table 2), and each of these
+% 25-row tables fits a single page whole.
+\clearpage
+
 \begingroup\fontsize{8}{10}\selectfont
 
 \begin{longtable}[t]{lrrrrr}
@@ -1523,7 +1539,7 @@ from full pool to retained items on three scales -- observed sample
 alpha (3a), population alpha (3b), and true reliability (3c) -- together
 with the selection optimism (3d = 3a - 3b, computed pairwise within
 replicate), for the forced strategy, by item-pool size (k) and sample
-size (N). Conditional-strategy values are given in the compendium; they
+size (N). Conditional-strategy values are given in the compendium, they
 differ only through the replications in which no drop occurred, which
 contribute zeros.}
 
@@ -1705,19 +1721,19 @@ to within a thousandth. Yet the individual studies making up that
 average span {[}-0.267, 0.243{]}, a range roughly 404 times wider than
 the standard error.
 
-That ratio is not a finding about item dropping; it is close to an
+That ratio is not a finding about item dropping, it is close to an
 identity. For any approximately normal quantity the interval width is
 about \(3.92 S_d\) while the standard error is \(S_d/\sqrt{K}\), so
 their ratio is about \(3.92\sqrt{K} \approx 392\) at \(K\) = 10,000
 regardless of the condition, and indeed it varies only between 345 and
-424 across the entire design. That is exactly why it matters. Running
-more replications raises this ratio rather than lowering it: the
-precision of the reported mean and the spread that an individual study
-faces are not merely different in size, they move in opposite directions
-as a simulation is scaled up. A researcher reporting an \(\alpha\) after
-dropping an item from a five-item scale measured on twenty participants
-is drawing from the wide distribution, not from a neighbourhood of the
-mean, and no amount of additional simulation narrows what they face.
+424 across the entire design. Running more replications therefore raises
+this ratio rather than lowering it. The precision of the reported mean
+and the spread that an individual study faces are not merely different
+in size, they move in opposite directions as a simulation is scaled up.
+A researcher reporting an \(\alpha\) after dropping an item from a
+five-item scale measured on twenty participants is drawing from the wide
+distribution, not from a neighbourhood of the mean, and no amount of
+additional simulation narrows what they face.
 
 \begin{figure}
 
@@ -1731,7 +1747,7 @@ mean, and no amount of additional simulation narrows what they face.
 the reported alpha against true reliability (top), the true reliability
 change (middle), and the selection optimism (bottom), for the forced
 (left) and conditional (right) strategies, by item-pool size and sample
-size. Points are means; bars span the empirical 2.5th to 97.5th
+size. Points are means, bars span the empirical 2.5th to 97.5th
 percentiles across replications. Bars are dodged horizontally within
 each item-pool size so the five sample sizes are distinguishable. Note
 the differing y-axis scales between rows.}
@@ -1852,7 +1868,7 @@ Across most of the design it is only slightly wrong, with magnitudes
 mostly under 0.01. It is that the decision itself is frequently
 detrimental. In the worst condition, the forced rule reduced true
 reliability in 49.6\% of replications while its mean apparent in-sample
-gain was 0.090; the conditional rule, which acts only on an apparent
+gain was 0.090. The conditional rule, which acts only on an apparent
 improvement, still did so in 42.5\% of the replications in which it
 acted.
 
@@ -1923,7 +1939,7 @@ Table~\ref{tbl-proportions}, and know before collecting data roughly how
 much to trust a future item-dropping decision from that study. This is
 an unusual property for a bias to have. Many statistical biases depend
 on unknown population parameters that the researcher cannot inspect in
-advance; this one depends only on design choices that are already
+advance. This one depends only on design choices that are already
 written down in the preregistration or method section.
 
 This gives a partial answer to the question Hussey et al.
@@ -1932,7 +1948,7 @@ can tell a genuinely poor item from an artefact of their own sample
 without a second sample to check against. The answer these results
 support is that they cannot tell from the analysis, but they can bound
 how often they would be wrong from the design. At \(k = 40\) with
-\(N = 1000\) that bound is negligible; at \(k = 5\) with \(N = 20\) it
+\(N = 1000\) that bound is negligible. At \(k = 5\) with \(N = 20\) it
 is close to a coin flip.
 
 What cannot be known in advance is anything from inside the
@@ -1954,9 +1970,8 @@ because nothing internal to the analysis will indicate the risk level.
 
 The main limitation is that both strategies consider dropping at most
 one item, in one step. Neither iterates nor targets a final scale
-length, so multi-item dropping is not simulated. Whether the item choice
-itself would replicate in an independent sample from the same scale is
-also outside this design; both are noted as future directions below.
+length, so multi-item dropping is not simulated but is instead noted as
+a future direction below.
 
 The population targets are realised rather than idealised subset
 targets: they are the true properties of whichever items a given
@@ -1967,13 +1982,16 @@ value per condition, a deliberate departure from the classical
 estimation setup that we flag so it is not mistaken for an oversight.
 Relatedly, only sample \(\alpha\) is evaluated as the reported
 estimator. Sample \(\omega\) is never estimated from data anywhere in
-this design; it is used only as a population-level target.
+this design, it is used only as a population-level target.
 
 The 95\% prediction intervals conflate two sources of variation, a fresh
 item pool and a fresh sample in each replication, so they support a
 field-level claim about studies of trait scales in general rather than a
 claim about resampling from one fixed scale. Separating the two would
 require a nested design with several samples per drawn loading vector.
+This is the same structure that the item-choice replicability question
+below requires. As such, the two are deferred to a single follow-up
+study.
 
 Finally, data-generating processes vary considerably between simulation
 studies, and identifying where ours limits our conclusions is worthwhile
@@ -1982,29 +2000,63 @@ corpus used to fit the loading distribution consists of
 individual-differences and personality measures, which may differ
 considerably from the scales on which item-dropping decisions are made
 in clinical psychology or in contexts where psychometric properties
-carry more consequential weight. The empirical loading distribution is
-also a marginal, independent-item fit: it ignores which items belong to
-which scale, and therefore ignores between-scale clustering, such as the
-tendency for negative loadings to concentrate within particular
-multidimensional scales. It is a reasonable single-distribution summary
-of pooled trait-scale loadings, not a claim that any given generated
-pool resembles a specific real scale. Parametrising the loading
-distribution hierarchically, so that scales differ from one another in
-their loading distributions rather than all items being drawn from one
-pooled distribution, would better characterise that heterogeneity and is
-a natural refinement.
+carry more consequential weight.
+
+More consequentially, the empirical loading distribution is a marginal,
+independent-item fit: each item's loading is drawn i.i.d. from the one
+pooled distribution, ignoring which items belong to which scale. Real
+loadings cluster within scales. Some scales are uniformly well
+constructed, while weak and negative loadings concentrate within
+particular, often multidimensional, scales. Under the i.i.d. fit that
+clustering is erased: genuinely weak items are sprinkled uniformly at
+random across generated pools, every sufficiently long pool contains
+some droppable item, and no pool is systematically better constructed
+than any other. The fit reproduces the marginal distribution of loadings
+faithfully, but it understates how much pools differ from one another,
+because clustering concentrates item quality within scales and the
+i.i.d. draw spreads it evenly. This matters for the estimands most
+central to this article: the harm rate and the probability of dropping
+both turn on whether the nominated item is a stable property of the
+scale or an accident of the sample, and a DGP that understates
+between-scale heterogeneity misstates the balance between those two
+ingredients, and with it how the marginal harm rate is composed.
+
+The same flattening bears directly on a second limitation, noted above:
+this simulation says nothing about whether an item-dropping
+recommendation would \emph{replicate}. Each replication draws one sample
+per pool, so the design can estimate how often a drop harms true
+reliability, but not whether the same item would be nominated again in a
+new sample from the same scale, nor whether an apparent in-sample gain
+would survive out of sample. These two limitations are not independent,
+because a recommendation replicates exactly when it is driven by the
+stable, scale-level component of the loadings rather than by sampling
+noise, and that is precisely the component the marginal fit flattens
+away. Both therefore point at the same future simulation: one that
+parametrises the loading distribution hierarchically, so that scales
+genuinely differ from one another, and that splits each pool's data into
+training and testing samples, nominating the item in the training sample
+and assessing the decision's out-of-sample performance in the testing
+sample: whether the same item is nominated again, whether the reported
+\(\alpha\) holds up, and whether the apparent gain in reliability is
+realised. The Future directions below sketch this design.
 
 \subsection{Future directions}\label{future-directions}
 
-This design says nothing about whether the item choice itself would
-replicate across independent samples. That question could be
+The replicability question raised in the limitations could be
 investigated with a same-item agreement measure benchmarked against a
 uniform chance floor rather than against Cohen's kappa, and with a
-paired discovery/replication design that distinguishes whether the same
-item gets chosen twice from whether a fixed item's apparent gain
-survives in a second sample. Combining that analysis with the bias and
-harm-rate results here would complete the picture this pair of
-simulations is building toward.
+paired training/testing design that distinguishes whether the same item
+gets nominated twice from whether a fixed item's apparent gain survives
+out of sample. Because that design draws several samples from each item
+pool, it would also decompose the harm rate reported here. A marginal
+harm rate of close to one half is compatible with two quite different
+worlds: one in which every short scale is a coin flip, and one which
+mixes scales with no genuinely weak item, where dropping is near-certain
+to harm, with scales containing one, where it is near-certain to help.
+These carry opposite practical advice, the present design cannot
+distinguish them, and the nested follow-up can. Combining that analysis
+with the bias and harm-rate results here would complete the picture this
+pair of simulations is building toward.
 
 A second extension would evaluate sample \(\omega\) as an alternative
 reporting statistic, since the present study uses \(\omega\) only as the
