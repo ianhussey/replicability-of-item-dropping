@@ -1,0 +1,932 @@
+---
+title: |
+  Improving Cronbach's alpha can make measurement worse:\
+  A Monte Carlo simulation of item dropping based on in-sample improvements to Cronbach's alpha
+author:
+  - name: Ze Freeman
+    affiliations:
+      - University of Bern
+      - King's College London
+  - name: Ian Hussey
+    email: ian.hussey@unibe.ch
+    affiliations: University of Bern
+    attributes:
+        corresponding: true
+abstract: "Cronbach's alpha is the most commonly reported metric of reliability in psychological measurement. The credibility of the value reported after dropping an item, a common post hoc measurement revision that appears to improve a scale's alpha, is rarely examined. In a Monte Carlo simulation we varied the number of items per scale (5, 10, 15, 20, 40) and the sample size (20, 30, 50, 200, 1000), with item pools generated from a loading distribution fitted to 3,783 factor loadings from real psychological scales. Two item-dropping strategies were evaluated: forced removal (always removing the item whose removal maximises sample alpha) and conditional removal (removing that item only if doing so improves in-sample alpha). Each was evaluated against both the population Cronbach's alpha and the true reliability of the items actually retained. Three sources of distortion are separable in this design and pull in different directions: small-sample calibration bias in alpha, the structural gap between alpha and true reliability, and selection optimism introduced by choosing the item from the same sample used to report the result. Their sum makes the reported alpha overstate true reliability in short scales at small samples and understate it everywhere else. More consequentially, the drop decision itself frequently harms the scale: at the smallest scale and sample size the conditional rule reduced true reliability in 42.5% of the replications in which it acted, despite acting only when in-sample alpha appeared to improve, and the forced rule did so in 49.6% of replications. Individual studies encounter outcomes far more extreme than the average bias suggests. Because this risk is a function only of scale length and sample size, it is knowable before data are collected, whereas nothing inside the alpha-if-item-removed table distinguishes a genuinely weak item from a sampling artefact."
+format:
+  elsevier-pdf:
+    keep-tex: true
+    latex-tinytex: false
+    # The elsevier extension defaults to cite-method: natbib, which formats the
+    # reference list with elsarticle-harv.bst and ignores csl. Switch to
+    # citeproc so the APA 7th CSL below governs both in-text and list style.
+    cite-method: citeproc
+    # elsarticle.cls loads natbib unconditionally unless given nonatbib, and
+    # natbib then errors on the CSLReferences list citeproc emits ("Bibliography
+    # not compatible with author-year citations"). nonatbib is the class's own
+    # opt-out and is the supported way to pair elsarticle with citeproc.
+    classoption:
+      - nonatbib
+    fig-format: pdf # vector figures embedded in the PDF (no rasterization)
+    journal:
+      name: psyarxiv
+      formatting: preprint
+      cite-style: authoryear
+execute:
+  echo: false
+header-includes:
+      - \usepackage{threeparttable}
+      - \usepackage{pdflscape} # for the landscape pages holding the wide tables
+      - \usepackage[margin=4cm]{geometry} # tighter page margins; gives \textwidth = 386.67pt = 5.35in,
+      # which is the fig-width used by every figure chunk so that figures are placed at native size
+      - \usepackage{etoolbox}
+      - \AtBeginEnvironment{longtable}{\footnotesize} # smaller font inside tables
+      - \AtBeginEnvironment{tabular}{\small}
+      # double the paragraph indent. AtBeginDocument because the elsevier
+      # template sets \parindent after header-includes; 2\parindent doubles
+      # whatever it set rather than hardcoding a value.
+      - \AtBeginDocument{\setlength{\parindent}{2\parindent}}
+bibliography: bibliography.bib
+csl: apa.csl # APA Style 7th edition
+# Make each in-text citation a hyperlink to its reference-list entry. citeproc
+# always emits the \bibitem anchors, but without this nothing points at them.
+link-citations: true
+# In-text citations use @key syntax, so the reference list is cited-only: an
+# entry appears if and only if something cites it, and an unmatched key fails
+# loudly at render. Do not reinstate `nocite: @*`, which would silently print
+# uncited entries and disable that check.
+knitr:
+  opts_chunk:
+    dev: cairo_pdf # vector device: razor-sharp lines/text at any zoom
+    message: false
+    warning: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+# Every number, figure, and table in this manuscript is computed at render time from the
+# simulation cache written by ../../code/analysis/simulation_1_bias.qmd, which is the
+# canonical source for the simulation and summarising code. The per-strategy derivation and
+# the summary helpers below are copies of that file's, kept deliberately identical so that a
+# re-render after a new simulation run updates the entire results section with no manual
+# editing. Nothing is hardcoded from a previous run.
+
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(purrr)
+library(readr)
+library(stringr)
+library(ggplot2)
+library(scales)
+library(patchwork)
+library(knitr)
+library(kableExtra)
+
+options(scipen = 999)
+
+# NOTE for editors: everything R touches -- knitr chunk options (fig-cap, tbl-cap) AND any
+# string literal in a chunk, including axis names, facet labels and table headers -- is
+# processed under a C locale, which rewrites any non-ASCII character as the literal text
+# "<U+XXXX>". Keep ALL R strings ASCII-only: write "alpha", "omega", "Delta" rather than the
+# Greek characters, in figures and tables as well as in captions. Body prose is handled by
+# pandoc, not R, and may use math mode and Greek freely.
+
+simulation_path <- "../../code/analysis/results/simulation_1_bias_niter10000.rds"
+
+if (!file.exists(simulation_path)) {
+  stop("Missing simulation cache. Run code/analysis/simulation_1_bias.qmd first:\n  ",
+       simulation_path)
+}
+
+simulation <- read_rds(simulation_path)
+
+n_iterations   <- max(count(simulation, k_indicators, n_participants)$n)
+k_levels       <- sort(unique(simulation$k_indicators))
+n_levels       <- sort(unique(simulation$n_participants))
+n_conditions   <- length(k_levels) * length(n_levels)
+n_replications <- nrow(simulation)
+
+# ---- per-strategy outcomes and estimand components ---------------------------------
+# One row per replication x strategy. The retained-set quantities resolve to the dropped-J*
+# or full-pool values according to whether that strategy dropped; the per-replicate estimand
+# components follow directly. Identical to the derivation in simulation_1_bias.qmd.
+simulation_outcomes <-
+  bind_rows("forced"      = simulation |> mutate(dropped = TRUE),
+            "conditional" = simulation |> mutate(dropped = dropped_conditional),
+            .id = "strategy") |>
+  mutate(strategy = factor(strategy, levels = c("forced", "conditional")),
+         alpha_subset_sample = if_else(dropped, alpha_dropped_sample, alpha_full_sample),
+         alpha_subset_pop    = if_else(dropped, alpha_dropped_pop,    alpha_full_pop),
+         omega_subset_pop    = if_else(dropped, omega_dropped_pop,    omega_full_pop),
+         bias_vs_pop_alpha   = alpha_subset_sample - alpha_subset_pop,   # estimand 2a
+         bias_vs_reliability = alpha_subset_sample - omega_subset_pop,   # estimand 2b
+         delta_obs           = alpha_subset_sample - alpha_full_sample,  # estimand 3a
+         delta_pop           = alpha_subset_pop    - alpha_full_pop,     # estimand 3b
+         delta_rho           = omega_subset_pop    - omega_full_pop,     # estimand 3c
+         optimism            = delta_obs - delta_pop)                    # estimand 3d
+
+# ---- Monte Carlo standard errors ---------------------------------------------------
+# Every continuous estimand is the mean of a per-replicate difference against a target that
+# varies by replication, so its MCSE is the general Siepe et al. (2024, Table 3) bias MCSE
+# applied to that difference directly: S_d / sqrt(K). Proportions take the binomial MCSE.
+# simulation_1_bias.qmd obtains these through simhelpers::calc_absolute() and
+# calc_rejection() with the true parameter set to zero, which is algebraically the same
+# thing; they are written out here so this document does not depend on that package.
+
+mcse_mean       <- function(x) sd(x) / sqrt(length(x))
+mcse_proportion <- function(p, k) sqrt(p * (1 - p) / k)
+
+# ---- full-pool summaries (Aim 1) ---------------------------------------------------
+
+full_pool <- simulation |>
+  mutate(calibration_bias = alpha_full_sample - alpha_full_pop,   # estimand 1a
+         structural_gap   = alpha_full_pop    - omega_full_pop,   # estimand 1b
+         total_bias       = alpha_full_sample - omega_full_pop) |># estimand 1c
+  group_by(k_indicators, n_participants) |>
+  summarize(across(c(calibration_bias, structural_gap, total_bias),
+                   list(est = mean, mcse = mcse_mean)),
+            .groups = "drop")
+
+# ---- per-strategy estimand summaries (Aims 2 and 3) --------------------------------
+
+estimands <- simulation_outcomes |>
+  group_by(strategy, k_indicators, n_participants) |>
+  summarize(across(c(bias_vs_pop_alpha, bias_vs_reliability,
+                     delta_obs, delta_pop, delta_rho, optimism),
+                   list(est = mean, mcse = mcse_mean)),
+            .groups = "drop")
+
+# conditional strategy, restricted to the replications in which it acted. K_drop is itself
+# random and is reported alongside every conditional-on-drop estimate.
+estimands_given_drop <- simulation_outcomes |>
+  filter(strategy == "conditional", dropped) |>
+  group_by(k_indicators, n_participants) |>
+  summarize(across(c(bias_vs_pop_alpha, bias_vs_reliability,
+                     delta_obs, delta_pop, delta_rho, optimism),
+                   list(est = mean, mcse = mcse_mean)),
+            k_drop = n(),
+            .groups = "drop")
+
+# ---- proportions (estimands 3e and 3f) ---------------------------------------------
+
+# NB the replication-count column is named n_reps, not k: `k` would collide with the
+# `k` argument of the inline grabber g() below under dplyr's data masking, silently
+# filtering every row away and returning NA into the prose.
+p_drop <- simulation |>
+  group_by(k_indicators, n_participants) |>
+  summarize(p_drop_est = mean(dropped_conditional), n_reps = n(), .groups = "drop") |>
+  mutate(p_drop_mcse = mcse_proportion(p_drop_est, n_reps))
+
+harm <- simulation_outcomes |>
+  group_by(strategy, k_indicators, n_participants) |>
+  summarize(harm_est = mean(delta_rho < 0), n_reps = n(), .groups = "drop") |>
+  mutate(harm_mcse = mcse_proportion(harm_est, n_reps))
+
+# proportion of replications in which the forced rule's apparent gain was NOT positive. The
+# conditional rule's gain is > 0 by construction whenever it acts, but the forced rule's is
+# not, so any claim of the form "while appearing to improve alpha" has to be checked rather
+# than assumed. It is used in the Results to keep that claim accurate.
+nonpositive_gain <- simulation_outcomes |>
+  filter(strategy == "forced") |>
+  group_by(k_indicators, n_participants) |>
+  summarize(p_nonpositive = mean(delta_obs <= 0), .groups = "drop")
+
+# ---- prediction intervals (Aim 4) --------------------------------------------------
+# The SPREAD across replications, not the precision of the mean: the empirical 2.5th and
+# 97.5th percentiles. Each replication is an independently simulated study, so these
+# estimate the distribution of what a single study would observe.
+
+prediction_intervals <- simulation_outcomes |>
+  pivot_longer(cols = c(bias_vs_pop_alpha, bias_vs_reliability,
+                        delta_obs, delta_pop, delta_rho, optimism),
+               names_to = "quantity", values_to = "difference") |>
+  group_by(strategy, k_indicators, n_participants, quantity) |>
+  summarize(est      = mean(difference),
+            mcse     = mcse_mean(difference),
+            sd       = sd(difference),
+            pi_lower = unname(quantile(difference, 0.025)),
+            pi_upper = unname(quantile(difference, 0.975)),
+            .groups  = "drop") |>
+  mutate(pi_width = pi_upper - pi_lower)
+
+# ---- validation results -------------------------------------------------------------
+# Read at render time from the caches written by code/analysis/validation.qmd. Those
+# filenames embed a hash of simulation_functions.R, so if the validated functions were
+# edited after the validation was last run, the path below does not exist and this render
+# fails loudly -- rather than the manuscript quoting validation numbers for code that no
+# longer exists, which is exactly the failure a validation is meant to prevent.
+
+analysis_dir   <- "../../code/analysis"
+functions_hash <- unname(substr(tools::md5sum(file.path(analysis_dir,
+                                                        "simulation_functions.R")), 1, 8))
+
+validation_path <- file.path(analysis_dir, "results",
+                             paste0("validation_results_ncases40_fns", functions_hash, ".rds"))
+dgp_recovery_path <- file.path(analysis_dir, "results",
+                               paste0("validation_dgp_recovery_n100000_fns", functions_hash, ".rds"))
+
+for (p in c(validation_path, dgp_recovery_path)) {
+  if (!file.exists(p)) {
+    stop("Missing validation cache for the current simulation_functions.R (hash ",
+         functions_hash, "). Re-render code/analysis/validation.qmd:\n  ", p)
+  }
+}
+
+validation   <- read_rds(validation_path)
+dgp_recovery <- read_rds(dgp_recovery_path)
+
+validation_summary <- list(
+  n_cases          = nrow(validation),
+  n_negative       = sum(validation$any_negative_loading),
+  max_diff_sample  = max(validation$max_abs_diff_alpha_full,
+                         validation$max_abs_diff_alphas_if_removed),
+  n_disagree       = sum(!validation$candidate_item_agrees),
+  max_diff_pop     = max(validation$max_abs_diff_alpha_pop,
+                         validation$max_abs_diff_omega_pop),
+  n_ineq_violated  = sum(!validation$alpha_pop_leq_omega),
+  dgp_n            = 100000,
+  dgp_max_var_dev  = max(abs(dgp_recovery$mean_item_variance - 1)),
+  dgp_max_alpha_dev = max(abs(dgp_recovery$difference)))
+
+# scientific notation for the machine-precision agreements, e.g. "1.2 x 10^-15"
+fmt_sci <- function(x, sig = 1) {
+  e <- floor(log10(abs(x)))
+  paste0(formatC(x / 10^e, format = "f", digits = sig), " \\times 10^{", e, "}")
+}
+
+# ---- calibration view (Kopalle & Lehmann presentation) ------------------------------
+# The reported alpha against the TRUE value of the retained items, which is how Kopalle and
+# Lehmann (1997) summarised their results and is therefore the directly comparable
+# presentation. Because every replication draws its own loadings, the true value is
+# continuous within a condition rather than fixed, so replications are binned by it and
+# summarised per bin. The binning is presentational only: no estimand is defined in terms of
+# it, and every number in the tables above is computed from unbinned replications.
+
+bin_width <- 0.05
+min_replicates_per_bin <- 20
+
+calibration_binned <- bind_rows(
+    simulation_outcomes |>
+      transmute(series = as.character(strategy), n_participants,
+                observed = alpha_subset_sample,
+                target_alpha = alpha_subset_pop, target_omega = omega_subset_pop),
+    simulation |>
+      transmute(series = "full pool", n_participants,
+                observed = alpha_full_sample,
+                target_alpha = alpha_full_pop, target_omega = omega_full_pop)) |>
+  mutate(series = factor(series,
+                         levels = c("full pool", "forced", "conditional"),
+                         labels = c("No dropping", "Forced drop", "Conditional drop"))) |>
+  pivot_longer(cols = c(target_alpha, target_omega),
+               names_to = "target", values_to = "true_value") |>
+  mutate(target = factor(target,
+                         levels = c("target_alpha", "target_omega"),
+                         labels = c("Target: population alpha of the retained items",
+                                    "Target: true reliability of the retained items")),
+         true_binned = round(true_value / bin_width) * bin_width) |>
+  group_by(series, target, n_participants, true_binned) |>
+  summarize(reported = mean(observed), n_bin = n(), .groups = "drop")
+
+# bins too sparse to be informative are not plotted; report what that removes rather than
+# letting the figure look like full coverage
+calibration_plotted <- calibration_binned |> filter(n_bin >= min_replicates_per_bin)
+calibration_dropped_pct <- 100 * (1 - sum(calibration_plotted$n_bin) /
+                                    sum(calibration_binned$n_bin))
+
+# Mean vertical distance from the identity line, split at a true value of 0.45, so the
+# figure can be described in the text with numbers rather than by eye. Weighted by bin
+# count, so this is the mean deviation over replications rather than over bins (bins are
+# very unequally populated, and an unweighted mean over them would be misleading).
+calibration_split <- 0.45
+calibration_deviation <- calibration_plotted |>
+  mutate(deviation = reported - true_binned,
+         range = if_else(true_binned <= calibration_split, "low", "high")) |>
+  group_by(target, series, range) |>
+  summarize(dev = weighted.mean(deviation, n_bin), .groups = "drop")
+
+cdev <- function(target_index, series_name, range_name) {
+  calibration_deviation |>
+    filter(target == levels(calibration_deviation$target)[target_index],
+           series == .env$series_name, range == .env$range_name) |>
+    pull(dev)
+}
+
+# ---- formatting helpers ------------------------------------------------------------
+
+fmt      <- function(x, dp = 4) formatC(x, format = "f", digits = dp)
+cell     <- function(est, mcse, dp = 4) paste0(fmt(est, dp), " (", fmt(mcse, dp), ")")
+interval <- function(lower, upper, dp = 3) paste0("[", fmt(lower, dp), ", ", fmt(upper, dp), "]")
+pct      <- function(x, dp = 1) paste0(formatC(100 * x, format = "f", digits = dp), "\\%")
+pct_cell <- function(est, mcse, dp = 1) {
+  paste0(formatC(100 * est, format = "f", digits = dp), " (",
+         formatC(100 * mcse, format = "f", digits = 2), ")")
+}
+
+# ---- inline value grabbers ---------------------------------------------------------
+# Pull one cell of one summary table, so that every number in the prose is traceable to a
+# named quantity and a named condition rather than being typed in by hand.
+
+# .env$ pins these to the function arguments. Without it, dplyr's data masking resolves a
+# bare `k` or `n` to a same-named COLUMN of df where one exists, which filters every row
+# away and quietly returns NA into the rendered prose rather than erroring.
+g <- function(df, k, n, col, strat = NULL) {
+  d <- df |> filter(k_indicators == .env$k, n_participants == .env$n)
+  if (!is.null(strat)) d <- d |> filter(strategy == .env$strat)
+  stopifnot(nrow(d) == 1)   # fail loudly rather than emitting NA into the manuscript
+  d[[col]][1]
+}
+
+gpi <- function(k, n, q, col, strat = "forced") {
+  d <- prediction_intervals |>
+    filter(strategy == .env$strat, k_indicators == .env$k,
+           n_participants == .env$n, quantity == .env$q)
+  stopifnot(nrow(d) == 1)
+  d |> pull({{ col }})
+}
+
+# smallest and largest design cells, referred to repeatedly in the prose
+k_min <- min(k_levels); k_max <- max(k_levels)
+n_min <- min(n_levels); n_max <- max(n_levels)
+
+# the structural gap is a population quantity that does not depend on N at all; the
+# simulation can only show that its ESTIMATE is near-invariant, so report the observed
+# variation rather than asserting exact invariance
+gap_by_k <- simulation |>
+  group_by(k_indicators) |>
+  summarize(gap = mean(alpha_full_pop - omega_full_pop), .groups = "drop")
+gap_spread <- simulation |>
+  group_by(k_indicators, n_participants) |>
+  summarize(gap = mean(alpha_full_pop - omega_full_pop), .groups = "drop") |>
+  group_by(k_indicators) |>
+  summarize(spread = max(gap) - min(gap), .groups = "drop") |>
+  pull(spread) |> max()
+
+# bias vs. reliability under the forced rule: which cells overstate, which understate
+b2 <- estimands |> filter(strategy == "forced")
+b2_over  <- b2 |> filter(bias_vs_reliability_est > 0)
+b2_under <- b2 |> filter(bias_vs_reliability_est < 0)
+
+# ---- shared plotting pieces --------------------------------------------------------
+
+# Sample size is an ORDERED factor, so the palette is sequential rather than qualitative:
+# viridis maps the five levels onto a monotone lightness ramp, so the reader can read the
+# ordering of the series off the figure without consulting the legend. (The default ggplot2
+# hue palette used in the analysis compendium is qualitative and does not do this.)
+scale_colour_n <- function()
+  scale_colour_viridis_d(name = "N participants", option = "D", end = 0.9)
+
+theme_sim <- function() {
+  theme_minimal(base_size = 8) +
+    theme(panel.grid.minor = element_blank(),
+          legend.key.size = unit(0.8, "lines"),
+          strip.text = element_text(size = 7),
+          plot.margin = margin(2, 2, 2, 2))
+}
+
+# The x axis is item-pool size. Breaks are taken FROM THE DATA rather than hardcoded: the
+# design's k values were changed from {5, 9, 13, 21, 39} to {5, 10, 15, 20, 40} during
+# development, and a hardcoded break vector silently mislabels every point when that
+# happens.
+scale_x_k <- function()
+  scale_x_continuous(name = "Item-pool size (k items)", breaks = k_levels)
+
+quantity_labels <- c(
+  bias_vs_pop_alpha   = "2a. Bias vs. population alpha of retained items",
+  bias_vs_reliability = "2b. Bias vs. true reliability of retained items",
+  delta_obs           = "3a. Observed change (sample alpha)",
+  delta_pop           = "3b. Population alpha change",
+  delta_rho           = "3c. True reliability (omega) change",
+  optimism            = "3d. Selection optimism")
+
+label_quantities <- function(data, which)
+  data |> mutate(quantity = factor(quantity, levels = which, labels = quantity_labels[which]))
+```
+
+# Introduction
+
+Cronbach's $\alpha$ provides a lower bound of the internal consistency of a multi-item scale under the assumption of tau equivalence [@cronbach_coefficient_1951]. It is the most widely reported metric of structural validity in psychology [@flake_construct_2017] and also sees wide use in related fields, despite longstanding critique of its use and interpretation [@cortina_what_1993; @sijtsma_use_2009]. Although conventions for acceptable reliability are less universal for $\alpha$ than for other metrics (e.g., the *p* < .05 convention for statistical significance), there is commonly pressure to meet a threshold of reliability. Indeed, @hussey_aberrant_2025 extracted more than 180,000 reported $\alpha$ values from three very large corpora, covering the general psychology literature, the industrial and organizational psychology literature, and the American Psychological Association's PsycTests database, and found robust excesses of values sitting just above the .70 rule-of-thumb threshold that could not be explained by justifiable measurement practices. They give this the name $\alpha$-hacking, defined as altering a measure ad hoc after seeing the results, with the goal or effect of raising the in-sample $\alpha$, thereby conditioning the analytic choices on the results and overfitting to the data at hand. Because their approach can detect only those distortions that land an $\alpha$ at one of the thresholds, and not the presumably far more common ones that land it anywhere else, they describe what they observe as an extreme lower bound on the true prevalence.
+
+There have been calls for an increased focus on measurement when considering the validity of study conclusions [@flake_measurement_2020]. Flake and Fried emphasise the need for transparency in order to assess questionable measurement practices, that is, decisions researchers make that raise doubts about the validity of the measures in a study and ultimately about its conclusions. Item dropping on the basis of Cronbach's $\alpha$ is a particularly clear instance, because it is both ubiquitous and actively prompted by the software researchers use, and because the same sample supplies both the decision and the number subsequently reported.
+
+Improving psychological measurement is desirable, and much work is done on scale development and refinement to precisely measure constructs of interest [e.g., @clark_constructing_1995; @clark_constructing_2019; @jebb_review_2021; @rodriguez_applying_2016]. In the pursuit of more reliable scales, it is plausible that some modifications occurring after data collection (e.g., item dropping, reverse scoring) may be influenced by the pressure to report a sample $\alpha$ that meets a common threshold. Such changes would reduce the validity of the scale's interpretation, since it is unclear that in-sample gains in reliability observed in a single sample would generalise to out-of-sample contexts. The flexible application of scale modification, such as through item dropping, can represent a questionable measurement practice [@flake_measurement_2020; @hussey_aberrant_2025; @hussey_hidden_2020]. It can be difficult to distinguish scientifically desirable cases of item dropping from undesirable ones. Cronbach's $\alpha$ is partially a function of scale length, so shortening a scale exerts downward pressure on $\alpha$. However, items are presumably dropped in studies when they worsen the full-scale $\alpha$, which exerts upward pressure. The summative impact of these two opposing pressures on $\alpha$ has not been investigated.
+
+Selection of items from an item pool is a key step in the development of a scale [@clark_constructing_2019], and can be an important part of ongoing scale refinement. However, item dropping can also occur in more ad hoc contexts. It can be used in ways that cannot aid cumulative understanding of scale reliability, for example when it is not reported [@heggestad_scale_2019]. Item dropping can serve to improve $\alpha$ in a given sample, for example to meet a cut-off value for acceptable reliability, or as an experimenter degree of freedom that may influence the results of a subsequent hypothesis test using scores on the scale. Both represent instances of overfitting, or of conditioning analyses on their results, which reduces the replicability and validity of claims. Such overfitting is also unlikely to be caught. Because 43% of psychological measures are used only once and 80% are used ten times or fewer [figures reported in @hussey_aberrant_2025], for most measures there is never a second sample in which an apparent in-sample gain could fail to replicate, and a researcher may therefore be overfitting considerably more than they realise. Distortions in the $\alpha$ values reported in articles serve to undermine the credibility of the broader literature.
+
+The downstream cost of this particular practice is already established. @stefan_big_2023 show by simulation that item dropping based on Cronbach's $\alpha$ inflates the false positive rate of subsequent hypothesis tests from the nominal 5% to as high as 30%. What that result does not tell us is why, or how often. An inflated false positive rate downstream is consistent with several quite different upstream stories: that the reported $\alpha$ is systematically too high, that the retained scale is genuinely worse than the one it replaced, or simply that the analyst has acquired an extra degree of freedom. These have different implications for practice, and distinguishing between them requires measuring what item dropping does to the measurement, not only to the test that follows it.
+
+The measurement side has one main precedent. @kopalle_alpha_1997 examined it with simulated data, using an alpha-if-item-removed selection method that drops whichever single item maximises sample $\alpha$, and showed that selecting on the same sample used to report the resulting $\alpha$ capitalises on chance. Their evaluation established the phenomenon, but the precision of their estimates is limited by the use of only 50 iterations per condition, their loading distributions and pool sizes were chosen arbitrarily rather than estimated from real scales, and the reported $\alpha$ was evaluated against the population $\alpha$ of the retained items rather than against their true reliability, which is the quantity $\alpha$ is reported as estimating. We therefore do not know the relative trade-off between the improvement in reliability from dropping bad items and the worsening caused by shortening the scale: the marginal cost of retaining a mediocre item may well be smaller than the benefit of the scale being longer.
+
+This article informs this discussion by asking whether item dropping, on average and in the individual case, improves or worsens estimation of the true reliability of a scale. We focus on one item-selection mechanism, maximising alpha-if-item-removed, because of its ubiquitous availability in statistical software including SPSS and the R packages *psych* and *performance* [@ludecke_performance_2021; @revelle_psych_2024]. The user is presented with the $\alpha$ observed in the study sample alongside a table of what $\alpha$ would be if each scale item were excluded in turn. The software therefore highlights one possible action that would improve the reported $\alpha$, without any indication of the bias this choice could introduce, especially when applied flexibly. By extending the simulation approach of Kopalle and Lehmann with an empirically grounded data-generating process, substantially more replications, and population targets that separate the reported number from the underlying decision, the current work demonstrates the effects of item dropping on both what is reported and what is measured.
+
+# Method
+
+We simulated the impact of item dropping using a data-generating process with parameters estimated from a large corpus of empirical self-report data from a wide range of psychological scales, so that the simulated scales resemble the reliability properties of real trait scales rather than an arbitrary parametric grid.
+
+The ADEMP framework (Aims, Data-generating mechanisms, Estimands, Methods, and Performance measures) is a structured framework for designing and reporting simulation studies for maximum interpretability and interoperability. It was originally proposed for simulation studies in biostatistics [@morris_using_2019] and has since been adapted and promoted for psychology, including a preregistration template [@siepe_simulation_2024]. We follow this structure throughout the remainder of this section, so that the design can be reused independently of the narrative text. The full research compendium, containing the complete ADEMP specification, the validation of the fast reliability functions against `psych::alpha()`, and per-condition tables for every quantity reported here, is available in the project repository (see *Data and code availability*).
+
+## Aims
+
+The statistical task is estimation. The estimator under study is the sample Cronbach's $\alpha$ of the retained items, that is, the number the analyst actually reports, evaluated against two population targets defined for the specific items retained. The aims are:
+
+1. Calibration and the structural gap (full pool, no dropping). To estimate the bias of sample $\alpha$ as an estimator of the true population $\alpha$ of the full item pool, which serves as a check that the simulation pipeline behaves as expected, and to quantify the baseline gap between population $\alpha$ and true reliability that exists before any item selection.
+2. Bias in the reported reliability of the retained items. For each strategy, to estimate how much the sample $\alpha$ of the retained items over- or under-states (a) the true population $\alpha$ of those same items and (b) their true reliability.
+3. What dropping actually does to the scale. To estimate the expected change from full pool to retained items on three scales (the observed sample $\alpha$, the population $\alpha$, and the true reliability), the optimism gap between the first two, and the proportion of replications in which dropping actually reduced true reliability.
+4. How much a single study can gain or be misled. Aims 1 to 3 are long-run expectations and are silent on the tail. To address it we estimate the spread of the per-replication quantities, summarised as 95% prediction intervals, alongside every mean reported under Aims 2 and 3.
+
+## Data
+
+For the empirically fitted data-generating process, a large, openly available corpus of individual differences and personality scale data was used [@hussey_granary_2026]. Single-item measures do not yield a factor loading and were excluded. For each pairing of scale and study source, participants who completed fewer than 80% of the items from that measure were excluded prior to any model fitting, using a threshold applied uniformly across datasets.
+
+### Fitted parametric distribution of loadings
+
+The pooled distribution comprised 3,783 standardised single-factor loadings across 206 (scale, source) units. It was best fit, among six candidate distributions compared by AIC, BIC, and Kolmogorov-Smirnov distance, by a scaled Beta distribution obtained by rescaling the loading onto $[0, 1]$ before fitting:
+
+$$\lambda_i \sim 2 \times \mathrm{Beta}(11.77,\, 3.84) - 1$$
+
+The fitted shape parameters were $\mathrm{shape}_1 \approx 11.77$ and $\mathrm{shape}_2 \approx 3.84$, giving a mean loading of approximately 0.51 (mean inter-item correlation $\approx 0.26$) and a left-skewed distribution with an approximately 1.7% negative-loading tail. These shape parameters are estimated in a separate file [@hussey_granary_2026] and enter this simulation only as fixed constants; the loading distribution is not a factor of this design and is not manipulated. Two of its properties are nonetheless load-bearing for the estimands: loadings are unequal, which is what makes population $\alpha$ and true reliability distinct targets, and the small negative tail means some generated pools contain a genuinely $\alpha$-harming item, so conditional dropping is not always chasing noise.
+
+### Distribution of scale lengths
+
+The number of items per scale was recorded for each of the 206 (scale, source) units. This distribution was right-skewed, ranging from 3 to 90 items. Rather than fixing the simulated item-pool size at one value, we took the 10th, 25th, 50th, 75th, and 90th percentiles of this empirical distribution (5, 9, 13, 21, and 39 items respectively, rounded to `r paste(k_levels, collapse = ", ")` for even spacing) as the item-pool sizes to simulate. The range of scale lengths studied therefore reflects how long real trait scales tend to be in published research, from short screening instruments to long, multidimensional batteries.
+
+## Data-generating process
+
+Item-level data for one simulated scale were generated per replication from a standardised single-factor model using `lavaan::simulateData()` [@rosseel_lavaan_2012]. The common factor is standard normal, item $i$ loads $\lambda_i$ on it, and its unique variance is $\psi_i = 1 - \lambda_i^2$, so that every item has unit total variance and $\operatorname{Cov}(X_i, X_j) = \lambda_i \lambda_j$ for $i \neq j$. Because the population loadings are drawn by the simulation rather than estimated from data, the true population Cronbach's $\alpha$ and the true reliability of the unit-weighted sum score are available in closed form for any subset of items, with no need for a separate large-*N* reference sample.
+
+### Design factors
+
+Two factors were manipulated, crossed fully factorially: 
+
+- Item-pool size ($k$): five levels (`r paste(k_levels, collapse = ", ")` items), taken from the empirical percentiles described above.
+- Sample size ($N$): five levels (`r paste(n_levels, collapse = ", ")`), chosen to reflect a range of plausible study sizes in psychological research.
+
+This gives $5 \times 5 = `r n_conditions`$ conditions. Each condition was replicated `r format(n_iterations, big.mark = ",")` times, for a total of `r format(n_replications, big.mark = ",")` independently generated datasets. One dataset is generated per replication and both strategies are applied to it. Because both strategies remove at most one item, there is no "number of items retained" factor: how many items the conditional strategy retains is an outcome of the rule, not a manipulated input. There is no exclusion rule, since Cronbach's $\alpha$ is a closed-form function of the sample covariance matrix and does not require a full-rank correlation matrix, so cells with $N < k$ are retained.
+
+## Item-dropping methods
+
+Both strategies nominate the same candidate item from the sample data,
+
+$$J^{*} = \arg\max_j \hat\alpha(-j)$$
+
+where $\hat\alpha(-j)$ is the sample $\alpha$ of the pool with item $j$ removed, and differ only in whether acting on that nomination is gated on an observed improvement:
+
+- Forced drop. Remove item $J^{*}$ regardless of whether $\hat\alpha(-J^{*})$ actually exceeds the full-scale $\hat\alpha(F)$. The retained set is $S_{\text{forced}} = F \setminus \{J^{*}\}$ always.
+- Conditional drop. Remove item $J^{*}$ only if $\hat\alpha(-J^{*}) > \hat\alpha(F)$; otherwise remove nothing, so $S_{\text{cond}} = F \setminus \{J^{*}\}$ or $F$.
+
+Because the strategies share the nomination rule, comparisons between them are comparisons of the gating rule with the nomination rule held fixed. This is an intended design feature rather than a confound, and it is why the alpha-if-removed vector is computed once per replicate in the code.
+
+## Validation of the implementation
+
+Sample $\alpha$ and the $k$ leave-one-out alphas are computed directly from a single sample covariance matrix rather than by calling `psych::alpha()` once per item, which is what makes a design of this size tractable: the direct computation avoids building the large object of item statistics that `psych::alpha()` returns and that this simulation never uses, reducing the cost of a full run from hours to minutes. Substituting a hand-written implementation for the field-standard one is only defensible if the two are shown to agree, so a separate validation file, sharing the same source file of functions so that no second copy can drift out of sync, checks three distinct things before the simulation is permitted to use them.
+
+First, agreement with `psych::alpha()`. Across `r validation_summary$n_cases` cases drawn from this design's own data-generating process and grid, including the `r validation_summary$n_negative` whose item pool contained a negatively loading item, the largest absolute discrepancy in either the full-pool $\alpha$ or any leave-one-out $\alpha$ was $`r fmt_sci(validation_summary$max_diff_sample)`$, and the two implementations nominated the same candidate item $J^{*}$ in `r validation_summary$n_cases - validation_summary$n_disagree` of `r validation_summary$n_cases` cases. Cases containing a negatively loading item are included deliberately, since neither implementation applies automatic reverse keying and such pools are the case most likely to expose a difference.
+
+Second, the closed-form population targets. $\alpha_{\text{pop}}$ and $\rho$ computed from the loadings were compared against the same quantities computed independently from the model-implied population covariance matrix $\boldsymbol\Sigma = \boldsymbol\lambda\boldsymbol\lambda^\top + \operatorname{diag}(1 - \lambda_i^2)$; the largest discrepancy was $`r fmt_sci(validation_summary$max_diff_pop)`$. The inequality $\alpha_{\text{pop}}(S) \leq \rho(S)$ that the estimands rely on held in every case.
+
+Third, and least obviously, that the generated data actually has the population structure the targets assume. This is not a hypothetical concern. Given `lavaan` syntax specifying loadings only, `simulateData()` leaves the residual variances free and defaults them to 1, producing items of variance $\lambda_i^2 + 1$ rather than unit variance. The population targets would then describe a different population from the one being sampled, and every bias estimand in the design would be displaced by a constant that looks exactly like finite-sample bias. The residual variances are therefore stated explicitly as $\psi_i = 1 - \lambda_i^2$, and the validation confirms this worked: generating `r format(validation_summary$dgp_n, big.mark = ",")` observations from one pool at each item-pool size, the mean realised item variance departed from 1 by at most `r fmt(validation_summary$dgp_max_var_dev, 4)`, and the realised sample $\alpha$ departed from the closed-form population $\alpha$ by at most `r fmt(validation_summary$dgp_max_alpha_dev, 4)`, which is within Monte Carlo error at that sample size. The validation caches are keyed on a hash of the function file, so editing those functions invalidates the validation rather than allowing a stale pass to stand.
+
+## Expectations prior to running the simulation
+
+This simulation was not preregistered. We nonetheless recorded, in the design document, what we expected each performance measure to show before the full run was executed, and we report those expectations here so that the results can be read against them rather than only in hindsight. They should be read as the authors' priors, not as a preregistered test.
+
+We expected the full-pool calibration bias to be small and negative and to shrink toward zero as $N$ grew, since sample $\alpha$ carries a known small-sample downward bias; and the structural gap to be negative in every condition, since the fitted loading distribution guarantees unequal loadings. We expected to reproduce the @kopalle_alpha_1997 optimism result, with the reported $\alpha$ biased upward relative to the population $\alpha$ of the retained items, and we expected that bias to be larger at larger item-pool sizes, on the reasoning that more candidate items means a larger expected maximum over noise. We expected the reliability-scale bias to be negative at large $N$, where selection has little noise to exploit and only the structural gap remains, and possibly positive at small $N$, where the winner's curse might dominate; where the sign crossed we treated as an open empirical question. We expected $\Pr(\text{drop})$ to rise with item-pool size. We made no directional prediction for the mean population-$\alpha$ change or the mean reliability change, because the empirical loading distribution has a negative tail, so some pools contain a genuinely harmful item whose removal helps while others pay a pure length penalty. We expected the prediction intervals to be wide relative to the means wherever selection had room to operate. Which of these held is taken up in the Discussion.
+
+## Estimands
+
+Because the data-generating process fixes the population loadings directly, two population quantities are available in closed form for any item set $S$ of size $m$, writing $S_1 = \sum_{i \in S} \lambda_i$ and $S_2 = \sum_{i \in S} \lambda_i^2$. The population Cronbach's $\alpha$ is
+
+$$\alpha_{\text{pop}}(S) = \frac{m}{m-1} \cdot \frac{S_1^2 - S_2}{m + S_1^2 - S_2}$$
+
+and the true reliability of the unit-weighted sum score, McDonald's $\omega$, is the proportion of sum-score variance due to the common factor:
+
+$$\rho(S) = \frac{S_1^2}{S_1^2 + \sum_{i \in S} \psi_i} = \frac{S_1^2}{S_1^2 + m - S_2}$$
+
+By the Cauchy-Schwarz inequality, $S_1^2 \leq m S_2$, so $\alpha_{\text{pop}}(S) \leq \rho(S)$ always, with equality only under essential tau-equivalence (all loadings in $S$ equal). Because the fitted loading distribution produces unequal loadings, this inequality is strict in essentially every generated pool: $\alpha$ structurally understates true reliability even at infinite sample size, before any item selection at all. This is why a congeneric data-generating process is the appropriate one for this question, since a tau-equivalent one would collapse the two targets into one by construction.
+
+Both population targets are compared, within the same replicate, against the corresponding sample Cronbach's $\alpha$, giving an exact per-replicate decomposition of the total bias against reliability:
+
+$$\underbrace{\hat\alpha(S_s) - \rho(S_s)}_{\text{total bias vs. reliability}} = \underbrace{\big[\hat\alpha(S_s) - \alpha_{\text{pop}}(S_s)\big]}_{\text{statistical bias (sampling + selection)}} + \underbrace{\big[\alpha_{\text{pop}}(S_s) - \rho(S_s)\big]}_{\text{structural gap} \;\leq\; 0}$$
+
+The two components can pull in opposite directions: selection pushes the reported $\alpha$ up relative to its own population value, while the structural gap means that population value sits below true reliability. Whether the reported $\alpha$ ends up over- or under-stating true reliability, and where in the design the sign flips, is an empirical question this simulation answers.
+
+Because $J^{*}$ is a random variable across replicates, the population targets are realised (replication-specific, strategy-specific, data-dependent) estimands rather than fixed population parameters. This is deliberate: the applied question is not "is the best possible subset's reliability well estimated" but "how reliable, in truth, are the specific items this procedure just picked, and does the number I report for them tell me that?"
+
+A second family of estimands evaluates the decision rather than the reported number:
+
+$\widehat{\Delta}_{\text{obs}} = \hat\alpha(S_s) - \hat\alpha(F)$, the observed sample gain: the quantity the researcher sees and that, for the conditional strategy, triggers the decision. Under the forced strategy this can be negative, since the best available drop may still hurt the sample $\alpha$; under the conditional strategy it is $\geq 0$ by construction, and exactly 0 when nothing is dropped.
+
+$\Delta_{\text{pop}} = \alpha_{\text{pop}}(S_s) - \alpha_{\text{pop}}(F)$, the population $\alpha$ change for the selected scale. Removal alters the item-variance sum, the sum-score variance, and the length multiplier $\tfrac{m}{m-1}$ simultaneously, so the sign is a trade-off and $\Delta_{\text{pop}} \neq 0$ in general.
+
+$\Delta_{\rho} = \rho(S_s) - \rho(F)$, the true reliability change: the quantity that actually matters. The headline failure mode this design can detect is $\Delta_{\rho} < 0$ while $\widehat{\Delta}_{\text{obs}} > 0$, that is, dropping a low-consistency but valid item raises the $\alpha$ coefficient while degrading measurement.
+
+The findings live in the gaps between these deltas. $\widehat{\Delta}_{\text{obs}} - \Delta_{\text{pop}}$ is the selection optimism (winner's curse), expected to be positive because $J^{*}$ maximises the sample $\alpha$ and is therefore biased high for its own population value; it is computed pairwise within replicate, so its Monte Carlo standard error is much smaller than differencing two separate summaries would give. Because a mean $\Delta_\rho$ near zero can conceal frequent, offsetting harm, we additionally report the harm rate, $\Pr(\Delta_\rho < 0)$: the proportion of replications in which the drop actually reduced true reliability.
+
+## Performance measures and Monte Carlo uncertainty
+
+Four types of performance measure were computed per condition over its replications.
+
+1. Calibration and structural gap (full pool, no dropping): the mean signed difference between sample $\alpha$ and population $\alpha$, which checks the pipeline is calibrated before any selection, and the mean difference between population $\alpha$ and $\omega$, which is the baseline structural gap that exists regardless of dropping.
+2. Bias in the reported $\alpha$ of the retained items, per strategy, against both population $\alpha$ and true reliability, reported both marginally and, for the conditional strategy, conditional on a drop having occurred.
+3. Impact of item dropping: the expected change from full pool to retained items on all three scales, the selection-optimism gap, the probability that the conditional strategy drops at all, and the harm rate.
+4. 95% prediction intervals (empirical 2.5th and 97.5th percentiles across replications) for every quantity in 2 and 3, reported alongside their means, describing the spread an individual study can encounter, which the mean alone does not.
+
+All continuous estimands are means of a per-replicate difference. Writing $d_k$ for the relevant difference in replication $k$ of a condition, for example $\hat\alpha(S_s) - \rho(S_s)$ for the headline reliability-bias estimand,
+
+$$\widehat{\mathbb{E}}[d] = \frac{1}{K}\sum_{k=1}^{K} d_k, \qquad
+\widehat{\text{MCSE}}\big(\widehat{\mathbb{E}}[d]\big) = \frac{S_{d}}{\sqrt K}$$
+
+where $S_d$ is the standard deviation of $d_k$ across the $K$ replications. In the compendium these are computed with `simhelpers::calc_absolute()` [@joshi_simhelpers_2022], which implements the @siepe_simulation_2024 bias and Monte Carlo standard error formulas. That function requires a single fixed true parameter per condition, whereas here every replication draws its own loading vector and therefore has its own target; we therefore pass the per-replicate difference $d_k$ itself as the estimate with a true parameter of 0, which is algebraically identical to bias against a varying target. Proportions take the binomial Monte Carlo standard error, $\widehat{\text{MCSE}}(\hat p) = \sqrt{\hat p (1 - \hat p) / K}$.
+
+For the conditional strategy, all measure-2 and measure-3 quantities are additionally summarised over only the replications in which a drop occurred; the number of such replications, $K_{\text{drop}}$, is itself random and is reported alongside every conditional-on-drop estimate. For measure 4 we report the empirical 2.5th and 97.5th percentiles of $d_k$,
+
+$$\widehat{\text{PI}}_{95}(d) = \big[\hat q_{2.5}(d_k),\ \hat q_{97.5}(d_k)\big]$$
+
+Monte Carlo standard errors and prediction intervals are different quantities and should not be confused. An MCSE is $S_d/\sqrt{K}$ and describes how precisely the mean is pinned down; it vanishes as $K$ grows. A prediction interval is driven by $S_d$ itself and describes how much individual studies differ; it does not vanish, however large $K$ becomes. At $K$ = `r format(n_iterations, big.mark = ",")` the MCSE is roughly one hundredth of the standard deviation, which is precisely why Aim 4 requires its own summaries rather than wider error bars on the existing ones.
+
+Because each replication draws both a fresh item pool and a fresh sample from it, the prediction intervals marginalise over two sources of variation at once. They therefore describe the range across studies of psychological trait scales in general, which is the right quantity for a field-level claim, and not the range available to one researcher holding one fixed scale, which would require a nested design. Simulations were parallelised with reproducible L'Ecuyer-CMRG streams, so results are identical regardless of the number of workers used.
+
+# Results
+
+Results are organised around the four performance measures. Every table reports all `r n_conditions` conditions of the design rather than a selected or pooled subset, because the estimands vary substantially and non-monotonically across the grid and an average over the grid is an average over the design chosen here rather than over any population of real studies.
+
+## Calibration and the structural gap
+
+```{r}
+#| label: tbl-fullpool
+#| tbl-cap: "Full item pool, no dropping. Estimate (+/-1 Monte Carlo standard error) of the calibration bias of sample alpha against population alpha (1a), the structural gap between population alpha and true reliability (1b), and their sum (1c), by item-pool size (k) and sample size (N)."
+
+full_pool |>
+  transmute(k = as.character(k_indicators),
+            N = as.character(n_participants),
+            `1a. Calibration bias` = cell(calibration_bias_est, calibration_bias_mcse),
+            `1b. Structural gap`   = cell(structural_gap_est,   structural_gap_mcse),
+            `1c. Total bias`       = cell(total_bias_est,       total_bias_mcse)) |>
+  kable(booktabs = TRUE, longtable = TRUE, linesep = "", align = c("l", "r", "r", "r", "r")) |>
+  kable_styling(latex_options = "repeat_header", font_size = 9) |>
+  collapse_rows(columns = 1, latex_hline = "major", valign = "top")
+```
+
+Estimating the full-pool Cronbach's $\alpha$ shows a small downward calibration bias at small samples (@tbl-fullpool, column 1a; @fig-fullpool, panel 1a). With small samples, the item covariances that $\alpha$ is built from are estimated with high sampling noise. The bias decreases toward zero as $N$ grows at every item-pool size, from `r fmt(g(full_pool, k_min, n_min, "calibration_bias_est"))` at $k = `r k_min`$, $N = `r n_min`$ to `r fmt(g(full_pool, k_min, n_max, "calibration_bias_est"))` at $N = `r n_max`$, and is smaller for larger item pools even at fixed $N$ (`r fmt(g(full_pool, k_max, n_min, "calibration_bias_est"))` at $k = `r k_max`$, $N = `r n_min`$).
+
+The structural gap between population $\alpha$ and true reliability behaves quite differently. It is a property of the loadings alone and does not depend on the sample at all, so its estimate is essentially invariant to $N$: within a fixed item-pool size it varies by no more than `r fmt(gap_spread)` across the full $N$ = `r n_min` to `r n_max` range, a residual difference attributable to Monte Carlo error in the loadings drawn rather than to sample size. The gap does shrink as pool size increases, from `r fmt(gap_by_k$gap[gap_by_k$k_indicators == k_min])` at $k = `r k_min`$ to `r fmt(gap_by_k$gap[gap_by_k$k_indicators == k_max])` at $k = `r k_max`$, because both population $\alpha$ and true reliability approach a ceiling near 1 as scales lengthen, compressing the distance between them even though the underlying inequality among item loadings is unchanged.
+
+These two components sum to the total full-pool bias (column 1c), which is negative everywhere: with no item dropping at all, the reported $\alpha$ understates the true reliability of the scale in every condition examined, by between `r fmt(min(abs(full_pool$total_bias_est)))` and `r fmt(max(abs(full_pool$total_bias_est)))`.
+
+```{r}
+#| label: fig-fullpool
+#| fig-cap: "Full-pool calibration bias (1a), structural gap between population alpha and omega (1b), and their sum, the total bias against true reliability with no item dropping (1c), by item-pool size (x axis) and sample size (colour). Error bars are +/-1 Monte Carlo standard error and are narrower than the plotting symbol in most cells. Note the differing y-axis scales. The structural gap (1b) depends only on the loadings, so its five sample-size series coincide."
+#| fig-height: 5 # 2.5
+#| fig-width: 4 # 5.35
+#| out-width: 100%
+
+full_pool |>
+  pivot_longer(cols = matches("_(est|mcse)$"),
+               names_to = c("quantity", ".value"),
+               names_pattern = "(.*)_(est|mcse)$") |>
+  mutate(quantity = factor(quantity,
+                           levels = c("calibration_bias", "structural_gap", "total_bias"),
+                           labels = c("1a. Calibration bias\n(sample vs. population alpha)",
+                                      "1b. Structural gap\n(population alpha vs. omega)",
+                                      "1c. Total bias\n(sample alpha vs. omega)"))) |>
+  ggplot(aes(k_indicators, est, colour = factor(n_participants))) +
+  geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.3) +
+  geom_line(linewidth = 0.4) +
+  geom_point(size = 0.9) +
+  geom_linerange(aes(ymin = est - mcse, ymax = est + mcse), colour = "black", linewidth = 0.3) +
+  facet_wrap(~ quantity, ncol = 1, scales = "free_y") +
+  scale_x_k() +
+  scale_y_continuous(name = "Estimate", breaks = breaks_pretty(n = 5)) +
+  scale_colour_n() +
+  theme_sim()
+```
+
+## Bias in the reported alpha after item dropping
+
+```{r}
+#| label: tbl-bias
+#| tbl-cap: "Bias (+/-1 Monte Carlo standard error) of the reported (sample) alpha of the retained items against the true population alpha of those same items (2a) and against their true reliability (2b), by strategy, item-pool size (k), and sample size (N). The forced strategy drops in every replication by definition. Conditional-strategy columns are marginal, so replications in which nothing was dropped contribute the full-pool values."
+
+estimands |>
+  select(strategy, k_indicators, n_participants,
+         bias_vs_pop_alpha_est, bias_vs_pop_alpha_mcse,
+         bias_vs_reliability_est, bias_vs_reliability_mcse) |>
+  transmute(strategy, k_indicators, n_participants,
+            `2a` = cell(bias_vs_pop_alpha_est, bias_vs_pop_alpha_mcse),
+            `2b` = cell(bias_vs_reliability_est, bias_vs_reliability_mcse)) |>
+  pivot_wider(names_from = strategy, values_from = c(`2a`, `2b`),
+              names_glue = "{strategy}_{.value}") |>
+  transmute(k = as.character(k_indicators),
+            N = as.character(n_participants),
+            `2a vs. pop. alpha` = forced_2a, `2b vs. reliability` = forced_2b,
+            `2a vs. pop. alpha ` = conditional_2a, `2b vs. reliability ` = conditional_2b) |>
+  kable(booktabs = TRUE, longtable = TRUE, linesep = "", align = c("l", "r", "r", "r", "r", "r")) |>
+  add_header_above(c(" " = 2, "Forced" = 2, "Conditional (marginal)" = 2)) |>
+  kable_styling(latex_options = "repeat_header", font_size = 8) |>
+  collapse_rows(columns = 1, latex_hline = "major", valign = "top")
+```
+
+Against the population $\alpha$ of the retained items (@tbl-bias, column 2a), the selection-induced optimism predicted by @kopalle_alpha_1997 is clearly present at the shortest scales, where the reported $\alpha$ overstates the population $\alpha$ of the very items it describes by `r fmt(g(estimands, k_min, n_min, "bias_vs_pop_alpha_est", "forced"))` at $k = `r k_min`$, $N = `r n_min`$. It shrinks rapidly with both factors, and at $k \geq 15$ with small samples it turns slightly negative, because the small-sample downward calibration bias of $\alpha$ documented above is then larger than the optimism the argmax can extract from a pool that is already long enough for $\alpha$ to be estimated fairly stably. Selection optimism is therefore not uniformly larger in longer scales, contrary to the intuition that more candidate items means more opportunity to capitalise on noise; with $k$ items there are more candidates, but each contributes proportionally less to $\alpha$, and the second effect dominates.
+
+Against true reliability (column 2b), which is the applied target because $\alpha$ is reported as a reliability estimate, the two components combine. The reported $\alpha$ overstates true reliability only in the shortest scales at small samples, in `r nrow(b2_over)` of the `r n_conditions` conditions, all at $k = `r k_min`$: by `r fmt(g(estimands, k_min, n_min, "bias_vs_reliability_est", "forced"))` at $N = `r n_min`$, falling to `r fmt(g(estimands, k_min, 50, "bias_vs_reliability_est", "forced"))` at $N = 50$. In every other condition it understates true reliability, by between `r fmt(min(abs(b2_under$bias_vs_reliability_est)), 3)` and `r fmt(max(abs(b2_under$bias_vs_reliability_est)), 3)`. The sign of the bias in a reported $\alpha$ after item dropping is therefore not fixed: it depends on where a given study sits relative to selection optimism on one side and small-sample calibration bias plus the structural gap on the other.
+
+```{r}
+#| label: fig-bias
+#| fig-cap: "Bias in the reported alpha of the retained items against the population alpha of those items (top row, 2a) and against their true reliability (bottom row, 2b), for the forced (left) and conditional (right) strategies, by item-pool size and sample size. Error bars are +/-1 Monte Carlo standard error. The two strategies are near-identical in every panel, consistent with their shared nomination rule. Note the differing y-axis scales between rows."
+#| fig-height: 5.0
+#| fig-width: 5.35
+#| out-width: 100%
+
+estimands |>
+  pivot_longer(cols = matches("^(bias_vs_pop_alpha|bias_vs_reliability)_(est|mcse)$"),
+               names_to = c("quantity", ".value"),
+               names_pattern = "(.*)_(est|mcse)$") |>
+  label_quantities(c("bias_vs_pop_alpha", "bias_vs_reliability")) |>
+  ggplot(aes(k_indicators, est, colour = factor(n_participants))) +
+  geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.3) +
+  geom_line(linewidth = 0.4) +
+  geom_point(size = 0.9) +
+  geom_linerange(aes(ymin = est - mcse, ymax = est + mcse), colour = "black", linewidth = 0.3) +
+  facet_grid(quantity ~ strategy, scales = "free_y", labeller = label_wrap_gen(width = 34)) +
+  scale_x_k() +
+  scale_y_continuous(name = "Bias in the reported alpha of the retained items",
+                     breaks = breaks_pretty(n = 6)) +
+  scale_colour_n() +
+  theme_sim()
+```
+
+The same two estimands can be shown on the scale an applied reader thinks in, which is also the form in which @kopalle_alpha_1997 summarised their own results and is therefore the directly comparable presentation: the true value of the retained items on the horizontal axis, the reported sample $\alpha$ of those same items on the vertical axis, with the identity line as the reference (@fig-calibration). Vertical distance above the identity line is exactly the bias of estimand 2a (top row) or 2b (bottom row), and a no-dropping series is included so that the effect of selection is visible against the baseline of not selecting at all. Because every replication draws its own loadings, the true value varies continuously within a condition rather than being fixed, so replications are binned by it at a width of `r bin_width` and the mean reported $\alpha$ is plotted per bin; bins containing fewer than `r min_replicates_per_bin` replications are not plotted, which removes `r formatC(calibration_dropped_pct, format = "f", digits = 2)`% of replications in the sparse tails of the true-value distribution.
+
+Two features are worth reading off it. First, the no-dropping series does not lie on the identity line: against the population $\alpha$ of the retained items (top row) it sits below it, by `r fmt(abs(cdev(1, "No dropping", "high")), 3)` on average where the true value exceeds `r calibration_split` and by `r fmt(abs(cdev(1, "No dropping", "low")), 3)` where the true value is lower. This is the small-sample calibration bias seen from a different angle, and it is largest at low true values because those are the short, weakly loaded pools whose covariances are estimated least precisely. Any assessment of what selection does has to be read against that sloping baseline rather than against the identity line.
+
+Second, both dropping series sit above the no-dropping series everywhere, and the vertical distance between them is the selection effect in its purest form, since the three series differ only in whether and how an item was chosen. At high true values that shift roughly cancels the calibration bias, leaving the reported $\alpha$ close to correct (`r fmt(cdev(1, "Forced drop", "high"), 3)` for the forced rule). At low true values it substantially overshoots, leaving the reported $\alpha$ `r fmt(cdev(1, "Forced drop", "low"), 3)` above the truth. This is the Kopalle and Lehmann result in its original form, and it makes clear that their "alpha inflation" is not a uniform upward shift but something that bites hardest exactly where reliability is already poor.
+
+The bottom row is the same replications compared against true reliability instead. Every series moves down by the structural gap, which is why the no-dropping series now sits `r fmt(abs(cdev(2, "No dropping", "low")), 3)` below the identity line at low true values. Dropping partly offsets that displacement rather than compounding it, which is the graphical form of the sign reversal in @tbl-bias: at high true values the forced rule lands `r fmt(abs(cdev(2, "Forced drop", "high")), 3)` below the truth, and only at low true values does it end up above it (`r fmt(cdev(2, "Forced drop", "low"), 3)`).
+
+These curves must not be read backwards. They give the expected reported $\alpha$ given the truth. The question an applied researcher faces is the reverse one, since they know their reported $\alpha$ and want the truth, but the expected true value given a reported $\alpha$ is a different quantity that these curves do not provide, as it depends also on how often each true value arises in the first place. Reading horizontally from a reported $\alpha$ across to a curve would overstate what can be inferred from it.
+
+```{r}
+#| label: fig-calibration
+#| fig-cap: "Calibration view: the reported (sample) alpha of the retained items against their true value, in the presentation used by Kopalle and Lehmann (1997). Columns are the two dropping strategies plus a no-dropping reference; rows are the two population targets. The dashed line is the identity: points on it mean the reported alpha is exactly right for the items retained, and points above it mean it overstates them. Replications are binned by their true value at a width of 0.05 and averaged within bin; bins with fewer than 20 replications are omitted. Binning is presentational only and no estimand is defined in terms of it."
+#| fig-height: 4.0
+#| fig-width: 5.35
+#| out-width: 100%
+
+calibration_plotted |>
+  ggplot(aes(true_binned, reported, colour = factor(n_participants))) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", linewidth = 0.3) +
+  geom_line(linewidth = 0.4) +
+  geom_point(size = 0.5) +
+  facet_grid(target ~ series, labeller = label_wrap_gen(width = 26)) +
+  scale_x_continuous(name = "True value for the retained items",
+                     breaks = breaks_pretty(n = 4)) +
+  scale_y_continuous(name = "Reported (sample) alpha of the retained items",
+                     breaks = breaks_pretty(n = 4)) +
+  scale_colour_n() +
+  coord_equal() +
+  theme_sim()
+```
+
+Restricting the conditional strategy to the replications in which it actually acted (@tbl-givendrop) leaves this pattern almost unchanged, because both strategies remove the same nominated item whenever the conditional strategy drops at all. The realised $K_{\text{drop}}$ shrinks furthest at the smallest pool size, where the conditional rule declines to act increasingly often as $N$ grows, from `r pct(1 - g(p_drop, k_min, n_min, "p_drop_est"))` of replications at $N = `r n_min`$ to `r pct(1 - g(p_drop, k_min, n_max, "p_drop_est"))` at $N = `r n_max`$. This is consistent with greater sampling precision at larger $N$ leaving less noise for the argmax to exploit.
+
+```{r}
+#| label: tbl-givendrop
+#| tbl-cap: "Conditional strategy, restricted to the replications in which a drop actually occurred. Estimate (+/-1 Monte Carlo standard error) of the bias in the reported alpha against population alpha (2a) and against true reliability (2b), and the mean true reliability change (3c). K(drop) is the realised number of replications in which a drop occurred, out of 10,000."
+
+estimands_given_drop |>
+  transmute(k = as.character(k_indicators),
+            N = as.character(n_participants),
+            `K(drop)` = format(k_drop, big.mark = ","),
+            `2a vs. pop. alpha` = cell(bias_vs_pop_alpha_est, bias_vs_pop_alpha_mcse),
+            `2b vs. reliability` = cell(bias_vs_reliability_est, bias_vs_reliability_mcse),
+            `3c. Reliability change` = cell(delta_rho_est, delta_rho_mcse)) |>
+  kable(booktabs = TRUE, longtable = TRUE, linesep = "", align = c("l", "r", "r", "r", "r", "r")) |>
+  kable_styling(latex_options = "repeat_header", font_size = 8) |>
+  collapse_rows(columns = 1, latex_hline = "major", valign = "top")
+```
+
+## Impact of item dropping
+
+Whether an item is dropped at all, and whether doing so helps or harms the scale, are both determined by the number of items and the sample size (@tbl-proportions, @fig-proportions). The propensity of the conditional strategy to drop an item is highest exactly where its judgment is least trustworthy. At the smallest pool size, $\Pr(\text{drop})$ falls from `r pct(g(p_drop, k_min, n_min, "p_drop_est"))` at $N = `r n_min`$ to `r pct(g(p_drop, k_min, n_max, "p_drop_est"))` at $N = `r n_max`$. At the largest pool size it remains at or near 100% regardless of sample size: with more items available there is almost always some single item whose removal raises the sample $\alpha$, whether or not that increase reflects a real improvement to the scale.
+
+```{r}
+#| label: tbl-proportions
+#| tbl-cap: "Proportion of replications in which the conditional strategy dropped an item (3e; the forced strategy drops in all replications by definition), and the proportion in which the drop reduced true reliability (3f, the harm rate), by strategy. All values are percentages with +/-1 Monte Carlo standard error in percentage points. The final column is the proportion of forced-strategy replications in which the apparent in-sample gain was not positive, i.e. in which the drop did not even appear to help."
+
+p_drop |>
+  select(k_indicators, n_participants, p_drop_est, p_drop_mcse) |>
+  left_join(harm |> select(strategy, k_indicators, n_participants, harm_est, harm_mcse) |>
+              pivot_wider(names_from = strategy, values_from = c(harm_est, harm_mcse)),
+            by = c("k_indicators", "n_participants")) |>
+  left_join(nonpositive_gain, by = c("k_indicators", "n_participants")) |>
+  transmute(k = as.character(k_indicators),
+            N = as.character(n_participants),
+            `P(drop)` = pct_cell(p_drop_est, p_drop_mcse),
+            `Harm, forced` = pct_cell(harm_est_forced, harm_mcse_forced),
+            `Harm, cond.` = pct_cell(harm_est_conditional, harm_mcse_conditional),
+            `No apparent gain, forced` = formatC(100 * p_nonpositive, format = "f", digits = 1)) |>
+  kable(booktabs = TRUE, longtable = TRUE, linesep = "", align = c("l", "r", "r", "r", "r", "r")) |>
+  kable_styling(latex_options = "repeat_header", font_size = 8) |>
+  collapse_rows(columns = 1, latex_hline = "major", valign = "top")
+```
+
+The consequences of removing the item are given by the harm rate, the proportion of replications in which the drop reduced true reliability. At the smallest scale and sample size the forced strategy's harm rate is `r pct(g(harm, k_min, n_min, "harm_est", "forced"))`: the nominated item is very nearly as likely to be an artefact of that particular sample as it is to be a genuine weak point in the scale. Harm falls steeply as either factor increases, but it does not vanish with sample size alone. At $N = `r n_max`$ the forced strategy still reduces true reliability in `r pct(g(harm, k_min, n_max, "harm_est", "forced"))` of replications at $k = `r k_min`$, and the rate reaches `r pct(g(harm, k_max, n_max, "harm_est", "forced"), 1)` only in the largest scale and sample combination. Long scales and large samples are both needed; neither alone is sufficient.
+
+The harm rate for the conditional strategy is lower than for the forced strategy in every condition (`r pct(g(harm, k_min, n_min, "harm_est", "conditional"))` versus `r pct(g(harm, k_min, n_min, "harm_est", "forced"))` at $k = `r k_min`$, $N = `r n_min`$), because declining to act in the replications with the weakest apparent improvement disproportionately screens out cases that would otherwise have reduced reliability. This lowers the incidence of harm across all studies, not the risk in the studies where the item is dropped. The gating rule is a filter on how often the gamble is taken, not on whether it pays off.
+
+An important qualification concerns how the harm rate should be described. It is tempting to say the drop harms reliability "while appearing to improve $\alpha$ every time", but this holds only for the conditional strategy, for which $\widehat{\Delta}_{\text{obs}} > 0$ is true by construction whenever it acts. The forced strategy has no such guarantee: its apparent gain was not positive in `r formatC(100 * g(nonpositive_gain, k_min, n_min, "p_nonpositive"), format = "f", digits = 1)`% of replications at $k = `r k_min`$, $N = `r n_min`$, rising to `r formatC(100 * g(nonpositive_gain, k_min, n_max, "p_nonpositive"), format = "f", digits = 1)`% at $N = `r n_max`$ (@tbl-proportions, final column). The strongest claim the design supports without qualification is therefore the conditional one: at $k = `r k_min`$, $N = `r n_min`$, the rule that acts only when the in-sample $\alpha$ improves nevertheless reduced true reliability in `r pct(g(harm, k_min, n_min, "harm_est", "conditional"))` of the replications in which it acted.
+
+```{r}
+#| label: fig-proportions
+#| fig-cap: "Probability that the conditional strategy drops an item (left) and the probability that the drop reduced true reliability, i.e. the harm rate, for each strategy (centre and right), by item-pool size and sample size. Error bars are +/-1 Monte Carlo standard error. The conditions in which the conditional rule is most likely to act are the conditions in which acting is most likely to harm the scale."
+#| fig-height: 5 # 2.6
+#| fig-width: 5 # 5.35
+#| out-width: 100%
+
+bind_rows(
+  p_drop |> transmute(k_indicators, n_participants, est = p_drop_est, mcse = p_drop_mcse,
+                      panel = "3e. P(conditional rule drops)"),
+  harm |> transmute(k_indicators, n_participants, est = harm_est, mcse = harm_mcse,
+                    panel = paste0("3f. Harm rate, ", strategy))) |>
+  mutate(panel = factor(panel, levels = c("3e. P(conditional rule drops)",
+                                          "3f. Harm rate, forced",
+                                          "3f. Harm rate, conditional"))) |>
+  ggplot(aes(k_indicators, est, colour = factor(n_participants))) +
+  geom_line(linewidth = 0.4) +
+  geom_point(size = 0.9) +
+  geom_linerange(aes(ymin = est - mcse, ymax = est + mcse), colour = "black", linewidth = 0.3) +
+  facet_wrap(~ panel, ncol = 1) +
+  scale_x_k() +
+  scale_y_continuous(name = "Proportion of replications",
+                     limits = c(0, 1), breaks = breaks_pretty(n = 5)) +
+  scale_colour_n() +
+  theme_sim()
+```
+
+The same pattern appears in the magnitude of what item dropping does to the scale (@tbl-deltas). The observed sample gain $\widehat{\Delta}_{\text{obs}}$ is positive on average in every condition, including those with the highest harm rates. The population $\alpha$ change $\Delta_{\text{pop}}$ and the true reliability change $\Delta_{\rho}$ are both consistently smaller, and the gap between $\widehat{\Delta}_{\text{obs}}$ and $\Delta_{\text{pop}}$, the selection optimism, is largest exactly where the harm rate is highest: `r fmt(g(estimands, k_min, n_min, "optimism_est", "forced"), 3)` at $k = `r k_min`$, $N = `r n_min`$, falling to `r fmt(g(estimands, k_max, n_max, "optimism_est", "forced"), 4)` at $k = `r k_max`$, $N = `r n_max`$. The conditions producing the most inflated apparent gain are the same conditions producing the highest probability that the underlying decision was actively counterproductive. Most strikingly, at $k = `r k_min`$, $N = `r n_min`$ the forced rule's mean apparent gain of `r fmt(g(estimands, k_min, n_min, "delta_obs_est", "forced"), 3)` in sample $\alpha$ corresponds to a mean change in true reliability of `r fmt(g(estimands, k_min, n_min, "delta_rho_est", "forced"), 4)`, which is to say essentially none at all: almost the entire apparent improvement is selection optimism.
+
+```{r}
+#| label: tbl-deltas
+#| tbl-cap: "Mean change (+/-1 Monte Carlo standard error) from full pool to retained items on three scales -- observed sample alpha (3a), population alpha (3b), and true reliability (3c) -- together with the selection optimism (3d = 3a - 3b, computed pairwise within replicate), for the forced strategy, by item-pool size (k) and sample size (N). Conditional-strategy values are given in the compendium; they differ only through the replications in which no drop occurred, which contribute zeros."
+
+estimands |>
+  filter(strategy == "forced") |>
+  transmute(k = as.character(k_indicators),
+            N = as.character(n_participants),
+            `3a. Observed` = cell(delta_obs_est, delta_obs_mcse),
+            `3b. Population alpha` = cell(delta_pop_est, delta_pop_mcse),
+            `3c. True reliability` = cell(delta_rho_est, delta_rho_mcse),
+            `3d. Optimism` = cell(optimism_est, optimism_mcse)) |>
+  kable(booktabs = TRUE, longtable = TRUE, linesep = "", align = c("l", "r", "r", "r", "r", "r")) |>
+  kable_styling(latex_options = "repeat_header", font_size = 8) |>
+  collapse_rows(columns = 1, latex_hline = "major", valign = "top")
+```
+
+## What a single study can encounter
+
+Every quantity above is a long-run average over `r format(n_iterations, big.mark = ",")` replications. The prediction intervals in @tbl-pi and @fig-pi describe the spread instead: the range of outcomes a single study, run once under this rule, can encounter.
+
+```{=latex}
+\clearpage
+\begin{landscape}
+```
+
+```{r}
+#| label: tbl-pi
+#| tbl-cap: "Mean [95% prediction interval] of each per-replication quantity, for the forced strategy, by item-pool size (k) and sample size (N). The interval is the empirical 2.5th to 97.5th percentile range across the 10,000 replications of a condition. It describes the spread across individual studies, not the precision of the mean, and unlike a Monte Carlo standard error it does not shrink as the number of replications grows."
+
+prediction_intervals |>
+  filter(strategy == "forced",
+         quantity %in% c("delta_obs", "delta_rho", "bias_vs_reliability")) |>
+  mutate(cellstr = paste0(fmt(est, 3), " ", interval(pi_lower, pi_upper))) |>
+  select(k_indicators, n_participants, quantity, cellstr) |>
+  pivot_wider(names_from = quantity, values_from = cellstr) |>
+  transmute(k = as.character(k_indicators),
+            N = as.character(n_participants),
+            `3a. Observed gain` = delta_obs,
+            `3c. True reliability change` = delta_rho,
+            `2b. Bias vs. reliability` = bias_vs_reliability) |>
+  kable(booktabs = TRUE, longtable = TRUE, linesep = "", align = c("l", "r", "r", "r", "r")) |>
+  kable_styling(latex_options = "repeat_header", font_size = 8) |>
+  collapse_rows(columns = 1, latex_hline = "major", valign = "top")
+```
+
+```{=latex}
+\end{landscape}
+\clearpage
+```
+
+The intervals narrow sharply as either design factor grows. For the bias in the reported $\alpha$ against true reliability, the interval spans `r fmt(gpi(k_min, n_min, "bias_vs_reliability", pi_width), 3)` at $k = `r k_min`$, $N = `r n_min`$ (`r interval(gpi(k_min, n_min, "bias_vs_reliability", pi_lower), gpi(k_min, n_min, "bias_vs_reliability", pi_upper))`) and only `r fmt(gpi(k_max, n_max, "bias_vs_reliability", pi_width), 3)` at $k = `r k_max`$, $N = `r n_max`$ (`r interval(gpi(k_max, n_max, "bias_vs_reliability", pi_lower), gpi(k_max, n_max, "bias_vs_reliability", pi_upper))`). The true reliability change narrows correspondingly, from `r fmt(gpi(k_min, n_min, "delta_rho", pi_width), 3)` to `r fmt(gpi(k_max, n_max, "delta_rho", pi_width), 3)` wide.
+
+The gap between these intervals and the corresponding Monte Carlo standard errors is the substantive point of this aim. At $k = `r k_min`$, $N = `r n_min`$, the mean bias against true reliability is `r fmt(g(estimands, k_min, n_min, "bias_vs_reliability_est", "forced"), 3)` with a Monte Carlo standard error of `r fmt(g(estimands, k_min, n_min, "bias_vs_reliability_mcse", "forced"), 4)`, so the long-run average is pinned down to within a thousandth. Yet the individual studies making up that average span `r interval(gpi(k_min, n_min, "bias_vs_reliability", pi_lower), gpi(k_min, n_min, "bias_vs_reliability", pi_upper))`, a range roughly `r formatC(gpi(k_min, n_min, "bias_vs_reliability", pi_width) / g(estimands, k_min, n_min, "bias_vs_reliability_mcse", "forced"), format = "f", digits = 0)` times wider than the standard error.
+
+That ratio is not a finding about item dropping; it is close to an identity. For any approximately normal quantity the interval width is about $3.92 S_d$ while the standard error is $S_d/\sqrt{K}$, so their ratio is about $3.92\sqrt{K} \approx `r formatC(3.92 * sqrt(n_iterations), format = "f", digits = 0)`$ at $K$ = `r format(n_iterations, big.mark = ",")` regardless of the condition, and indeed it varies only between `r formatC(min(prediction_intervals$pi_width / prediction_intervals$mcse), format = "f", digits = 0)` and `r formatC(max(prediction_intervals$pi_width / prediction_intervals$mcse), format = "f", digits = 0)` across the entire design. That is exactly why it matters. Running more replications raises this ratio rather than lowering it: the precision of the reported mean and the spread that an individual study faces are not merely different in size, they move in opposite directions as a simulation is scaled up. A researcher reporting an $\alpha$ after dropping an item from a five-item scale measured on twenty participants is drawing from the wide distribution, not from a neighbourhood of the mean, and no amount of additional simulation narrows what they face.
+
+```{r}
+#| label: fig-pi
+#| fig-cap: "Mean and 95% prediction interval for the bias in the reported alpha against true reliability (top), the true reliability change (middle), and the selection optimism (bottom), for the forced (left) and conditional (right) strategies, by item-pool size and sample size. Points are means; bars span the empirical 2.5th to 97.5th percentiles across replications. Bars are dodged horizontally within each item-pool size so the five sample sizes are distinguishable. Note the differing y-axis scales between rows."
+#| fig-height: 6.8
+#| fig-width: 5.35
+#| out-width: 100%
+
+prediction_intervals |>
+  filter(quantity %in% c("bias_vs_reliability", "delta_rho", "optimism")) |>
+  label_quantities(c("bias_vs_reliability", "delta_rho", "optimism")) |>
+  ggplot(aes(k_indicators, est, colour = factor(n_participants))) +
+  geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.3) +
+  geom_linerange(aes(ymin = pi_lower, ymax = pi_upper),
+                 position = position_dodge(width = 3.2), linewidth = 0.45) +
+  geom_point(position = position_dodge(width = 3.2), size = 1) +
+  facet_grid(quantity ~ strategy, scales = "free_y", labeller = label_wrap_gen(width = 34)) +
+  scale_x_k() +
+  scale_y_continuous(name = "Mean and 95% prediction interval", breaks = breaks_pretty(n = 6)) +
+  scale_colour_n() +
+  theme_sim()
+```
+
+# Discussion
+
+Four things follow from these results. First, $\alpha$ has two independent reasons to be untrustworthy before any item is dropped at all: ordinary small-sample noise, which fades with $N$ (from `r fmt(g(full_pool, k_min, n_min, "calibration_bias_est"), 3)` at $N = `r n_min`$ to `r fmt(g(full_pool, k_min, n_max, "calibration_bias_est"), 4)` at $N = `r n_max`$ for $k = `r k_min`$), and a structural ceiling on what $\alpha$ can measure relative to true reliability, which does not fade with $N$ at all, only with $k$ (from `r fmt(gap_by_k$gap[gap_by_k$k_indicators == k_min], 3)` at $k = `r k_min`$ to `r fmt(gap_by_k$gap[gap_by_k$k_indicators == k_max], 3)` at $k = `r k_max`$). Second, introducing the selection step adds a third source of distortion that interacts with the first two and flips the overall sign of the bias depending on where in the design a study sits. Third, the bias in the number is almost beside the point: the decision itself is frequently wrong in the sense that matters, degrading true reliability. Fourth, none of these averages is a safe guide to what any one real study will observe.
+
+## What we expected, and what we found
+
+Because this simulation was not preregistered, the expectations recorded in the Method are priors rather than tests, and we set them against the results explicitly so that the reader can see which parts of the account were anticipated and which were not.
+
+Three expectations held straightforwardly. The full-pool calibration bias was small, negative, and shrank toward zero with $N$ at every item-pool size. The structural gap was negative in every one of the `r n_conditions` conditions. And the prediction intervals were wide relative to the means wherever selection had room to operate, narrowing as either design factor grew.
+
+One expectation was clearly wrong, and its being wrong is informative. We expected selection optimism to be larger at larger item-pool sizes, reasoning that more candidate items gives a larger expected maximum over noise. The opposite holds: the bias against the population $\alpha$ of the retained items is largest at $k = `r k_min`$ (`r fmt(g(estimands, k_min, n_min, "bias_vs_pop_alpha_est", "forced"))` at $N = `r n_min`$) and is already slightly negative at $k \geq 15$ with small samples. Our reasoning counted the number of candidates and ignored their individual leverage. With more items each contributes proportionally less to $\alpha$, so the maximum is taken over a larger set of individually smaller perturbations, and the second effect dominates. It is also swamped, at longer pools, by the small-sample downward calibration bias pulling in the opposite direction. The practical implication runs opposite to the intuition: long scales are not more exploitable by this rule, they are less so.
+
+A second expectation was right in direction but badly wrong in emphasis. We expected the reliability-scale bias to be negative at large $N$ and possibly positive at small $N$, and treated the location of the sign change as the open question. It is positive in only `r nrow(b2_over)` of `r n_conditions` conditions, all at the shortest pool size, so the sign change is real but confined to a corner of the design. Framing the study around it, as an "alpha inflation" account would, would have been a mistake. Across most of the grid the reported number is only slightly wrong, and had we stopped at the estimands we thought would carry the paper, we would have concluded that item dropping is a minor problem. The harm rate, for which we deliberately made no directional prediction because we could not anticipate the balance between genuinely bad items and pure length penalties, is what shows otherwise: up to `r pct(g(harm, k_min, n_min, "harm_est", "forced"))` of replications made worse. The finding we did not predict is the one that matters, and it is measured by an estimand we included precisely because we did not know what it would show.
+
+Finally, $\Pr(\text{drop})$ rose with item-pool size as expected, but its behaviour in $N$ was the informative part and we had not thought it through in advance. It falls as $N$ grows at short pool sizes, from `r pct(g(p_drop, k_min, n_min, "p_drop_est"))` to `r pct(g(p_drop, k_min, n_max, "p_drop_est"))`, because noise-driven drops die out with sampling precision and only genuinely harmful items are left to remove. The rule therefore fires most often exactly where its firing means least.
+
+## Reconciling with the simulation literature
+
+@kopalle_alpha_1997 established that item selection based on the same sample subsequently used to report the resulting $\alpha$ capitalises on chance. The present work reproduces that finding where the item pool and sample are both small, and qualifies it elsewhere. Measured against the population $\alpha$ of the retained items, the optimism is unambiguous at $k = `r k_min`$ but has essentially vanished by $k = 15$, where it is outweighed by the opposing small-sample calibration bias. Measured against true reliability, which is the quantity researchers care about, the sign reverses across most of the design. The direction of bias in an $\alpha$ reported after item dropping is therefore not fixed, and an unqualified "alpha inflation" framing does not survive contact with a design that varies scale length and sample size over realistic ranges and evaluates against reliability rather than against $\alpha$ itself.
+
+The finding that $\alpha$ and true reliability diverge even with no item selection at all is consistent with a separate, long-running critique of Cronbach's $\alpha$. @sijtsma_use_2009 argued that $\alpha$ cannot in general equal the true reliability of a scale given its inter-item covariance structure, a point developed in the $\alpha$/$\omega$ literature [@mcdonald_test_1999; @revelle_coefficients_2009; @zinbarg_cronbachs_2005], which shows the two coefficients are equal only under the restrictive condition of essentially equal item loadings. Our structural-gap result is a direct simulation demonstration of that theoretical point under an empirically calibrated loading distribution, and shows its magnitude is not negligible relative to the biases usually discussed in the item-dropping literature. At the shortest scale examined it is `r fmt(abs(gap_by_k$gap[gap_by_k$k_indicators == k_min]), 3)`, which exceeds the selection optimism observed anywhere in the design outside the $k = `r k_min`$ column.
+
+## Bias in the reported number versus harm to the scale
+
+The most consequential finding is not that the reported number is wrong. Across most of the design it is only slightly wrong, with magnitudes mostly under 0.01. It is that the decision itself is frequently detrimental. In the worst condition, the forced rule reduced true reliability in `r pct(g(harm, k_min, n_min, "harm_est", "forced"))` of replications while its mean apparent in-sample gain was `r fmt(g(estimands, k_min, n_min, "delta_obs_est", "forced"), 3)`; the conditional rule, which acts only on an apparent improvement, still did so in `r pct(g(harm, k_min, n_min, "harm_est", "conditional"))` of the replications in which it acted.
+
+A modest average bias can coexist with a near-coin-flip probability of a harmful outcome, because the bias measure averages over both helpful and harmful replications while the harm rate isolates how often the harmful case occurs. Nothing about the reported $\alpha$ itself distinguishes the two scenarios.
+
+This bears on how the downstream result should be read. @stefan_big_2023 show that item dropping on $\alpha$ inflates the false positive rate of the subsequent hypothesis test to as high as 30%, and it would be natural to attribute that to the reported reliability being overstated. These results suggest that is largely not the mechanism: across most of the design the reported $\alpha$ is close to correct, and in the majority of conditions it is too low rather than too high. What the practice supplies instead is a decision point at which the analyst may retain either of two scales, taken after seeing the data, in conditions where the two are close to indistinguishable on the evidence available. The inflation is better understood as an experimenter degree of freedom than as a mis-estimated reliability, which matters because the two call for different remedies: reporting $\omega$ instead of $\alpha$ would address the second and not the first. This is also why the average is the wrong summary to lead with for practice: a mean $\Delta_\rho$ of `r fmt(g(estimands, k_min, n_min, "delta_rho_est", "forced"), 4)` at $k = `r k_min`$, $N = `r n_min`$ reads as "no effect" but is the average of a distribution in which roughly half of studies are made worse and roughly half are made better.
+
+## Mean bias understates practical risk
+
+A mean bias near zero is compatible either with every study landing close to zero or with studies scattered across a wide range that happens to average out there. @tbl-pi shows the design is unambiguously the second case for short scales: the $k = `r k_min`$, $N = `r n_min`$ cell alone spans `r interval(gpi(k_min, n_min, "bias_vs_reliability", pi_lower), gpi(k_min, n_min, "bias_vs_reliability", pi_upper))`. Additional Monte Carlo replications would narrow the standard error on the mean further but would not narrow this interval by anything, since it is a property of the distribution rather than of how many times we sampled from it. Reporting means with Monte Carlo standard errors alone, which is common practice in simulation studies, would understate what item dropping can do in a single study by a factor of roughly `r formatC(3.92 * sqrt(n_iterations), format = "f", digits = 0)` here, and by a larger factor still in any simulation run with more replications.
+
+## Practical implications
+
+In short scales and small samples, precisely where the reported number is most likely to be optimistically biased, the underlying decision is most likely to be actively wrong. Previous simulation findings have shown that unbiased estimation of $\alpha$ at small $N$ is possible when the largest eigenvalue of the item covariance matrix is large [@yurdugul_minimum_2008], indicating that bias in $\alpha$ depends on how strongly unidimensional the items are as well as on sample size. As short scales are by construction more likely to be unidimensional, this qualifies but does not remove the practical concern raised here.
+
+The key distinction for measurement practice is between what is knowable before a study is run and what is knowable after. Scale length and sample size are properties of the study design. Everything this simulation quantifies as risky, that is, the optimistic bias, the harm rate, and the width of the prediction interval, is a function of those two design choices and of nothing about the data subsequently collected. The risk can therefore be known in advance: a researcher could take a proposed $k$ and $N$, find the corresponding row of @tbl-proportions, and know before collecting data roughly how much to trust a future item-dropping decision from that study. This is an unusual property for a bias to have. Many statistical biases depend on unknown population parameters that the researcher cannot inspect in advance; this one depends only on design choices that are already written down in the preregistration or method section.
+
+What cannot be known in advance is anything from inside the alpha-if-item-removed table itself. The table that `psych::alpha()`, or any equivalent, produces looks exactly the same whether the item it nominates is genuinely the weakest link in the scale or is the item that happened to draw an unfavourable sample of participants this time. It carries no confidence interval and no indication of ranking instability. Two researchers who drew two different samples of the same size from the same true scale would each see a complete, definitive-looking table, possibly nominating different items for removal, and each would have exactly the same apparent justification for acting on it, even though at most one of them has observed real signal. The safeguard has to come from knowing where $k$ and $N$ sit in a risk table such as @tbl-proportions, because nothing internal to the analysis will indicate the risk level.
+
+## Limitations
+
+The main limitation is that both strategies consider dropping at most one item, in one step. Neither iterates nor targets a final scale length, so multi-item dropping is not simulated. Whether the item choice itself would replicate in an independent sample from the same scale is also outside this design; both are noted as future directions below.
+
+The population targets are realised rather than idealised subset targets: they are the true properties of whichever items a given replication's procedure retained, not of the best possible subset. This is the right target for the applied question, but it means the targets vary by strategy and by replication rather than being a single fixed value per condition, a deliberate departure from the classical estimation setup that we flag so it is not mistaken for an oversight. Relatedly, only sample $\alpha$ is evaluated as the reported estimator. Sample $\omega$ is never estimated from data anywhere in this design; it is used only as a population-level target.
+
+The 95% prediction intervals conflate two sources of variation, a fresh item pool and a fresh sample in each replication, so they support a field-level claim about studies of trait scales in general rather than a claim about resampling from one fixed scale. Separating the two would require a nested design with several samples per drawn loading vector.
+
+Finally, data-generating processes vary considerably between simulation studies, and identifying where ours limits our conclusions is worthwhile despite its being empirically grounded rather than speculative. The corpus used to fit the loading distribution consists of individual-differences and personality measures, which may differ considerably from the scales on which item-dropping decisions are made in clinical psychology or in contexts where psychometric properties carry more consequential weight. The empirical loading distribution is also a marginal, independent-item fit: it ignores which items belong to which scale, and therefore ignores between-scale clustering, such as the tendency for negative loadings to concentrate within particular multidimensional scales. It is a reasonable single-distribution summary of pooled trait-scale loadings, not a claim that any given generated pool resembles a specific real scale. Parametrising the loading distribution hierarchically, so that scales differ from one another in their loading distributions rather than all items being drawn from one pooled distribution, would better characterise that heterogeneity and is a natural refinement.
+
+## Future directions
+
+This design says nothing about whether the item choice itself would replicate across independent samples. That question could be investigated with a same-item agreement measure benchmarked against a uniform chance floor rather than against Cohen's kappa, and with a paired discovery/replication design that distinguishes whether the same item gets chosen twice from whether a fixed item's apparent gain survives in a second sample. Combining that analysis with the bias and harm-rate results here would complete the picture this pair of simulations is building toward.
+
+A second extension would evaluate sample $\omega$ as an alternative reporting statistic, since the present study uses $\omega$ only as the population target against which sample $\alpha$ is judged rather than as a competing sample-based estimator. A third would add an external criterion, which would let the validity consequences of dropping be estimated directly rather than inferred from the reliability change. Finally, whether the specific practices simulated here reflect how item dropping actually occurs in the published literature remains an open empirical question.
+
+## Conclusion
+
+Item dropping to improve Cronbach's $\alpha$ introduces bias into psychological measurement, and in more than one direction at once. In short scales and small samples it reduces true reliability in close to half of simulated studies, including when the rule acts only on an apparent in-sample improvement. In longer scales and larger samples it produces the opposite distortion, making the scale's reliability appear slightly lower than it truly is. Neither distortion is visible from inside the analysis that produces it. What is visible in advance is the study design, and researchers planning short scales with small samples should treat an alpha-if-item-removed recommendation from such a study as close to uninformative.
+
+# Author notes {.unnumbered}
+
+## CRediT authorship contribution statement {.unnumbered}
+
+ZF: Writing -- original draft. IH: Conceptualization, Methodology, Software, Formal analysis, Data curation, Visualization, Writing -- review & editing.
+
+## Funding {.unnumbered}
+
+This research was supported by a Swiss National Science Foundation (SNSF) project grant awarded to IH (grant number 10.008.806).
+
+## Conflict of interest {.unnumbered}
+
+The authors declare that they have no conflicts of interest.
+
+# Data and code availability {.unnumbered}
+
+All simulation code and results, including the full ADEMP specification, the validation of the reliability functions, per-condition tables for every estimand, and Monte Carlo standard errors for every estimate, are available at <https://github.com/ianhussey/replicability-of-item-dropping>.
+
+# References {.unnumbered}
+
+::: {#refs}
+:::

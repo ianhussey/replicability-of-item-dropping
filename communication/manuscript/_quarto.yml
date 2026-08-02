@@ -1,0 +1,15 @@
+# Makes this folder a Quarto project, for two reasons:
+#
+# 1. Extension resolution. Quarto looks for `_extensions` in the input file's own
+#    directory or in the project root; declaring the project root here lets any
+#    document in this folder share the one canonical copy of the elsevier style.
+#
+# 2. An explicit render list, so a bare `quarto render` builds exactly the
+#    manuscript and nothing else.
+#
+# `quarto render manuscript.qmd` behaves exactly as it would without this file.
+
+project:
+  type: default
+  render:
+    - manuscript.qmd
