@@ -1,6 +1,6 @@
 ---
 title: |
-  Item-dropping based on Cronbach's alpha improves in-sample alpha but not true reliability: A Monte Carlo simulation
+  Item-dropping to improve in-sample Cronbach's alpha can harm true reliability: A Monte Carlo simulation
 author:
   - name: Ze Freeman
     affiliations:
@@ -11,7 +11,7 @@ author:
     affiliations: University of Bern
     attributes:
         corresponding: true
-abstract: "Cronbach's alpha is the most commonly reported metric of reliability in psychological measurement. The credibility of the value reported after dropping an item, a common post hoc measurement revision that appears to improve a scale's alpha, is rarely examined. In a Monte Carlo simulation we varied the number of items per scale (5, 10, 15, 20, 40) and the sample size (20, 30, 50, 200, 1000), with item pools generated from a loading distribution fitted to 3,783 factor loadings from real psychological scales. Two item-dropping strategies were evaluated: forced removal (always removing the item whose removal maximises sample alpha) and conditional removal (removing that item only if doing so improves in-sample alpha). Each was evaluated against both the population Cronbach's alpha and the true reliability of the items actually retained. Three sources of distortion are separable in this design and pull in different directions: small-sample calibration bias in alpha, the structural gap between alpha and true reliability, and selection optimism introduced by choosing the item from the same sample used to report the result. Their sum makes the reported alpha overstate true reliability in short scales at small samples and understate it everywhere else. More consequentially, the drop decision itself frequently harms the scale: at the smallest scale and sample size the conditional rule reduced true reliability in 42.5% of the replications in which it acted, despite acting only when in-sample alpha appeared to improve, and the forced rule did so in 49.6% of replications. Individual studies encounter outcomes far more extreme than the average bias suggests. Because this risk is a function only of scale length and sample size, it is knowable before data are collected, whereas nothing inside the alpha-if-item-removed table distinguishes a genuinely weak item from a sampling artefact."
+abstract: "Cronbach's alpha is the most commonly reported metric of reliability in psychological measurement. The credibility of the value reported after dropping an item, a common post hoc measurement revision that appears to improve a scale's alpha, is rarely examined. In a Monte Carlo simulation we varied the number of items per scale (5, 10, 15, 20, 40) and the sample size (20, 30, 50, 200, 1000), with item pools generated from a loading distribution fitted to 3,783 factor loadings from real psychological scales. Two item-dropping strategies were evaluated: forced removal (always removing the item whose removal maximises sample alpha) and conditional removal (removing that item only if doing so improves in-sample alpha). Each was evaluated against both the population Cronbach's alpha and the true reliability of the items actually retained. Three sources of distortion are separable in this design and pull in different directions: small-sample calibration bias in alpha, the structural gap between alpha and true reliability, and selection optimism introduced by choosing the item from the same sample used to report the result. Their sum makes the reported alpha overstate true reliability in short scales at small samples and understate it everywhere else. More consequentially, the drop decision itself frequently harms the scale: at the smallest scale and sample size the conditional rule reduced true reliability in 46.7% of the replications in which it acted, despite acting only when in-sample alpha appeared to improve, and the forced rule did so in 49.6% of all replications. Individual studies encounter outcomes far more extreme than the average bias suggests. A post hoc analysis of stricter decision rules shows that thresholding the apparent improvement helps only when samples are large: requiring an apparent gain of at least .02 with N of 200 or more kept the probability that a drop harms true reliability at or below 7% wherever the rule recommended dropping at all, whereas at N = 20 even requiring a gain of .05 left that probability near 38% for five-item scales. As a rule of thumb, an alpha-if-item-removed recommendation should not be acted on in small samples at all, and in larger samples only when the apparent improvement exceeds .02. Because this risk depends only on scale length and sample size, given a loading distribution typical of trait scales, it is knowable before data are collected, whereas nothing inside the alpha-if-item-removed table distinguishes a genuinely weak item from a sampling artefact."
 format:
   elsevier-pdf:
     keep-tex: true
@@ -192,6 +192,72 @@ nonpositive_gain <- simulation_outcomes |>
   filter(strategy == "forced") |>
   group_by(k_indicators, n_participants) |>
   summarize(p_nonpositive = mean(delta_obs <= 0), .groups = "drop")
+
+# Harm rate for the conditional strategy GIVEN that it acted. The marginal harm rate above
+# counts no-drop replications (delta_rho = 0 exactly) as non-harm, so it and the given-drop
+# rate have different denominators and must not be interchanged in prose: at k = 5, N = 20
+# they are 42.5% and 46.7% respectively. Any sentence of the form "of the replications in
+# which it acted" must use THIS quantity.
+harm_given_drop <- simulation_outcomes |>
+  filter(strategy == "conditional", dropped) |>
+  group_by(k_indicators, n_participants) |>
+  summarize(harm_gd_est = mean(delta_rho < 0), n_reps = n(), .groups = "drop") |>
+  mutate(harm_gd_mcse = mcse_proportion(harm_gd_est, n_reps))
+
+# Magnitude of harm conditional on harm: E[delta_rho | delta_rho < 0], forced strategy. The
+# harm RATE counts sign only, so without this the rates are not comparable across k: harm
+# at k = 40 is frequent-ish at small N but trivial in size, while harm at k = 5 is both
+# frequent and material. One cell (k = 40, N = 1000) has no harmful replications at all, so
+# its conditional mean does not exist and is rendered as an em-dash.
+harm_magnitude <- simulation_outcomes |>
+  filter(strategy == "forced") |>
+  group_by(k_indicators, n_participants) |>
+  summarize(n_harm = sum(delta_rho < 0),
+            harm_mag_est  = if (any(delta_rho < 0)) mean(delta_rho[delta_rho < 0]) else NA_real_,
+            harm_mag_mcse = if (sum(delta_rho < 0) > 1) mcse_mean(delta_rho[delta_rho < 0]) else NA_real_,
+            .groups = "drop")
+
+# ---- post hoc decision rules (thresholded gates) ------------------------------------
+# The conditional strategy's gate is "any apparent improvement". Stricter gates -- drop only
+# if the apparent gain exceeds a threshold t -- are computable post hoc from the SAME
+# replications, because the cache stores the full-pool and dropped-pool sample alphas and
+# both population targets for every replication; t = 0 reproduces the conditional strategy
+# exactly. This analysis was not part of the ADEMP plan and is labelled post hoc in the
+# text. For each rule and condition: how often the rule fires, the probability that firing
+# harms true reliability, and the mean true-reliability change among the drops it allows.
+rule_thresholds <- c(0, 0.01, 0.02, 0.05)
+
+decision_rules <- map_dfr(rule_thresholds, function(t) {
+  simulation |>
+    mutate(gain = alpha_dropped_sample - alpha_full_sample,
+           drho = omega_dropped_pop - omega_full_pop) |>
+    group_by(k_indicators, n_participants) |>
+    summarize(threshold  = t,
+              p_fire     = mean(gain > t),
+              harm_fire  = mean(drho[gain > t] < 0),
+              drho_fire  = mean(drho[gain > t]),
+              n_fire     = sum(gain > t),
+              .groups = "drop")
+}) |>
+  mutate(harm_fire_mcse = mcse_proportion(harm_fire, n_fire))
+
+# key rule numbers used in the prose and abstract
+rule_key <- list(
+  # even the strictest gate barely helps at the worst cell
+  strict_harm_k5n20 = decision_rules |>
+    filter(threshold == 0.05, k_indicators == 5, n_participants == 20) |> pull(harm_fire),
+  # at N = 200, a .02 gate keeps harm-given-fire below this across all k at which it ever
+  # fires. na.rm: at k = 40 the apparent gain never reaches .02, so the rule never fires
+  # there and its harm-given-fire is undefined (vacuously safe, by abstention).
+  gate02_maxharm_n200 = decision_rules |>
+    filter(threshold == 0.02, n_participants == 200) |> pull(harm_fire) |> max(na.rm = TRUE),
+  gate02_harm_k5n200 = decision_rules |>
+    filter(threshold == 0.02, k_indicators == 5, n_participants == 200) |> pull(harm_fire),
+  gate02_harm_k10n200 = decision_rules |>
+    filter(threshold == 0.02, k_indicators == 10, n_participants == 200) |> pull(harm_fire),
+  # at N <= 50 no gate up to .05 brings short-scale risk near zero
+  strict_harm_k5n50 = decision_rules |>
+    filter(threshold == 0.05, k_indicators == 5, n_participants == 50) |> pull(harm_fire))
 
 # ---- prediction intervals (Aim 4) --------------------------------------------------
 # The SPREAD across replications, not the precision of the mean: the empirical 2.5th and
@@ -555,7 +621,25 @@ $\Delta_{\text{pop}} = \alpha_{\text{pop}}(S_s) - \alpha_{\text{pop}}(F)$, the p
 
 $\Delta_{\rho} = \rho(S_s) - \rho(F)$, the true reliability change, which is the quantity that actually matters for genuine measure refinement. The primary failure mode this design can detect is $\Delta_{\rho} < 0$ while $\widehat{\Delta}_{\text{obs}} > 0$, that is, dropping a low-consistency but valid item raises the $\alpha$ coefficient while degrading measurement.
 
-The findings live in the gaps between these deltas. $\widehat{\Delta}_{\text{obs}} - \Delta_{\text{pop}}$ is the selection optimism (winner's curse), expected to be positive because $J^{*}$ maximises the sample $\alpha$ and is therefore biased high for its own population value. It is computed pairwise within replicate, so its Monte Carlo standard error is much smaller than differencing two separate summaries would give. Because a mean $\Delta_\rho$ near zero can conceal frequent, offsetting harm, we additionally report the harm rate, $\Pr(\Delta_\rho < 0)$: the proportion of replications in which the drop actually reduced true reliability.
+The findings live in the gaps between these deltas. $\widehat{\Delta}_{\text{obs}} - \Delta_{\text{pop}}$ is the selection optimism (winner's curse), expected to be positive because $J^{*}$ maximises the sample $\alpha$ and is therefore biased high for its own population value. It is computed pairwise within replicate, so its Monte Carlo standard error is much smaller than differencing two separate summaries would give. Because a mean $\Delta_\rho$ near zero can conceal frequent, offsetting harm, we additionally report the harm rate, $\Pr(\Delta_\rho < 0)$: the proportion of replications in which the drop actually reduced true reliability. @tbl-estimands summarises every estimand and its role.
+
+| # | Quantity | Definition | Role |
+|:--|:------------------|:---------------------------|:----------------------------|
+| 1a | Calibration bias (full pool) | $\mathbb{E}[\hat\alpha(F) - \alpha_{\text{pop}}(F)]$ | pipeline check; baseline for 2a |
+| 1b | Structural gap (full pool) | $\mathbb{E}[\alpha_{\text{pop}}(F) - \rho(F)]$ | $\leq 0$; exists with no selection |
+| 1c | Total full-pool bias | $\mathbb{E}[\hat\alpha(F) - \rho(F)]$ | 1a + 1b; no-dropping benchmark |
+| 2a | Reported-alpha bias, alpha scale | $\mathbb{E}[\hat\alpha(S_s) - \alpha_{\text{pop}}(S_s)]$ | statistical bias incl. winner's curse |
+| 2b | Reported-alpha bias, reliability scale | $\mathbb{E}[\hat\alpha(S_s) - \rho(S_s)]$ | total bias in the reported estimate |
+| 3a | Observed gain | $\mathbb{E}[\widehat{\Delta}_{\text{obs}}]$ | the trigger; researcher's-eye view |
+| 3b | Population alpha change | $\mathbb{E}[\Delta_{\text{pop}}]$ | did the drop improve alpha in truth |
+| 3c | True reliability change | $\mathbb{E}[\Delta_{\rho}]$ | did the drop improve measurement |
+| 3d | Selection optimism | $\mathbb{E}[\widehat{\Delta}_{\text{obs}} - \Delta_{\text{pop}}]$ | winner's curse, paired per replicate |
+| 3e | P(drop) | $\Pr(\hat\alpha(-J^{*}) > \hat\alpha(F))$ | conditional strategy only (forced $\equiv 1$) |
+| 3f | Harm rate | $\Pr(\Delta_\rho < 0)$ | how often dropping reduced reliability |
+| 3g | Harm magnitude | $\mathbb{E}[\Delta_\rho \mid \Delta_\rho < 0]$ | how large the harm is when it occurs |
+| 4 | Prediction interval | $[\hat q_{2.5}(d),\ \hat q_{97.5}(d)]$ for $d$ in 2a--3d | spread, not precision: one study's range |
+
+: Summary of the estimands. All quantities in rows 2--3 are computed per strategy; for the conditional strategy they are additionally reported conditional on a drop having occurred. {#tbl-estimands}
 
 ## Performance measures and Monte Carlo uncertainty
 
@@ -579,26 +663,19 @@ $$\widehat{\text{PI}}_{95}(d) = \big[\hat q_{2.5}(d_k),\ \hat q_{97.5}(d_k)\big]
 
 The prediction-interval bounds are themselves Monte Carlo estimates and carry their own uncertainty, which cannot be assumed negligible: unlike a mean, a sample quantile's standard error depends on the density of the distribution at that quantile, $\mathrm{SE}(\hat q_p) \approx \sqrt{p(1-p)/K} \,/\, f(q_p)$, so it can be large wherever the tail is thin, and quantile estimates in heavy-tailed or sparse regions can be unstable. We therefore estimated a Monte Carlo standard error for every reported bound using the exact distribution-free order-statistic method (the 95% confidence interval for a population quantile lies between the order statistics whose ranks are the Binomial($K$, $p$) percentiles), cross-checked against a nonparametric bootstrap, with which it agrees to within roughly 30% in every cell. The bounds turn out to be stable: across all `r nrow(prediction_intervals)` cell-by-quantity combinations, the larger of the two bound standard errors is at most `r fmt(pi_stability$max_pct, 1)`% of its interval's width (median `r fmt(pi_stability$median_pct, 1)`%), so every interval in @tbl-pi and @fig-pi is accurate to well within the precision at which it is printed. As expected, quantiles are estimated less precisely than means, by a factor of up to `r fmt(pi_stability$max_ratio, 0)` in the same cell, and the least stable bounds are the upper tails of the observed-gain and optimism distributions at the smallest sample size, which are the heaviest tails in the design. One degenerate case is worth noting: for the conditional strategy the lower bound of the observed gain sits on the point mass at zero contributed by the no-drop replications, so that bound has a Monte Carlo standard error of exactly zero, an artefact of the mixture rather than evidence of precision, and is another reason the conditional strategy's interval is more informative conditional on a drop having occurred.
 
-Monte Carlo standard errors and prediction intervals are different quantities and should not be confused. An MCSE is $S_d/\sqrt{K}$ and describes how precisely the mean is estimated, decreasing as the number of iterations ($K$) grows. A prediction interval is driven by $S_d$ itself and describes how much individual studies differ. It stabilizes with increasing $K$. At $K$ = `r format(n_iterations, big.mark = ",")` the MCSE is roughly one hundredth of the standard deviation, which is precisely why Aim 4 requires its own summaries rather than wider error bars on the existing ones.
+Monte Carlo standard errors and prediction intervals are different quantities and should not be confused. An MCSE is $S_d/\sqrt{K}$ and describes how precisely the mean is estimated, decreasing as the number of iterations ($K$) grows. A prediction interval is driven by $S_d$ itself and describes how much individual studies differ; as $K$ grows its *estimate* stabilises but its *width* does not shrink, because the width is a property of the distribution rather than of how precisely we have sampled it. At $K$ = `r format(n_iterations, big.mark = ",")` the MCSE is roughly one hundredth of the standard deviation, which is precisely why Aim 4 requires its own summaries rather than wider error bars on the existing ones.
 
 Because each replication draws both a fresh item pool and a fresh sample from it, the prediction intervals marginalise over two sources of variation at once. They therefore describe the range across studies of psychological trait scales in general, which is the right quantity for a field-level claim, and not the range available to one researcher holding one fixed scale, which would require a nested design. Simulations were parallelised with reproducible L'Ecuyer-CMRG streams, so results are identical regardless of the number of workers used.
 
-# Results
-
-Results are organised around the four performance measures. Every table reports all `r n_conditions` conditions of the design rather than a selected or pooled subset, because the estimands vary substantially and non-monotonically across the grid and an average over the grid is an average over the design chosen here rather than over any population of real studies.
-
-## Calibration and the structural gap
-
-```{=latex}
-% Start this table at the top of a fresh page so it cannot split: Quarto re-emits
-% computational tables as longtables (see the note above Table 2), and each of these
-% 25-row tables fits a single page whole.
-\clearpage
-```
+<!-- ```{=latex} -->
+<!-- \clearpage -->
+<!-- ``` -->
 
 ```{r}
 #| label: tbl-fullpool
 #| tbl-cap: "Full item pool, no dropping. Estimate (+/-1 Monte Carlo standard error) of the calibration bias of sample alpha against population alpha (1a), the structural gap between population alpha and true reliability (1b), and their sum (1c), by item-pool size (k) and sample size (N)."
+
+# note this table is part of the results, but is moved up here for page placement reasons
 
 full_pool |>
   transmute(k = as.character(k_indicators),
@@ -610,6 +687,12 @@ full_pool |>
   kable_styling(latex_options = "repeat_header", font_size = 9) |>
   collapse_rows(columns = 1, latex_hline = "major", valign = "top")
 ```
+
+# Results
+
+Results are organised around the four performance measures. Every table reports all `r n_conditions` conditions of the design rather than a selected or pooled subset, because the estimands vary substantially and non-monotonically across the grid and an average over the grid is an average over the design chosen here rather than over any population of real studies.
+
+## Calibration and the structural gap
 
 Estimating the full-pool Cronbach's $\alpha$ shows a small downward calibration bias at small samples (@tbl-fullpool, column 1a; @fig-fullpool, panel 1a). With small samples, the item covariances that $\alpha$ is built from are estimated with high sampling noise. The bias decreases toward zero as $N$ grows at every item-pool size, from `r fmt(g(full_pool, k_min, n_min, "calibration_bias_est"))` at $k = `r k_min`$, $N = `r n_min`$ to `r fmt(g(full_pool, k_min, n_max, "calibration_bias_est"))` at $N = `r n_max`$, and is smaller for larger item pools even at fixed $N$ (`r fmt(g(full_pool, k_max, n_min, "calibration_bias_est"))` at $k = `r k_max`$, $N = `r n_min`$).
 
@@ -645,18 +728,11 @@ full_pool |>
   theme_sim()
 ```
 
-## Bias in the reported alpha after item dropping
-
-```{=latex}
-% Quarto re-emits computational tables as longtables in this format, so a longtable-level
-% page break cannot be prevented from the chunk options. Starting the table at the top of
-% a fresh page instead: its 25 rows plus caption fit on one page, so it cannot split.
-\clearpage
-```
-
 ```{r}
 #| label: tbl-bias
 #| tbl-cap: "Bias (+/-1 Monte Carlo standard error) of the reported (sample) alpha of the retained items against the true population alpha of those same items (2a) and against their true reliability (2b), by strategy, item-pool size (k), and sample size (N). The forced strategy drops in every replication by definition. Conditional-strategy columns are marginal, so replications in which nothing was dropped contribute the full-pool values."
+
+# note this table belongs to the next section but is moved up here for page location reasons
 
 estimands |>
   select(strategy, k_indicators, n_participants,
@@ -680,6 +756,12 @@ estimands |>
   kable_styling(font_size = 8) |>
   collapse_rows(columns = 1, latex_hline = "major", valign = "top")
 ```
+
+## Bias in the reported alpha after item dropping
+
+<!-- ```{=latex} -->
+<!-- \clearpage -->
+<!-- ``` -->
 
 Against the population $\alpha$ of the retained items (@tbl-bias, column 2a), the selection-induced optimism predicted by @kopalle_alpha_1997 is clearly present at the shortest scales, where the reported $\alpha$ overstates the population $\alpha$ of the very items it describes by `r fmt(g(estimands, k_min, n_min, "bias_vs_pop_alpha_est", "forced"))` at $k = `r k_min`$, $N = `r n_min`$. It shrinks rapidly with both factors, and at $k \geq 15$ with small samples it turns slightly negative, because the small-sample downward calibration bias of $\alpha$ documented above is then larger than the optimism the argmax can extract from a pool that is already long enough for $\alpha$ to be estimated fairly stably. Selection optimism is therefore not uniformly larger in longer scales, contrary to the intuition that more candidate items means more opportunity to capitalise on noise. With $k$ items there are more candidates, but each contributes proportionally less to $\alpha$, and the second effect dominates.
 
@@ -742,30 +824,32 @@ calibration_plotted |>
   theme_sim()
 ```
 
-Restricting the conditional strategy to the replications in which it actually acted (@tbl-givendrop) leaves this pattern almost unchanged, because both strategies remove the same nominated item whenever the conditional strategy drops at all. The realised $K_{\text{drop}}$ shrinks furthest at the smallest pool size, where the conditional rule declines to act increasingly often as $N$ grows, from `r pct(1 - g(p_drop, k_min, n_min, "p_drop_est"))` of replications at $N = `r n_min`$ to `r pct(1 - g(p_drop, k_min, n_max, "p_drop_est"))` at $N = `r n_max`$. This is consistent with greater sampling precision at larger $N$ leaving less noise for the argmax to exploit.
-
-```{=latex}
-% Start this table at the top of a fresh page so it cannot split: Quarto re-emits
-% computational tables as longtables (see the note above Table 2), and each of these
-% 25-row tables fits a single page whole.
-\clearpage
-```
+<!-- ```{=latex} -->
+<!-- % Start this table at the top of a fresh page so it cannot split: Quarto re-emits -->
+<!-- % computational tables as longtables (see the note above Table 2), and each of these -->
+<!-- % 25-row tables fits a single page whole. -->
+<!-- \clearpage -->
+<!-- ``` -->
 
 ```{r}
 #| label: tbl-givendrop
-#| tbl-cap: "Conditional strategy, restricted to the replications in which a drop actually occurred. Estimate (+/-1 Monte Carlo standard error) of the bias in the reported alpha against population alpha (2a) and against true reliability (2b), and the mean true reliability change (3c). K(drop) is the realised number of replications in which a drop occurred, out of 10,000."
+#| tbl-cap: "Conditional strategy, restricted to the replications in which a drop actually occurred. Estimate (+/-1 Monte Carlo standard error) of the bias in the reported alpha against population alpha (2a) and against true reliability (2b), the mean true reliability change (3c), and the harm rate among these drops (3f; percent). K(drop) is the realised number of replications in which a drop occurred, out of 10,000. The given-drop harm rate has a different denominator from the marginal harm rate in the impact table below, which counts no-drop replications as non-harm."
 
 estimands_given_drop |>
+  left_join(harm_given_drop, by = c("k_indicators", "n_participants")) |>
   transmute(k = as.character(k_indicators),
             N = as.character(n_participants),
             `K(drop)` = format(k_drop, big.mark = ","),
             `2a vs. pop. alpha` = cell(bias_vs_pop_alpha_est, bias_vs_pop_alpha_mcse),
             `2b vs. reliability` = cell(bias_vs_reliability_est, bias_vs_reliability_mcse),
-            `3c. Reliability change` = cell(delta_rho_est, delta_rho_mcse)) |>
-  kable(booktabs = TRUE, longtable = TRUE, linesep = "", align = c("l", "r", "r", "r", "r", "r")) |>
+            `3c. Reliability change` = cell(delta_rho_est, delta_rho_mcse),
+            `3f. Harm given drop` = pct_cell(harm_gd_est, harm_gd_mcse)) |>
+  kable(booktabs = TRUE, longtable = TRUE, linesep = "", align = c("l", "r", "r", "r", "r", "r", "r")) |>
   kable_styling(latex_options = "repeat_header", font_size = 8) |>
   collapse_rows(columns = 1, latex_hline = "major", valign = "top")
 ```
+
+Restricting the conditional strategy to the replications in which it actually acted (@tbl-givendrop) leaves this pattern almost unchanged, because both strategies remove the same nominated item whenever the conditional strategy drops at all. The realised $K_{\text{drop}}$ shrinks furthest at the smallest pool size, where the conditional rule declines to act increasingly often as $N$ grows, from `r pct(1 - g(p_drop, k_min, n_min, "p_drop_est"))` of replications at $N = `r n_min`$ to `r pct(1 - g(p_drop, k_min, n_max, "p_drop_est"))` at $N = `r n_max`$. This is consistent with greater sampling precision at larger $N$ leaving less noise for the argmax to exploit.
 
 ## Impact of item dropping
 
@@ -780,30 +864,35 @@ Whether an item is dropped at all, and whether doing so helps or harms the scale
 
 ```{r}
 #| label: tbl-proportions
-#| tbl-cap: "Proportion of replications in which the conditional strategy dropped an item (3e; the forced strategy drops in all replications by definition), and the proportion in which the drop reduced true reliability (3f, the harm rate), by strategy. All values are percentages with +/-1 Monte Carlo standard error in percentage points. The final column is the proportion of forced-strategy replications in which the apparent in-sample gain was not positive, i.e. in which the drop did not even appear to help."
+#| tbl-cap: "Proportion of replications in which the conditional strategy dropped an item (3e; the forced strategy drops in all replications by definition), the proportion in which the drop reduced true reliability (3f, the harm rate), and the mean size of that reduction when it occurred (3g, harm magnitude; forced strategy), by item-pool size (k) and sample size (N). Proportions are percentages with +/-1 Monte Carlo standard error in percentage points; conditional-strategy harm is marginal (no-drop replications count as non-harm; see the conditional-on-drop table for the given-drop rate). The final column is the proportion of forced-strategy replications in which the apparent in-sample gain was not positive, i.e. in which the drop did not even appear to help. An em-dash marks the one cell with no harmful replications, where the conditional mean does not exist."
 
 p_drop |>
   select(k_indicators, n_participants, p_drop_est, p_drop_mcse) |>
   left_join(harm |> select(strategy, k_indicators, n_participants, harm_est, harm_mcse) |>
               pivot_wider(names_from = strategy, values_from = c(harm_est, harm_mcse)),
             by = c("k_indicators", "n_participants")) |>
+  left_join(harm_magnitude, by = c("k_indicators", "n_participants")) |>
   left_join(nonpositive_gain, by = c("k_indicators", "n_participants")) |>
   transmute(k = as.character(k_indicators),
             N = as.character(n_participants),
             `P(drop)` = pct_cell(p_drop_est, p_drop_mcse),
             `Harm, forced` = pct_cell(harm_est_forced, harm_mcse_forced),
             `Harm, cond.` = pct_cell(harm_est_conditional, harm_mcse_conditional),
-            `No apparent gain, forced` = formatC(100 * p_nonpositive, format = "f", digits = 1)) |>
-  kable(booktabs = TRUE, longtable = TRUE, linesep = "", align = c("l", "r", "r", "r", "r", "r")) |>
+            `3g. Mean harm` = ifelse(is.na(harm_mag_est), "---",
+                                     cell(harm_mag_est, harm_mag_mcse)),
+            `No gain, forced` = formatC(100 * p_nonpositive, format = "f", digits = 1)) |>
+  kable(booktabs = TRUE, longtable = TRUE, linesep = "", align = c("l", "r", "r", "r", "r", "r", "r")) |>
   kable_styling(latex_options = "repeat_header", font_size = 8) |>
   collapse_rows(columns = 1, latex_hline = "major", valign = "top")
 ```
 
 The consequences of removing the item are given by the harm rate, the proportion of replications in which the drop reduced true reliability. At the smallest scale and sample size the forced strategy's harm rate is `r pct(g(harm, k_min, n_min, "harm_est", "forced"))`: the nominated item is very nearly as likely to be an artefact of that particular sample as it is to be a genuine weak point in the scale. Harm falls steeply as either factor increases, but it does not vanish with sample size alone. At $N = `r n_max`$ the forced strategy still reduces true reliability in `r pct(g(harm, k_min, n_max, "harm_est", "forced"))` of replications at $k = `r k_min`$, and the rate reaches `r pct(g(harm, k_max, n_max, "harm_est", "forced"), 1)` only in the largest scale and sample combination. Long scales and large samples are both needed - neither alone is sufficient.
 
-The harm rate for the conditional strategy is lower than for the forced strategy in every condition (`r pct(g(harm, k_min, n_min, "harm_est", "conditional"))` versus `r pct(g(harm, k_min, n_min, "harm_est", "forced"))` at $k = `r k_min`$, $N = `r n_min`$), because declining to act in the replications with the weakest apparent improvement disproportionately screens out cases that would otherwise have reduced reliability. This lowers the incidence of harm across all studies, not the risk in the studies where the item is dropped. The gating rule is a filter on how often the gamble is taken, not on whether it pays off.
+The harm rate counts sign only, so it must be read alongside the harm *magnitude*, the mean reliability loss among the replications in which harm occurred (@tbl-proportions, column 3g). The two together show that the harm rates are not comparable across scale lengths without the magnitudes. At $k = `r k_min`$, $N = `r n_min`$, harm is both frequent and material: the mean loss given harm is `r fmt(g(harm_magnitude, k_min, n_min, "harm_mag_est"), 3)`, comparable in size to the mean *gain* among helpful drops. At $k = `r k_max`$ the harm rate of `r pct(g(harm, k_max, n_min, "harm_est", "forced"))` at $N = `r n_min`$ counts losses averaging only `r fmt(g(harm_magnitude, k_max, n_min, "harm_mag_est"), 4)`, trivial beside those at short scales. The practical risk is therefore concentrated where the rate and the magnitude are large together, in short scales at small samples.
 
-An important qualification concerns how the harm rate should be described. It is tempting to say the drop harms reliability "while appearing to improve $\alpha$ every time", but this holds only for the conditional strategy, for which $\widehat{\Delta}_{\text{obs}} > 0$ is true by construction whenever it acts. The forced strategy has no such guarantee: its apparent gain was not positive in `r formatC(100 * g(nonpositive_gain, k_min, n_min, "p_nonpositive"), format = "f", digits = 1)`% of replications at $k = `r k_min`$, $N = `r n_min`$, rising to `r formatC(100 * g(nonpositive_gain, k_min, n_max, "p_nonpositive"), format = "f", digits = 1)`% at $N = `r n_max`$ (@tbl-proportions, final column). The strongest claim the design supports without qualification is therefore the conditional one: at $k = `r k_min`$, $N = `r n_min`$, the rule that acts only when the in-sample $\alpha$ improves nevertheless reduced true reliability in `r pct(g(harm, k_min, n_min, "harm_est", "conditional"))` of the replications in which it acted.
+The conditional strategy's harm rates require care with denominators, because two are available and they answer different questions. Marginally, across all replications including those where nothing was dropped, the conditional rule harms in `r pct(g(harm, k_min, n_min, "harm_est", "conditional"))` of replications at $k = `r k_min`$, $N = `r n_min`$, versus `r pct(g(harm, k_min, n_min, "harm_est", "forced"))` under the forced rule. But conditional on the rule actually firing, which is the risk a researcher who has just been told to drop an item faces, the harm rate is `r pct(g(harm_given_drop, k_min, n_min, "harm_gd_est"))` (@tbl-givendrop): barely below the forced rule's. Declining to act in the replications with the weakest apparent improvement lowers the incidence of harm across all studies mostly by gambling less often, not by gambling better. The gating rule is a filter on how often the gamble is taken, and only weakly on whether it pays off.
+
+An important qualification concerns how the harm rate should be described. It is tempting to say the drop harms reliability "while appearing to improve $\alpha$ every time", but this holds only for the conditional strategy, for which $\widehat{\Delta}_{\text{obs}} > 0$ is true by construction whenever it acts. The forced strategy has no such guarantee: its apparent gain was not positive in `r formatC(100 * g(nonpositive_gain, k_min, n_min, "p_nonpositive"), format = "f", digits = 1)`% of replications at $k = `r k_min`$, $N = `r n_min`$, rising to `r formatC(100 * g(nonpositive_gain, k_min, n_max, "p_nonpositive"), format = "f", digits = 1)`% at $N = `r n_max`$ (@tbl-proportions, final column). The strongest claim the design supports without qualification is therefore the conditional one: at $k = `r k_min`$, $N = `r n_min`$, the rule that acts only when the in-sample $\alpha$ improves nevertheless reduced true reliability in `r pct(g(harm_given_drop, k_min, n_min, "harm_gd_est"))` of the replications in which it acted.
 
 ```{r}
 #| label: fig-proportions
@@ -843,7 +932,7 @@ The same pattern appears in the magnitude of what item dropping does to the scal
 
 ```{r}
 #| label: tbl-deltas
-#| tbl-cap: "Mean change (+/-1 Monte Carlo standard error) from full pool to retained items on three scales -- observed sample alpha (3a), population alpha (3b), and true reliability (3c) -- together with the selection optimism (3d = 3a - 3b, computed pairwise within replicate), for the forced strategy, by item-pool size (k) and sample size (N). Conditional-strategy values are given in the compendium, they differ only through the replications in which no drop occurred, which contribute zeros."
+#| tbl-cap: "Mean change (+/-1 Monte Carlo standard error) from full pool to retained items on three scales: observed sample alpha (3a), population alpha (3b), and true reliability (3c), together with the selection optimism (3d = 3a - 3b, computed pairwise within replicate), for the forced strategy, by item-pool size (k) and sample size (N). Conditional-strategy values are given in the compendium, they differ only through the replications in which no drop occurred, which contribute zeros."
 
 estimands |>
   filter(strategy == "forced") |>
@@ -858,13 +947,13 @@ estimands |>
   collapse_rows(columns = 1, latex_hline = "major", valign = "top")
 ```
 
-## What a single study can encounter
-
-Every quantity above is a long-run average over `r format(n_iterations, big.mark = ",")` replications. The prediction intervals in @tbl-pi and @fig-pi describe the spread instead: the range of outcomes a single study, run once under this rule, can encounter.
+<!-- ```{=latex} -->
+<!-- \clearpage -->
+<!-- \begin{landscape} -->
+<!-- ``` -->
 
 ```{=latex}
 \clearpage
-\begin{landscape}
 ```
 
 ```{r}
@@ -887,16 +976,57 @@ prediction_intervals |>
   collapse_rows(columns = 1, latex_hline = "major", valign = "top")
 ```
 
-```{=latex}
-\end{landscape}
-\clearpage
-```
+<!-- ```{=latex} -->
+<!-- \end{landscape} -->
+<!-- \clearpage -->
+<!-- ``` -->
+
+## What a single study can encounter
+
+Every quantity above is a long-run average over `r format(n_iterations, big.mark = ",")` replications. The prediction intervals in @tbl-pi and @fig-pi describe the spread instead: the range of outcomes a single study, run once under this rule, can encounter.
 
 The intervals narrow sharply as either design factor grows. For the bias in the reported $\alpha$ against true reliability, the interval spans `r fmt(gpi(k_min, n_min, "bias_vs_reliability", pi_width), 3)` at $k = `r k_min`$, $N = `r n_min`$ (`r interval(gpi(k_min, n_min, "bias_vs_reliability", pi_lower), gpi(k_min, n_min, "bias_vs_reliability", pi_upper))`) and only `r fmt(gpi(k_max, n_max, "bias_vs_reliability", pi_width), 3)` at $k = `r k_max`$, $N = `r n_max`$ (`r interval(gpi(k_max, n_max, "bias_vs_reliability", pi_lower), gpi(k_max, n_max, "bias_vs_reliability", pi_upper))`). The true reliability change narrows correspondingly, from `r fmt(gpi(k_min, n_min, "delta_rho", pi_width), 3)` to `r fmt(gpi(k_max, n_max, "delta_rho", pi_width), 3)` wide.
 
 The gap between these intervals and the corresponding Monte Carlo standard errors is the substantive point of this aim. At $k = `r k_min`$, $N = `r n_min`$, the mean bias against true reliability is `r fmt(g(estimands, k_min, n_min, "bias_vs_reliability_est", "forced"), 3)` with a Monte Carlo standard error of `r fmt(g(estimands, k_min, n_min, "bias_vs_reliability_mcse", "forced"), 4)`, so the long-run average is pinned down to within a thousandth. Yet the individual studies making up that average span `r interval(gpi(k_min, n_min, "bias_vs_reliability", pi_lower), gpi(k_min, n_min, "bias_vs_reliability", pi_upper))`, a range roughly `r formatC(gpi(k_min, n_min, "bias_vs_reliability", pi_width) / g(estimands, k_min, n_min, "bias_vs_reliability_mcse", "forced"), format = "f", digits = 0)` times wider than the standard error.
 
 That ratio is not a finding about item dropping, it is close to an identity. For any approximately normal quantity the interval width is about $3.92 S_d$ while the standard error is $S_d/\sqrt{K}$, so their ratio is about $3.92\sqrt{K} \approx `r formatC(3.92 * sqrt(n_iterations), format = "f", digits = 0)`$ at $K$ = `r format(n_iterations, big.mark = ",")` regardless of the condition, and indeed it varies only between `r formatC(min(prediction_intervals$pi_width / prediction_intervals$mcse), format = "f", digits = 0)` and `r formatC(max(prediction_intervals$pi_width / prediction_intervals$mcse), format = "f", digits = 0)` across the entire design. Running more replications therefore raises this ratio rather than lowering it. The precision of the reported mean and the spread that an individual study faces are not merely different in size, they move in opposite directions as a simulation is scaled up. A researcher reporting an $\alpha$ after dropping an item from a five-item scale measured on twenty participants is drawing from the wide distribution, not from a neighbourhood of the mean, and no amount of additional simulation narrows what they face.
+
+## Post hoc analysis: can a stricter decision rule fix the decision?
+
+The conditional strategy's gate, any apparent improvement at all, is the most permissive rule available, so an obvious practical question is whether a stricter gate rescues the practice: drop only if the apparent gain exceeds some threshold $t$. Because the simulation cache records the full-pool and dropped-pool sample alphas and both population targets for every replication, any such rule is computable from the same `r format(n_replications, big.mark = ",")` replications without new simulation, with $t = 0$ reproducing the conditional strategy exactly. This analysis was not part of the planned design and should be read as post hoc. @tbl-rules reports, for $t \in \{`r paste(rule_thresholds, collapse = ", ")`\}$, how often each rule fires and the probability that firing harmed true reliability.
+
+```{=latex}
+% Start this table at the top of a fresh page so it cannot split (see the note above the
+% first results table).
+\clearpage
+```
+
+```{r}
+#| label: tbl-rules
+#| tbl-cap: "Post hoc thresholded decision rules: drop only if the apparent in-sample gain exceeds t. For each rule and condition, the percentage of replications in which the rule fires, and the percentage of those firings that reduced true reliability (harm given fire). t = 0 is the conditional strategy. All values are percentages; the binomial Monte Carlo standard error is at most 0.5 percentage points for fire rates, and for harm rates it is computed on the realised number of firings. An em-dash marks cells in which the rule never fired, where harm given fire is undefined."
+
+decision_rules |>
+  mutate(fire = formatC(100 * p_fire, format = "f", digits = 1),
+         harm = ifelse(n_fire == 0, "---", formatC(100 * harm_fire, format = "f", digits = 1))) |>
+  select(k_indicators, n_participants, threshold, fire, harm) |>
+  pivot_wider(names_from = threshold, values_from = c(fire, harm),
+              names_glue = "{.value}_{threshold}") |>
+  transmute(k = as.character(k_indicators),
+            N = as.character(n_participants),
+            `t = 0` = fire_0,     `t = .01` = fire_0.01,
+            `t = .02` = fire_0.02, `t = .05` = fire_0.05,
+            `t = 0 ` = harm_0,     `t = .01 ` = harm_0.01,
+            `t = .02 ` = harm_0.02, `t = .05 ` = harm_0.05) |>
+  kable(booktabs = TRUE, longtable = TRUE, linesep = "",
+        align = c("l", rep("r", 9))) |>
+  add_header_above(c(" " = 2, "Fires (% of replications)" = 4, "Harm given fire (%)" = 4)) |>
+  kable_styling(latex_options = "repeat_header", font_size = 8) |>
+  collapse_rows(columns = 1, latex_hline = "major", valign = "top")
+```
+
+The pattern splits cleanly on sample size. At $N \geq 200$, thresholds work: requiring an apparent gain of at least .02 keeps the harm-given-fire probability at or below `r pct(rule_key$gate02_maxharm_n200)` at $N = 200$ wherever the rule fires at all (`r pct(rule_key$gate02_harm_k5n200)` at $k = `r k_min`$, `r pct(rule_key$gate02_harm_k10n200)` at $k = 10$), and near zero at $N = `r n_max`$. At the longest scales the .02 gate simply never fires, because a single item out of 40 cannot move $\alpha$ by that much; abstention is the correct behaviour there, since those are also the cells where dropping has the least to offer. At small samples, thresholds fail: at $k = `r k_min`$, $N = `r n_min`$, even demanding an apparent gain of .05, which more than halves how often the rule fires, still leaves a `r pct(rule_key$strict_harm_k5n20)` chance that the drop harms true reliability, and at $N = 50$ the strictest gate examined still carries `r pct(rule_key$strict_harm_k5n50)`. The reason is the one documented under Aim 4: at small $N$ the apparent gain is dominated by selection over noise, so conditioning on a *larger* apparent gain selects for more extreme noise nearly as often as for genuinely worse items, and no threshold on an in-sample quantity can separate the two.
+
+As a rule of thumb, an alpha-if-item-removed recommendation should not be acted on at all in small samples ($N \leq 50$), whatever the apparent improvement; in samples of several hundred or more, acting only when the apparent gain exceeds .02 keeps the risk of harming the scale below roughly one in fourteen even for five-item scales, and negligible for longer ones.
 
 ```{r}
 #| label: fig-pi
@@ -944,7 +1074,7 @@ The finding that $\alpha$ and true reliability diverge even with no item selecti
 
 ## Bias in the reported number versus harm to the scale
 
-The most consequential finding is not that the reported number is wrong. Across most of the design it is only slightly wrong, with magnitudes mostly under 0.01. It is that the decision itself is frequently detrimental. In the worst condition, the forced rule reduced true reliability in `r pct(g(harm, k_min, n_min, "harm_est", "forced"))` of replications while its mean apparent in-sample gain was `r fmt(g(estimands, k_min, n_min, "delta_obs_est", "forced"), 3)`. The conditional rule, which acts only on an apparent improvement, still did so in `r pct(g(harm, k_min, n_min, "harm_est", "conditional"))` of the replications in which it acted.
+The most consequential finding is not that the reported number is wrong. Across most of the design it is only slightly wrong, with magnitudes mostly under 0.01. It is that the decision itself is frequently detrimental. In the worst condition, the forced rule reduced true reliability in `r pct(g(harm, k_min, n_min, "harm_est", "forced"))` of replications while its mean apparent in-sample gain was `r fmt(g(estimands, k_min, n_min, "delta_obs_est", "forced"), 3)`. The conditional rule, which acts only on an apparent improvement, still did so in `r pct(g(harm_given_drop, k_min, n_min, "harm_gd_est"))` of the replications in which it acted.
 
 A modest average bias can coexist with a near-coin-flip probability of a harmful outcome, because the bias measure averages over both helpful and harmful replications while the harm rate isolates how often the harmful case occurs. Nothing about the reported $\alpha$ itself distinguishes the two scenarios.
 
@@ -956,9 +1086,11 @@ A mean bias near zero is compatible either with every study landing close to zer
 
 ## Practical implications
 
-In short scales and small samples, precisely where the reported number is most likely to be optimistically biased, the underlying decision is most likely to be actively wrong. Previous simulation findings have shown that unbiased estimation of $\alpha$ at small $N$ is possible when the largest eigenvalue of the item covariance matrix is large [@yurdugul_minimum_2008], indicating that bias in $\alpha$ depends on how strongly unidimensional the items are as well as on sample size. As short scales are by construction more likely to be unidimensional, this qualifies but does not remove the practical concern raised here.
+In short scales and small samples, precisely where the reported number is most likely to be optimistically biased, the underlying decision is most likely to be actively wrong. Previous simulation findings have shown that unbiased estimation of $\alpha$ at small $N$ is possible when the largest eigenvalue of the item covariance matrix is large [@yurdugul_minimum_2008], indicating that bias in $\alpha$ depends on how strongly unidimensional the items are as well as on sample size. Every pool generated here is unidimensional by construction (see Limitations), so this moderator could not vary within our design; scales with weaker general factors than ours would likely fare worse, not better.
 
-The key distinction for measurement practice is between what is knowable before a study is run and what is knowable after. Scale length and sample size are properties of the study design. Everything this simulation quantifies as risky, that is, the optimistic bias, the harm rate, and the width of the prediction interval, is a function of those two design choices and of nothing about the data subsequently collected. The risk can therefore be known in advance: a researcher could take a proposed $k$ and $N$, find the corresponding row of @tbl-proportions, and know before collecting data roughly how much to trust a future item-dropping decision from that study. This is an unusual property for a bias to have. Many statistical biases depend on unknown population parameters that the researcher cannot inspect in advance. This one depends only on design choices that are already written down in the preregistration or method section.
+The key distinction for measurement practice is between what is knowable before a study is run and what is knowable after. Scale length and sample size are properties of the study design. Everything this simulation quantifies as risky, that is, the optimistic bias, the harm rate, and the width of the prediction interval, is a function of those two design choices and of nothing about the data subsequently collected, holding the loading distribution fixed at the trait-scale-typical one simulated here. The risk can therefore be known in advance for scales resembling that corpus: a researcher could take a proposed $k$ and $N$, find the corresponding row of @tbl-proportions, and know before collecting data roughly how much to trust a future item-dropping decision from that study. This is an unusual property for a bias to have. Many statistical biases depend on unknown population parameters that the researcher cannot inspect in advance. This one depends only on design choices that are already written down in the preregistration or method section, together with the assumption that the scale in hand is exchangeable with the trait-scale pool that calibrated the simulation; a scale with unusually strong and uniform loadings faces lower risk at the same $k$ and $N$, and a weaker one higher (see the clustering limitation below).
+
+The post hoc decision-rule analysis sharpens this advice. Where a large sample is available, a simple threshold works: act on an alpha-if-item-removed recommendation only when the apparent gain exceeds .02, which at $N \geq 200$ kept the probability of harming the scale at or below `r pct(rule_key$gate02_maxharm_n200)` wherever the rule recommended dropping at all. Where the sample is small, no threshold examined made the decision safe, so the recommendation is to not act at all and to treat the table as uninformative.
 
 This gives a partial answer to the question @hussey_aberrant_2025 raise, of how a researcher can tell a genuinely poor item from an artefact of their own sample without a second sample to check against. The answer these results support is that they cannot tell from the analysis, but they can bound how often they would be wrong from the design. At $k = `r k_max`$ with $N = `r n_max`$ that bound is negligible. At $k = `r k_min`$ with $N = `r n_min`$ it is close to a coin flip.
 
@@ -974,6 +1106,8 @@ The 95% prediction intervals conflate two sources of variation, a fresh item poo
 
 Finally, data-generating processes vary considerably between simulation studies, and identifying where ours limits our conclusions is worthwhile despite its being empirically grounded rather than speculative. The corpus used to fit the loading distribution consists of individual-differences and personality measures, which may differ considerably from the scales on which item-dropping decisions are made in clinical psychology or in contexts where psychometric properties carry more consequential weight.
 
+Two idealisations of the generated data itself also bound the generality of the results. First, items are continuous and multivariate normal, whereas almost every $\alpha$ in the motivating literature is computed on ordinal Likert responses. Categorical items attenuate inter-item covariances, $\alpha$ computed on them behaves differently at small samples, and item dropping could interact with asymmetric response thresholds in ways a continuous DGP cannot exhibit. Second, every generated pool is exactly unidimensional: the single-factor model that $\alpha$ presupposes, short of tau-equivalence, is true by construction, so the only kind of genuinely weak item that can exist here is one with a low or negative loading. In practice, alpha-if-item-removed nominations are often driven by multidimensionality, cross-loadings, or correlated residuals, cases in which the nominated item is a signal of model misspecification rather than of noise, and in which removing it changes what the scale measures rather than merely how precisely. Our conclusion that the table cannot distinguish a weak item from a sampling artefact therefore describes the *best case* for the practice, the one in which the model the table implicitly assumes is correct. Simulation designs that build in realistic indicator distributions and deliberate misspecifications, in the manner of @greene_are_2019, who simulated binary and skewed indicators under a range of structural misspecifications precisely because fit-based model comparisons behave differently there, would test whether the harm rates reported here are under- or over-estimates for real data.
+
 More consequentially, the empirical loading distribution is a marginal, independent-item fit: each item's loading is drawn i.i.d. from the one pooled distribution, ignoring which items belong to which scale. Real loadings cluster within scales. Some scales are uniformly well constructed, while weak and negative loadings concentrate within particular, often multidimensional, scales. Under the i.i.d. fit that clustering is erased: genuinely weak items are sprinkled uniformly at random across generated pools, every sufficiently long pool contains some droppable item, and no pool is systematically better constructed than any other. The fit reproduces the marginal distribution of loadings faithfully, but it understates how much pools differ from one another, because clustering concentrates item quality within scales and the i.i.d. draw spreads it evenly. This matters for the estimands most central to this article: the harm rate and the probability of dropping both turn on whether the nominated item is a stable property of the scale or an accident of the sample, and a DGP that understates between-scale heterogeneity misstates the balance between those two ingredients, and with it how the marginal harm rate is composed.
 
 The same flattening bears directly on a second limitation, noted above: this simulation says nothing about whether an item-dropping recommendation would *replicate*. Each replication draws one sample per pool, so the design can estimate how often a drop harms true reliability, but not whether the same item would be nominated again in a new sample from the same scale, nor whether an apparent in-sample gain would survive out of sample. These two limitations are not independent, because a recommendation replicates exactly when it is driven by the stable, scale-level component of the loadings rather than by sampling noise, and that is precisely the component the marginal fit flattens away. Both therefore point at the same future simulation: one that parametrises the loading distribution hierarchically, so that scales genuinely differ from one another, and that splits each pool's data into training and testing samples, nominating the item in the training sample and assessing the decision's out-of-sample performance in the testing sample: whether the same item is nominated again, whether the reported $\alpha$ holds up, and whether the apparent gain in reliability is realised. The Future directions below sketch this design.
@@ -982,7 +1116,9 @@ The same flattening bears directly on a second limitation, noted above: this sim
 
 The replicability question raised in the limitations could be investigated with a same-item agreement measure benchmarked against a uniform chance floor rather than against Cohen's kappa, and with a paired training/testing design that distinguishes whether the same item gets nominated twice from whether a fixed item's apparent gain survives out of sample. Because that design draws several samples from each item pool, it would also decompose the harm rate reported here. A marginal harm rate of close to one half is compatible with two quite different worlds: one in which every short scale is a coin flip, and one which mixes scales with no genuinely weak item, where dropping is near-certain to harm, with scales containing one, where it is near-certain to help. These carry opposite practical advice, the present design cannot distinguish them, and the nested follow-up can. Combining that analysis with the bias and harm-rate results here would complete the picture this pair of simulations is building toward.
 
-A second extension would evaluate sample $\omega$ as an alternative reporting statistic, since the present study uses $\omega$ only as the population target against which sample $\alpha$ is judged rather than as a competing sample-based estimator. A third would add an external criterion, which would let the validity consequences of dropping be estimated directly rather than inferred from the reliability change. Finally, whether the specific practices simulated here reflect how item dropping actually occurs in the published literature remains an open empirical question.
+A second extension would make the generated data more realistic on the two dimensions identified in the Limitations: ordinal indicators, generated by thresholding the latent responses at empirically calibrated cut points, and deliberately misspecified structures, such as minor secondary factors, cross-loadings, or correlated residuals, following the approach of @greene_are_2019 of simulating realistic indicator distributions under a range of structural misspecifications. The misspecified case is the more informative one, because it is the only setting in which an alpha-if-item-removed nomination can be *right for the wrong reason*, flagging an item that genuinely does not belong while the analyst's unidimensional reading of the scale is itself in error.
+
+A third extension would evaluate sample $\omega$ as an alternative reporting statistic, since the present study uses $\omega$ only as the population target against which sample $\alpha$ is judged rather than as a competing sample-based estimator. A fourth would add an external criterion, which would let the validity consequences of dropping be estimated directly rather than inferred from the reliability change. Finally, whether the specific practices simulated here reflect how item dropping actually occurs in the published literature remains an open empirical question.
 
 ## Conclusion
 

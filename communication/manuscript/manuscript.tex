@@ -207,7 +207,7 @@
 \IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
 \urlstyle{same}
 \hypersetup{
-  pdftitle={Item-dropping based on Cronbach's alpha improves in-sample alpha but not true reliability: A Monte Carlo simulation},
+  pdftitle={Item-dropping to improve in-sample Cronbach's alpha can harm true reliability: A Monte Carlo simulation},
   pdfauthor={Ze Freeman; Ian Hussey},
   colorlinks=true,
   linkcolor={blue},
@@ -221,8 +221,8 @@
 \begin{document}
 
 \begin{frontmatter}
-\title{Item-dropping based on Cronbach's alpha improves in-sample alpha
-but not true reliability: A Monte Carlo simulation}
+\title{Item-dropping to improve in-sample Cronbach's alpha can harm true
+reliability: A Monte Carlo simulation}
 \author[1,2]{Ze Freeman%
 %
 }
@@ -260,14 +260,23 @@ used to report the result. Their sum makes the reported alpha overstate
 true reliability in short scales at small samples and understate it
 everywhere else. More consequentially, the drop decision itself
 frequently harms the scale: at the smallest scale and sample size the
-conditional rule reduced true reliability in 42.5\% of the replications
+conditional rule reduced true reliability in 46.7\% of the replications
 in which it acted, despite acting only when in-sample alpha appeared to
-improve, and the forced rule did so in 49.6\% of replications.
+improve, and the forced rule did so in 49.6\% of all replications.
 Individual studies encounter outcomes far more extreme than the average
-bias suggests. Because this risk is a function only of scale length and
-sample size, it is knowable before data are collected, whereas nothing
-inside the alpha-if-item-removed table distinguishes a genuinely weak
-item from a sampling artefact.
+bias suggests. A post hoc analysis of stricter decision rules shows that
+thresholding the apparent improvement helps only when samples are large:
+requiring an apparent gain of at least .02 with N of 200 or more kept
+the probability that a drop harms true reliability at or below 7\%
+wherever the rule recommended dropping at all, whereas at N = 20 even
+requiring a gain of .05 left that probability near 38\% for five-item
+scales. As a rule of thumb, an alpha-if-item-removed recommendation
+should not be acted on in small samples at all, and in larger samples
+only when the apparent improvement exceeds .02. Because this risk
+depends only on scale length and sample size, given a loading
+distribution typical of trait scales, it is knowable before data are
+collected, whereas nothing inside the alpha-if-item-removed table
+distinguishes a genuinely weak item from a sampling artefact.
 \end{abstract}
 
 
@@ -803,7 +812,76 @@ Carlo standard error is much smaller than differencing two separate
 summaries would give. Because a mean \(\Delta_\rho\) near zero can
 conceal frequent, offsetting harm, we additionally report the harm rate,
 \(\Pr(\Delta_\rho < 0)\): the proportion of replications in which the
-drop actually reduced true reliability.
+drop actually reduced true reliability. Table~\ref{tbl-estimands}
+summarises every estimand and its role.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.0380}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2405}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3544}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3671}}@{}}
+\caption{Summary of the estimands. All quantities in rows 2--3 are
+computed per strategy; for the conditional strategy they are
+additionally reported conditional on a drop having
+occurred.}\label{tbl-estimands}\tabularnewline
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+\#
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Quantity
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Definition
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Role
+\end{minipage} \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+\#
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Quantity
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Definition
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Role
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+1a & Calibration bias (full pool) &
+\(\mathbb{E}[\hat\alpha(F) - \alpha_{\text{pop}}(F)]\) & pipeline check;
+baseline for 2a \\
+1b & Structural gap (full pool) &
+\(\mathbb{E}[\alpha_{\text{pop}}(F) - \rho(F)]\) & \(\leq 0\); exists
+with no selection \\
+1c & Total full-pool bias & \(\mathbb{E}[\hat\alpha(F) - \rho(F)]\) & 1a
++ 1b; no-dropping benchmark \\
+2a & Reported-alpha bias, alpha scale &
+\(\mathbb{E}[\hat\alpha(S_s) - \alpha_{\text{pop}}(S_s)]\) & statistical
+bias incl.~winner's curse \\
+2b & Reported-alpha bias, reliability scale &
+\(\mathbb{E}[\hat\alpha(S_s) - \rho(S_s)]\) & total bias in the reported
+estimate \\
+3a & Observed gain & \(\mathbb{E}[\widehat{\Delta}_{\text{obs}}]\) & the
+trigger; researcher's-eye view \\
+3b & Population alpha change & \(\mathbb{E}[\Delta_{\text{pop}}]\) & did
+the drop improve alpha in truth \\
+3c & True reliability change & \(\mathbb{E}[\Delta_{\rho}]\) & did the
+drop improve measurement \\
+3d & Selection optimism &
+\(\mathbb{E}[\widehat{\Delta}_{\text{obs}} - \Delta_{\text{pop}}]\) &
+winner's curse, paired per replicate \\
+3e & P(drop) & \(\Pr(\hat\alpha(-J^{*}) > \hat\alpha(F))\) & conditional
+strategy only (forced \(\equiv 1\)) \\
+3f & Harm rate & \(\Pr(\Delta_\rho < 0)\) & how often dropping reduced
+reliability \\
+3g & Harm magnitude & \(\mathbb{E}[\Delta_\rho \mid \Delta_\rho < 0]\) &
+how large the harm is when it occurs \\
+4 & Prediction interval & \([\hat q_{2.5}(d),\ \hat q_{97.5}(d)]\) for
+\(d\) in 2a--3d & spread, not precision: one study's range \\
+\end{longtable}
 
 \subsection{Performance measures and Monte Carlo
 uncertainty}\label{performance-measures-and-monte-carlo-uncertainty}
@@ -901,8 +979,10 @@ Monte Carlo standard errors and prediction intervals are different
 quantities and should not be confused. An MCSE is \(S_d/\sqrt{K}\) and
 describes how precisely the mean is estimated, decreasing as the number
 of iterations (\(K\)) grows. A prediction interval is driven by \(S_d\)
-itself and describes how much individual studies differ. It stabilizes
-with increasing \(K\). At \(K\) = 10,000 the MCSE is roughly one
+itself and describes how much individual studies differ; as \(K\) grows
+its \emph{estimate} stabilises but its \emph{width} does not shrink,
+because the width is a property of the distribution rather than of how
+precisely we have sampled it. At \(K\) = 10,000 the MCSE is roughly one
 hundredth of the standard deviation, which is precisely why Aim 4
 requires its own summaries rather than wider error bars on the existing
 ones.
@@ -915,22 +995,6 @@ field-level claim, and not the range available to one researcher holding
 one fixed scale, which would require a nested design. Simulations were
 parallelised with reproducible L'Ecuyer-CMRG streams, so results are
 identical regardless of the number of workers used.
-
-\section{Results}\label{results}
-
-Results are organised around the four performance measures. Every table
-reports all 25 conditions of the design rather than a selected or pooled
-subset, because the estimands vary substantially and non-monotonically
-across the grid and an average over the grid is an average over the
-design chosen here rather than over any population of real studies.
-
-\subsection{Calibration and the structural
-gap}\label{calibration-and-the-structural-gap}
-
-% Start this table at the top of a fresh page so it cannot split: Quarto re-emits
-% computational tables as longtables (see the note above Table 2), and each of these
-% 25-row tables fits a single page whole.
-\clearpage
 
 \begingroup\fontsize{9}{11}\selectfont
 
@@ -1011,6 +1075,17 @@ k & N & 1a. Calibration bias & 1b. Structural gap & 1c. Total bias\\
 
 \endgroup{}
 
+\section{Results}\label{results}
+
+Results are organised around the four performance measures. Every table
+reports all 25 conditions of the design rather than a selected or pooled
+subset, because the estimands vary substantially and non-monotonically
+across the grid and an average over the grid is an average over the
+design chosen here rather than over any population of real studies.
+
+\subsection{Calibration and the structural
+gap}\label{calibration-and-the-structural-gap}
+
 Estimating the full-pool Cronbach's \(\alpha\) shows a small downward
 calibration bias at small samples (Table~\ref{tbl-fullpool}, column 1a;
 Figure~\ref{fig-fullpool}, panel 1a). With small samples, the item
@@ -1054,14 +1129,6 @@ Note the differing y-axis scales. The structural gap (1b) depends only
 on the loadings, so its five sample-size series coincide.}
 
 \end{figure}%
-
-\subsection{Bias in the reported alpha after item
-dropping}\label{bias-in-the-reported-alpha-after-item-dropping}
-
-% Quarto re-emits computational tables as longtables in this format, so a longtable-level
-% page break cannot be prevented from the chunk options. Starting the table at the top of
-% a fresh page instead: its 25 rows plus caption fit on one page, so it cannot split.
-\clearpage
 
 \begingroup\fontsize{8}{10}\selectfont
 
@@ -1136,6 +1203,9 @@ k & N & 2a vs. pop. alpha & 2b vs. reliability & 2a vs. pop. alpha & 2b vs. reli
 \end{longtable}
 
 \endgroup{}
+
+\subsection{Bias in the reported alpha after item
+dropping}\label{bias-in-the-reported-alpha-after-item-dropping}
 
 Against the population \(\alpha\) of the retained items
 (Table~\ref{tbl-bias}, column 2a), the selection-induced optimism
@@ -1260,6 +1330,89 @@ estimand is defined in terms of it.}
 
 \end{figure}%
 
+\begingroup\fontsize{8}{10}\selectfont
+
+\begin{longtable}[t]{lrrrrrr}
+
+\caption{\label{tbl-givendrop}Conditional strategy, restricted to the
+replications in which a drop actually occurred. Estimate (+/-1 Monte
+Carlo standard error) of the bias in the reported alpha against
+population alpha (2a) and against true reliability (2b), the mean true
+reliability change (3c), and the harm rate among these drops (3f;
+percent). K(drop) is the realised number of replications in which a drop
+occurred, out of 10,000. The given-drop harm rate has a different
+denominator from the marginal harm rate in the impact table below, which
+counts no-drop replications as non-harm.}
+
+\tabularnewline
+
+\toprule
+k & N & K(drop) & 2a vs. pop. alpha & 2b vs. reliability & 3c. Reliability change & 3f. Harm given drop\\
+\midrule
+\endfirsthead
+\multicolumn{7}{@{}l}{\textit{(continued)}}\\
+\toprule
+k & N & K(drop) & 2a vs. pop. alpha & 2b vs. reliability & 3c. Reliability change & 3f. Harm given drop\\
+\midrule
+\endhead
+
+\endfoot
+\bottomrule
+\endlastfoot
+ & 20 & 9,102 & 0.0391 (0.0014) & 0.0190 (0.0013) & 0.0023 (0.0005) & 46.7 (0.52)\\
+\nopagebreak
+ & 30 & 8,868 & 0.0282 (0.0011) & 0.0091 (0.0011) & 0.0102 (0.0005) & 39.4 (0.52)\\
+\nopagebreak
+ & 50 & 8,560 & 0.0209 (0.0009) & 0.0030 (0.0009) & 0.0167 (0.0004) & 33.1 (0.51)\\
+\nopagebreak
+ & 200 & 8,013 & 0.0054 (0.0005) & -0.0109 (0.0005) & 0.0296 (0.0004) & 16.0 (0.41)\\
+\nopagebreak
+\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 5} & 1000 & 7,794 & 0.0013 (0.0002) & -0.0143 (0.0003) & 0.0339 (0.0003) & 7.2 (0.29)\\
+\cmidrule{1-7}\pagebreak[0]
+ & 20 & 9,874 & 0.0052 (0.0008) & -0.0067 (0.0008) & 0.0067 (0.0002) & 32.0 (0.47)\\
+\nopagebreak
+ & 30 & 9,838 & 0.0041 (0.0006) & -0.0074 (0.0006) & 0.0089 (0.0002) & 26.9 (0.45)\\
+\nopagebreak
+ & 50 & 9,750 & 0.0045 (0.0005) & -0.0063 (0.0005) & 0.0110 (0.0001) & 19.8 (0.40)\\
+\nopagebreak
+ & 200 & 9,641 & 0.0007 (0.0002) & -0.0093 (0.0002) & 0.0146 (0.0001) & 7.6 (0.27)\\
+\nopagebreak
+\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 10} & 1000 & 9,614 & 0.0003 (0.0001) & -0.0095 (0.0001) & 0.0159 (0.0001) & 2.5 (0.16)\\
+\cmidrule{1-7}\pagebreak[0]
+ & 20 & 9,982 & -0.0017 (0.0006) & -0.0104 (0.0006) & 0.0051 (0.0001) & 25.0 (0.43)\\
+\nopagebreak
+ & 30 & 9,978 & -0.0009 (0.0004) & -0.0092 (0.0004) & 0.0062 (0.0001) & 19.0 (0.39)\\
+\nopagebreak
+ & 50 & 9,970 & 0.0003 (0.0003) & -0.0078 (0.0003) & 0.0073 (0.0001) & 12.8 (0.33)\\
+\nopagebreak
+ & 200 & 9,939 & 0.0005 (0.0002) & -0.0071 (0.0002) & 0.0088 (0.0001) & 3.7 (0.19)\\
+\nopagebreak
+\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 15} & 1000 & 9,919 & 0.0000 (0.0001) & -0.0073 (0.0001) & 0.0096 (0.0001) & 0.8 (0.09)\\
+\cmidrule{1-7}\pagebreak[0]
+ & 20 & 9,999 & -0.0035 (0.0005) & -0.0103 (0.0005) & 0.0036 (0.0000) & 20.4 (0.40)\\
+\nopagebreak
+ & 30 & 9,998 & -0.0015 (0.0003) & -0.0081 (0.0003) & 0.0043 (0.0000) & 15.2 (0.36)\\
+\nopagebreak
+ & 50 & 9,993 & -0.0004 (0.0003) & -0.0068 (0.0003) & 0.0050 (0.0000) & 8.9 (0.28)\\
+\nopagebreak
+ & 200 & 9,989 & -0.0000 (0.0001) & -0.0061 (0.0001) & 0.0059 (0.0000) & 1.8 (0.13)\\
+\nopagebreak
+\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 20} & 1000 & 9,985 & 0.0000 (0.0001) & -0.0060 (0.0001) & 0.0063 (0.0000) & 0.3 (0.06)\\
+\cmidrule{1-7}\pagebreak[0]
+ & 20 & 10,000 & -0.0039 (0.0002) & -0.0076 (0.0002) & 0.0014 (0.0000) & 12.0 (0.33)\\
+\nopagebreak
+ & 30 & 10,000 & -0.0021 (0.0002) & -0.0058 (0.0002) & 0.0016 (0.0000) & 7.0 (0.26)\\
+\nopagebreak
+ & 50 & 10,000 & -0.0010 (0.0001) & -0.0046 (0.0001) & 0.0018 (0.0000) & 3.2 (0.18)\\
+\nopagebreak
+ & 200 & 10,000 & -0.0003 (0.0001) & -0.0038 (0.0001) & 0.0021 (0.0000) & 0.1 (0.04)\\
+\nopagebreak
+\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 40} & 1000 & 10,000 & 0.0000 (0.0000) & -0.0034 (0.0000) & 0.0022 (0.0000) & 0.0 (0.00)\\*
+
+\end{longtable}
+
+\endgroup{}
+
 Restricting the conditional strategy to the replications in which it
 actually acted (Table~\ref{tbl-givendrop}) leaves this pattern almost
 unchanged, because both strategies remove the same nominated item
@@ -1269,91 +1422,6 @@ the conditional rule declines to act increasingly often as \(N\) grows,
 from 9.0\% of replications at \(N = 20\) to 22.1\% at \(N = 1000\). This
 is consistent with greater sampling precision at larger \(N\) leaving
 less noise for the argmax to exploit.
-
-% Start this table at the top of a fresh page so it cannot split: Quarto re-emits
-% computational tables as longtables (see the note above Table 2), and each of these
-% 25-row tables fits a single page whole.
-\clearpage
-
-\begingroup\fontsize{8}{10}\selectfont
-
-\begin{longtable}[t]{lrrrrr}
-
-\caption{\label{tbl-givendrop}Conditional strategy, restricted to the
-replications in which a drop actually occurred. Estimate (+/-1 Monte
-Carlo standard error) of the bias in the reported alpha against
-population alpha (2a) and against true reliability (2b), and the mean
-true reliability change (3c). K(drop) is the realised number of
-replications in which a drop occurred, out of 10,000.}
-
-\tabularnewline
-
-\toprule
-k & N & K(drop) & 2a vs. pop. alpha & 2b vs. reliability & 3c. Reliability change\\
-\midrule
-\endfirsthead
-\multicolumn{6}{@{}l}{\textit{(continued)}}\\
-\toprule
-k & N & K(drop) & 2a vs. pop. alpha & 2b vs. reliability & 3c. Reliability change\\
-\midrule
-\endhead
-
-\endfoot
-\bottomrule
-\endlastfoot
- & 20 & 9,102 & 0.0391 (0.0014) & 0.0190 (0.0013) & 0.0023 (0.0005)\\
-\nopagebreak
- & 30 & 8,868 & 0.0282 (0.0011) & 0.0091 (0.0011) & 0.0102 (0.0005)\\
-\nopagebreak
- & 50 & 8,560 & 0.0209 (0.0009) & 0.0030 (0.0009) & 0.0167 (0.0004)\\
-\nopagebreak
- & 200 & 8,013 & 0.0054 (0.0005) & -0.0109 (0.0005) & 0.0296 (0.0004)\\
-\nopagebreak
-\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 5} & 1000 & 7,794 & 0.0013 (0.0002) & -0.0143 (0.0003) & 0.0339 (0.0003)\\
-\cmidrule{1-6}\pagebreak[0]
- & 20 & 9,874 & 0.0052 (0.0008) & -0.0067 (0.0008) & 0.0067 (0.0002)\\
-\nopagebreak
- & 30 & 9,838 & 0.0041 (0.0006) & -0.0074 (0.0006) & 0.0089 (0.0002)\\
-\nopagebreak
- & 50 & 9,750 & 0.0045 (0.0005) & -0.0063 (0.0005) & 0.0110 (0.0001)\\
-\nopagebreak
- & 200 & 9,641 & 0.0007 (0.0002) & -0.0093 (0.0002) & 0.0146 (0.0001)\\
-\nopagebreak
-\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 10} & 1000 & 9,614 & 0.0003 (0.0001) & -0.0095 (0.0001) & 0.0159 (0.0001)\\
-\cmidrule{1-6}\pagebreak[0]
- & 20 & 9,982 & -0.0017 (0.0006) & -0.0104 (0.0006) & 0.0051 (0.0001)\\
-\nopagebreak
- & 30 & 9,978 & -0.0009 (0.0004) & -0.0092 (0.0004) & 0.0062 (0.0001)\\
-\nopagebreak
- & 50 & 9,970 & 0.0003 (0.0003) & -0.0078 (0.0003) & 0.0073 (0.0001)\\
-\nopagebreak
- & 200 & 9,939 & 0.0005 (0.0002) & -0.0071 (0.0002) & 0.0088 (0.0001)\\
-\nopagebreak
-\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 15} & 1000 & 9,919 & 0.0000 (0.0001) & -0.0073 (0.0001) & 0.0096 (0.0001)\\
-\cmidrule{1-6}\pagebreak[0]
- & 20 & 9,999 & -0.0035 (0.0005) & -0.0103 (0.0005) & 0.0036 (0.0000)\\
-\nopagebreak
- & 30 & 9,998 & -0.0015 (0.0003) & -0.0081 (0.0003) & 0.0043 (0.0000)\\
-\nopagebreak
- & 50 & 9,993 & -0.0004 (0.0003) & -0.0068 (0.0003) & 0.0050 (0.0000)\\
-\nopagebreak
- & 200 & 9,989 & -0.0000 (0.0001) & -0.0061 (0.0001) & 0.0059 (0.0000)\\
-\nopagebreak
-\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 20} & 1000 & 9,985 & 0.0000 (0.0001) & -0.0060 (0.0001) & 0.0063 (0.0000)\\
-\cmidrule{1-6}\pagebreak[0]
- & 20 & 10,000 & -0.0039 (0.0002) & -0.0076 (0.0002) & 0.0014 (0.0000)\\
-\nopagebreak
- & 30 & 10,000 & -0.0021 (0.0002) & -0.0058 (0.0002) & 0.0016 (0.0000)\\
-\nopagebreak
- & 50 & 10,000 & -0.0010 (0.0001) & -0.0046 (0.0001) & 0.0018 (0.0000)\\
-\nopagebreak
- & 200 & 10,000 & -0.0003 (0.0001) & -0.0038 (0.0001) & 0.0021 (0.0000)\\
-\nopagebreak
-\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 40} & 1000 & 10,000 & 0.0000 (0.0000) & -0.0034 (0.0000) & 0.0022 (0.0000)\\*
-
-\end{longtable}
-
-\endgroup{}
 
 \subsection{Impact of item dropping}\label{impact-of-item-dropping}
 
@@ -1375,81 +1443,86 @@ whether or not that increase reflects a real improvement to the scale.
 
 \begingroup\fontsize{8}{10}\selectfont
 
-\begin{longtable}[t]{lrrrrr}
+\begin{longtable}[t]{lrrrrrr}
 
 \caption{\label{tbl-proportions}Proportion of replications in which the
 conditional strategy dropped an item (3e; the forced strategy drops in
-all replications by definition), and the proportion in which the drop
-reduced true reliability (3f, the harm rate), by strategy. All values
-are percentages with +/-1 Monte Carlo standard error in percentage
-points. The final column is the proportion of forced-strategy
-replications in which the apparent in-sample gain was not positive,
-i.e.~in which the drop did not even appear to help.}
+all replications by definition), the proportion in which the drop
+reduced true reliability (3f, the harm rate), and the mean size of that
+reduction when it occurred (3g, harm magnitude; forced strategy), by
+item-pool size (k) and sample size (N). Proportions are percentages with
++/-1 Monte Carlo standard error in percentage points;
+conditional-strategy harm is marginal (no-drop replications count as
+non-harm; see the conditional-on-drop table for the given-drop rate).
+The final column is the proportion of forced-strategy replications in
+which the apparent in-sample gain was not positive, i.e.~in which the
+drop did not even appear to help. An em-dash marks the one cell with no
+harmful replications, where the conditional mean does not exist.}
 
 \tabularnewline
 
 \toprule
-k & N & P(drop) & Harm, forced & Harm, cond. & No apparent gain, forced\\
+k & N & P(drop) & Harm, forced & Harm, cond. & 3g. Mean harm & No gain, forced\\
 \midrule
 \endfirsthead
-\multicolumn{6}{@{}l}{\textit{(continued)}}\\
+\multicolumn{7}{@{}l}{\textit{(continued)}}\\
 \toprule
-k & N & P(drop) & Harm, forced & Harm, cond. & No apparent gain, forced\\
+k & N & P(drop) & Harm, forced & Harm, cond. & 3g. Mean harm & No gain, forced\\
 \midrule
 \endhead
 
 \endfoot
 \bottomrule
 \endlastfoot
- & 20 & 91.0 (0.29) & 49.6 (0.50) & 42.5 (0.49) & 9.0\\
+ & 20 & 91.0 (0.29) & 49.6 (0.50) & 42.5 (0.49) & -0.0398 (0.0005) & 9.0\\
 \nopagebreak
- & 30 & 88.7 (0.32) & 43.9 (0.50) & 34.9 (0.48) & 11.3\\
+ & 30 & 88.7 (0.32) & 43.9 (0.50) & 34.9 (0.48) & -0.0348 (0.0005) & 11.3\\
 \nopagebreak
- & 50 & 85.6 (0.35) & 39.3 (0.49) & 28.3 (0.45) & 14.4\\
+ & 50 & 85.6 (0.35) & 39.3 (0.49) & 28.3 (0.45) & -0.0290 (0.0004) & 14.4\\
 \nopagebreak
- & 200 & 80.1 (0.40) & 28.9 (0.45) & 12.8 (0.33) & 19.9\\
+ & 200 & 80.1 (0.40) & 28.9 (0.45) & 12.8 (0.33) & -0.0182 (0.0003) & 19.9\\
 \nopagebreak
-\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 5} & 1000 & 77.9 (0.41) & 25.3 (0.43) & 5.6 (0.23) & 22.1\\
-\cmidrule{1-6}\pagebreak[0]
- & 20 & 98.7 (0.11) & 32.7 (0.47) & 31.6 (0.47) & 1.3\\
+\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 5} & 1000 & 77.9 (0.41) & 25.3 (0.43) & 5.6 (0.23) & -0.0137 (0.0002) & 22.1\\
+\cmidrule{1-7}\pagebreak[0]
+ & 20 & 98.7 (0.11) & 32.7 (0.47) & 31.6 (0.47) & -0.0107 (0.0002) & 1.3\\
 \nopagebreak
- & 30 & 98.4 (0.13) & 27.6 (0.45) & 26.5 (0.44) & 1.6\\
+ & 30 & 98.4 (0.13) & 27.6 (0.45) & 26.5 (0.44) & -0.0087 (0.0002) & 1.6\\
 \nopagebreak
- & 50 & 97.5 (0.16) & 21.1 (0.41) & 19.4 (0.40) & 2.5\\
+ & 50 & 97.5 (0.16) & 21.1 (0.41) & 19.4 (0.40) & -0.0072 (0.0001) & 2.5\\
 \nopagebreak
- & 200 & 96.4 (0.19) & 10.0 (0.30) & 7.4 (0.26) & 3.6\\
+ & 200 & 96.4 (0.19) & 10.0 (0.30) & 7.4 (0.26) & -0.0040 (0.0001) & 3.6\\
 \nopagebreak
-\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 10} & 1000 & 96.1 (0.19) & 5.6 (0.23) & 2.4 (0.15) & 3.9\\
-\cmidrule{1-6}\pagebreak[0]
- & 20 & 99.8 (0.04) & 25.1 (0.43) & 24.9 (0.43) & 0.2\\
+\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 10} & 1000 & 96.1 (0.19) & 5.6 (0.23) & 2.4 (0.15) & -0.0026 (0.0001) & 3.9\\
+\cmidrule{1-7}\pagebreak[0]
+ & 20 & 99.8 (0.04) & 25.1 (0.43) & 24.9 (0.43) & -0.0046 (0.0001) & 0.2\\
 \nopagebreak
- & 30 & 99.8 (0.05) & 19.1 (0.39) & 19.0 (0.39) & 0.2\\
+ & 30 & 99.8 (0.05) & 19.1 (0.39) & 19.0 (0.39) & -0.0037 (0.0001) & 0.2\\
 \nopagebreak
- & 50 & 99.7 (0.05) & 13.0 (0.34) & 12.8 (0.33) & 0.3\\
+ & 50 & 99.7 (0.05) & 13.0 (0.34) & 12.8 (0.33) & -0.0031 (0.0001) & 0.3\\
 \nopagebreak
- & 200 & 99.4 (0.08) & 4.1 (0.20) & 3.6 (0.19) & 0.6\\
+ & 200 & 99.4 (0.08) & 4.1 (0.20) & 3.6 (0.19) & -0.0015 (0.0001) & 0.6\\
 \nopagebreak
-\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 15} & 1000 & 99.2 (0.09) & 1.4 (0.12) & 0.8 (0.09) & 0.8\\
-\cmidrule{1-6}\pagebreak[0]
- & 20 & 100.0 (0.01) & 20.4 (0.40) & 20.4 (0.40) & 0.0\\
+\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 15} & 1000 & 99.2 (0.09) & 1.4 (0.12) & 0.8 (0.09) & -0.0011 (0.0001) & 0.8\\
+\cmidrule{1-7}\pagebreak[0]
+ & 20 & 100.0 (0.01) & 20.4 (0.40) & 20.4 (0.40) & -0.0025 (0.0000) & 0.0\\
 \nopagebreak
- & 30 & 100.0 (0.01) & 15.2 (0.36) & 15.2 (0.36) & 0.0\\
+ & 30 & 100.0 (0.01) & 15.2 (0.36) & 15.2 (0.36) & -0.0021 (0.0000) & 0.0\\
 \nopagebreak
- & 50 & 99.9 (0.03) & 8.9 (0.28) & 8.9 (0.28) & 0.1\\
+ & 50 & 99.9 (0.03) & 8.9 (0.28) & 8.9 (0.28) & -0.0016 (0.0000) & 0.1\\
 \nopagebreak
- & 200 & 99.9 (0.03) & 1.9 (0.14) & 1.8 (0.13) & 0.1\\
+ & 200 & 99.9 (0.03) & 1.9 (0.14) & 1.8 (0.13) & -0.0008 (0.0001) & 0.1\\
 \nopagebreak
-\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 20} & 1000 & 99.9 (0.04) & 0.4 (0.07) & 0.3 (0.06) & 0.1\\
-\cmidrule{1-6}\pagebreak[0]
- & 20 & 100.0 (0.00) & 12.0 (0.33) & 12.0 (0.33) & 0.0\\
+\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 20} & 1000 & 99.9 (0.04) & 0.4 (0.07) & 0.3 (0.06) & -0.0005 (0.0001) & 0.1\\
+\cmidrule{1-7}\pagebreak[0]
+ & 20 & 100.0 (0.00) & 12.0 (0.33) & 12.0 (0.33) & -0.0006 (0.0000) & 0.0\\
 \nopagebreak
- & 30 & 100.0 (0.00) & 7.0 (0.26) & 7.0 (0.26) & 0.0\\
+ & 30 & 100.0 (0.00) & 7.0 (0.26) & 7.0 (0.26) & -0.0005 (0.0000) & 0.0\\
 \nopagebreak
- & 50 & 100.0 (0.00) & 3.2 (0.18) & 3.2 (0.18) & 0.0\\
+ & 50 & 100.0 (0.00) & 3.2 (0.18) & 3.2 (0.18) & -0.0004 (0.0000) & 0.0\\
 \nopagebreak
- & 200 & 100.0 (0.00) & 0.1 (0.04) & 0.1 (0.04) & 0.0\\
+ & 200 & 100.0 (0.00) & 0.1 (0.04) & 0.1 (0.04) & -0.0002 (0.0000) & 0.0\\
 \nopagebreak
-\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 40} & 1000 & 100.0 (0.00) & 0.0 (0.00) & 0.0 (0.00) & 0.0\\*
+\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 40} & 1000 & 100.0 (0.00) & 0.0 (0.00) & 0.0 (0.00) & --- & 0.0\\*
 
 \end{longtable}
 
@@ -1467,14 +1540,30 @@ rate reaches 0.0\% only in the largest scale and sample combination.
 Long scales and large samples are both needed - neither alone is
 sufficient.
 
-The harm rate for the conditional strategy is lower than for the forced
-strategy in every condition (42.5\% versus 49.6\% at \(k = 5\),
-\(N = 20\)), because declining to act in the replications with the
-weakest apparent improvement disproportionately screens out cases that
-would otherwise have reduced reliability. This lowers the incidence of
-harm across all studies, not the risk in the studies where the item is
-dropped. The gating rule is a filter on how often the gamble is taken,
-not on whether it pays off.
+The harm rate counts sign only, so it must be read alongside the harm
+\emph{magnitude}, the mean reliability loss among the replications in
+which harm occurred (Table~\ref{tbl-proportions}, column 3g). The two
+together show that the harm rates are not comparable across scale
+lengths without the magnitudes. At \(k = 5\), \(N = 20\), harm is both
+frequent and material: the mean loss given harm is -0.040, comparable in
+size to the mean \emph{gain} among helpful drops. At \(k = 40\) the harm
+rate of 12.0\% at \(N = 20\) counts losses averaging only -0.0006,
+trivial beside those at short scales. The practical risk is therefore
+concentrated where the rate and the magnitude are large together, in
+short scales at small samples.
+
+The conditional strategy's harm rates require care with denominators,
+because two are available and they answer different questions.
+Marginally, across all replications including those where nothing was
+dropped, the conditional rule harms in 42.5\% of replications at
+\(k = 5\), \(N = 20\), versus 49.6\% under the forced rule. But
+conditional on the rule actually firing, which is the risk a researcher
+who has just been told to drop an item faces, the harm rate is 46.7\%
+(Table~\ref{tbl-givendrop}): barely below the forced rule's. Declining
+to act in the replications with the weakest apparent improvement lowers
+the incidence of harm across all studies mostly by gambling less often,
+not by gambling better. The gating rule is a filter on how often the
+gamble is taken, and only weakly on whether it pays off.
 
 An important qualification concerns how the harm rate should be
 described. It is tempting to say the drop harms reliability ``while
@@ -1487,7 +1576,7 @@ rising to 22.1\% at \(N = 1000\) (Table~\ref{tbl-proportions}, final
 column). The strongest claim the design supports without qualification
 is therefore the conditional one: at \(k = 5\), \(N = 20\), the rule
 that acts only when the in-sample \(\alpha\) improves nevertheless
-reduced true reliability in 42.5\% of the replications in which it
+reduced true reliability in 46.7\% of the replications in which it
 acted.
 
 \begin{figure}
@@ -1535,9 +1624,9 @@ the entire apparent improvement is selection optimism.
 \begin{longtable}[t]{lrrrrr}
 
 \caption{\label{tbl-deltas}Mean change (+/-1 Monte Carlo standard error)
-from full pool to retained items on three scales -- observed sample
-alpha (3a), population alpha (3b), and true reliability (3c) -- together
-with the selection optimism (3d = 3a - 3b, computed pairwise within
+from full pool to retained items on three scales: observed sample alpha
+(3a), population alpha (3b), and true reliability (3c), together with
+the selection optimism (3d = 3a - 3b, computed pairwise within
 replicate), for the forced strategy, by item-pool size (k) and sample
 size (N). Conditional-strategy values are given in the compendium, they
 differ only through the replications in which no drop occurred, which
@@ -1612,16 +1701,7 @@ k & N & 3a. Observed & 3b. Population alpha & 3c. True reliability & 3d. Optimis
 
 \endgroup{}
 
-\subsection{What a single study can
-encounter}\label{what-a-single-study-can-encounter}
-
-Every quantity above is a long-run average over 10,000 replications. The
-prediction intervals in Table~\ref{tbl-pi} and Figure~\ref{fig-pi}
-describe the spread instead: the range of outcomes a single study, run
-once under this rule, can encounter.
-
 \clearpage
-\begin{landscape}
 
 \begingroup\fontsize{8}{10}\selectfont
 
@@ -1704,8 +1784,13 @@ k & N & 3a. Observed gain & 3c. True reliability change & 2b. Bias vs. reliabili
 
 \endgroup{}
 
-\end{landscape}
-\clearpage
+\subsection{What a single study can
+encounter}\label{what-a-single-study-can-encounter}
+
+Every quantity above is a long-run average over 10,000 replications. The
+prediction intervals in Table~\ref{tbl-pi} and Figure~\ref{fig-pi}
+describe the spread instead: the range of outcomes a single study, run
+once under this rule, can encounter.
 
 The intervals narrow sharply as either design factor grows. For the bias
 in the reported \(\alpha\) against true reliability, the interval spans
@@ -1734,6 +1819,137 @@ A researcher reporting an \(\alpha\) after dropping an item from a
 five-item scale measured on twenty participants is drawing from the wide
 distribution, not from a neighbourhood of the mean, and no amount of
 additional simulation narrows what they face.
+
+\subsection{Post hoc analysis: can a stricter decision rule fix the
+decision?}\label{post-hoc-analysis-can-a-stricter-decision-rule-fix-the-decision}
+
+The conditional strategy's gate, any apparent improvement at all, is the
+most permissive rule available, so an obvious practical question is
+whether a stricter gate rescues the practice: drop only if the apparent
+gain exceeds some threshold \(t\). Because the simulation cache records
+the full-pool and dropped-pool sample alphas and both population targets
+for every replication, any such rule is computable from the same 250,000
+replications without new simulation, with \(t = 0\) reproducing the
+conditional strategy exactly. This analysis was not part of the planned
+design and should be read as post hoc. Table~\ref{tbl-rules} reports,
+for \(t \in \{0, 0.01, 0.02, 0.05\}\), how often each rule fires and the
+probability that firing harmed true reliability.
+
+% Start this table at the top of a fresh page so it cannot split (see the note above the
+% first results table).
+\clearpage
+
+\begingroup\fontsize{8}{10}\selectfont
+
+\begin{longtable}[t]{lrrrrrrrrr}
+
+\caption{\label{tbl-rules}Post hoc thresholded decision rules: drop only
+if the apparent in-sample gain exceeds t. For each rule and condition,
+the percentage of replications in which the rule fires, and the
+percentage of those firings that reduced true reliability (harm given
+fire). t = 0 is the conditional strategy. All values are percentages;
+the binomial Monte Carlo standard error is at most 0.5 percentage points
+for fire rates, and for harm rates it is computed on the realised number
+of firings. An em-dash marks cells in which the rule never fired, where
+harm given fire is undefined.}
+
+\tabularnewline
+
+\toprule
+\multicolumn{2}{c}{ } & \multicolumn{4}{c}{Fires (\% of replications)} & \multicolumn{4}{c}{Harm given fire (\%)} \\
+\cmidrule(l{3pt}r{3pt}){3-6} \cmidrule(l{3pt}r{3pt}){7-10}
+k & N & t = 0 & t = .01 & t = .02 & t = .05 & t = 0 & t = .01 & t = .02 & t = .05\\
+\midrule
+\endfirsthead
+\multicolumn{10}{@{}l}{\textit{(continued)}}\\
+\toprule
+\multicolumn{2}{c}{ } & \multicolumn{4}{c}{Fires (\% of replications)} & \multicolumn{4}{c}{Harm given fire (\%)} \\
+\cmidrule(l{3pt}r{3pt}){3-6} \cmidrule(l{3pt}r{3pt}){7-10}
+k & N & t = 0 & t = .01 & t = .02 & t = .05 & t = 0 & t = .01 & t = .02 & t = .05\\
+\midrule
+\endhead
+
+\endfoot
+\bottomrule
+\endlastfoot
+ & 20 & 91.0 & 84.1 & 76.5 & 55.7 & 46.7 & 44.8 & 42.9 & 38.2\\
+\nopagebreak
+ & 30 & 88.7 & 80.9 & 72.9 & 50.5 & 39.4 & 36.7 & 34.2 & 28.6\\
+\nopagebreak
+ & 50 & 85.6 & 76.4 & 67.1 & 43.7 & 33.1 & 29.3 & 25.7 & 18.2\\
+\nopagebreak
+ & 200 & 80.1 & 69.7 & 59.4 & 33.6 & 16.0 & 11.2 & 7.0 & 1.8\\
+\nopagebreak
+\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 5} & 1000 & 77.9 & 66.9 & 56.0 & 30.0 & 7.2 & 2.2 & 0.6 & 0.0\\
+\cmidrule{1-10}\pagebreak[0]
+ & 20 & 98.7 & 86.6 & 68.4 & 28.0 & 32.0 & 28.9 & 25.4 & 19.2\\
+\nopagebreak
+ & 30 & 98.4 & 84.0 & 62.9 & 20.6 & 26.9 & 22.4 & 18.0 & 11.3\\
+\nopagebreak
+ & 50 & 97.5 & 80.2 & 56.3 & 13.9 & 19.8 & 14.0 & 9.0 & 4.1\\
+\nopagebreak
+ & 200 & 96.4 & 73.9 & 46.1 & 7.4 & 7.6 & 2.0 & 0.3 & 0.0\\
+\nopagebreak
+\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 10} & 1000 & 96.1 & 72.5 & 43.5 & 5.6 & 2.5 & 0.0 & 0.0 & 0.0\\
+\cmidrule{1-10}\pagebreak[0]
+ & 20 & 99.8 & 78.6 & 46.6 & 8.3 & 25.0 & 20.4 & 16.1 & 13.7\\
+\nopagebreak
+ & 30 & 99.8 & 74.8 & 39.0 & 4.2 & 19.0 & 13.7 & 8.7 & 5.3\\
+\nopagebreak
+ & 50 & 99.7 & 69.0 & 29.6 & 1.6 & 12.8 & 6.7 & 3.3 & 0.6\\
+\nopagebreak
+ & 200 & 99.4 & 59.0 & 18.9 & 0.3 & 3.7 & 0.3 & 0.1 & 0.0\\
+\nopagebreak
+\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 15} & 1000 & 99.2 & 57.0 & 16.3 & 0.2 & 0.8 & 0.0 & 0.0 & 0.0\\
+\cmidrule{1-10}\pagebreak[0]
+ & 20 & 100.0 & 63.8 & 25.0 & 2.1 & 20.4 & 15.4 & 13.1 & 14.6\\
+\nopagebreak
+ & 30 & 100.0 & 56.1 & 17.0 & 0.5 & 15.2 & 8.5 & 5.4 & 2.0\\
+\nopagebreak
+ & 50 & 99.9 & 47.6 & 9.6 & 0.1 & 8.9 & 3.1 & 1.6 & 0.0\\
+\nopagebreak
+ & 200 & 99.9 & 34.6 & 3.4 & 0.0 & 1.8 & 0.0 & 0.0 & ---\\
+\nopagebreak
+\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 20} & 1000 & 99.9 & 31.7 & 2.6 & 0.0 & 0.3 & 0.0 & 0.0 & ---\\
+\cmidrule{1-10}\pagebreak[0]
+ & 20 & 100.0 & 7.3 & 0.4 & 0.0 & 12.0 & 10.0 & 17.1 & 0.0\\
+\nopagebreak
+ & 30 & 100.0 & 2.7 & 0.1 & 0.0 & 7.0 & 4.0 & 0.0 & ---\\
+\nopagebreak
+ & 50 & 100.0 & 0.7 & 0.0 & 0.0 & 3.2 & 0.0 & --- & ---\\
+\nopagebreak
+ & 200 & 100.0 & 0.1 & 0.0 & 0.0 & 0.1 & 0.0 & --- & ---\\
+\nopagebreak
+\multirow[t]{-4}{*}[\normalbaselineskip]{\raggedright\arraybackslash 40} & 1000 & 100.0 & 0.0 & 0.0 & 0.0 & 0.0 & --- & --- & ---\\*
+
+\end{longtable}
+
+\endgroup{}
+
+The pattern splits cleanly on sample size. At \(N \geq 200\), thresholds
+work: requiring an apparent gain of at least .02 keeps the
+harm-given-fire probability at or below 7.0\% at \(N = 200\) wherever
+the rule fires at all (7.0\% at \(k = 5\), 0.3\% at \(k = 10\)), and
+near zero at \(N = 1000\). At the longest scales the .02 gate simply
+never fires, because a single item out of 40 cannot move \(\alpha\) by
+that much; abstention is the correct behaviour there, since those are
+also the cells where dropping has the least to offer. At small samples,
+thresholds fail: at \(k = 5\), \(N = 20\), even demanding an apparent
+gain of .05, which more than halves how often the rule fires, still
+leaves a 38.2\% chance that the drop harms true reliability, and at
+\(N = 50\) the strictest gate examined still carries 18.2\%. The reason
+is the one documented under Aim 4: at small \(N\) the apparent gain is
+dominated by selection over noise, so conditioning on a \emph{larger}
+apparent gain selects for more extreme noise nearly as often as for
+genuinely worse items, and no threshold on an in-sample quantity can
+separate the two.
+
+As a rule of thumb, an alpha-if-item-removed recommendation should not
+be acted on at all in small samples (\(N \leq 50\)), whatever the
+apparent improvement; in samples of several hundred or more, acting only
+when the apparent gain exceeds .02 keeps the risk of harming the scale
+below roughly one in fourteen even for five-item scales, and negligible
+for longer ones.
 
 \begin{figure}
 
@@ -1869,7 +2085,7 @@ mostly under 0.01. It is that the decision itself is frequently
 detrimental. In the worst condition, the forced rule reduced true
 reliability in 49.6\% of replications while its mean apparent in-sample
 gain was 0.090. The conditional rule, which acts only on an apparent
-improvement, still did so in 42.5\% of the replications in which it
+improvement, still did so in 46.7\% of the replications in which it
 acted.
 
 A modest average bias can coexist with a near-coin-flip probability of a
@@ -1923,24 +2139,40 @@ shown that unbiased estimation of \(\alpha\) at small \(N\) is possible
 when the largest eigenvalue of the item covariance matrix is large
 (\citeproc{ref-yurdugul_minimum_2008}{Yurdugül, 2008}), indicating that
 bias in \(\alpha\) depends on how strongly unidimensional the items are
-as well as on sample size. As short scales are by construction more
-likely to be unidimensional, this qualifies but does not remove the
-practical concern raised here.
+as well as on sample size. Every pool generated here is unidimensional
+by construction (see Limitations), so this moderator could not vary
+within our design; scales with weaker general factors than ours would
+likely fare worse, not better.
 
 The key distinction for measurement practice is between what is knowable
 before a study is run and what is knowable after. Scale length and
 sample size are properties of the study design. Everything this
 simulation quantifies as risky, that is, the optimistic bias, the harm
 rate, and the width of the prediction interval, is a function of those
-two design choices and of nothing about the data subsequently collected.
-The risk can therefore be known in advance: a researcher could take a
-proposed \(k\) and \(N\), find the corresponding row of
-Table~\ref{tbl-proportions}, and know before collecting data roughly how
-much to trust a future item-dropping decision from that study. This is
-an unusual property for a bias to have. Many statistical biases depend
-on unknown population parameters that the researcher cannot inspect in
-advance. This one depends only on design choices that are already
-written down in the preregistration or method section.
+two design choices and of nothing about the data subsequently collected,
+holding the loading distribution fixed at the trait-scale-typical one
+simulated here. The risk can therefore be known in advance for scales
+resembling that corpus: a researcher could take a proposed \(k\) and
+\(N\), find the corresponding row of Table~\ref{tbl-proportions}, and
+know before collecting data roughly how much to trust a future
+item-dropping decision from that study. This is an unusual property for
+a bias to have. Many statistical biases depend on unknown population
+parameters that the researcher cannot inspect in advance. This one
+depends only on design choices that are already written down in the
+preregistration or method section, together with the assumption that the
+scale in hand is exchangeable with the trait-scale pool that calibrated
+the simulation; a scale with unusually strong and uniform loadings faces
+lower risk at the same \(k\) and \(N\), and a weaker one higher (see the
+clustering limitation below).
+
+The post hoc decision-rule analysis sharpens this advice. Where a large
+sample is available, a simple threshold works: act on an
+alpha-if-item-removed recommendation only when the apparent gain exceeds
+.02, which at \(N \geq 200\) kept the probability of harming the scale
+at or below 7.0\% wherever the rule recommended dropping at all. Where
+the sample is small, no threshold examined made the decision safe, so
+the recommendation is to not act at all and to treat the table as
+uninformative.
 
 This gives a partial answer to the question Hussey et al.
 (\citeproc{ref-hussey_aberrant_2025}{2025}) raise, of how a researcher
@@ -2002,6 +2234,32 @@ considerably from the scales on which item-dropping decisions are made
 in clinical psychology or in contexts where psychometric properties
 carry more consequential weight.
 
+Two idealisations of the generated data itself also bound the generality
+of the results. First, items are continuous and multivariate normal,
+whereas almost every \(\alpha\) in the motivating literature is computed
+on ordinal Likert responses. Categorical items attenuate inter-item
+covariances, \(\alpha\) computed on them behaves differently at small
+samples, and item dropping could interact with asymmetric response
+thresholds in ways a continuous DGP cannot exhibit. Second, every
+generated pool is exactly unidimensional: the single-factor model that
+\(\alpha\) presupposes, short of tau-equivalence, is true by
+construction, so the only kind of genuinely weak item that can exist
+here is one with a low or negative loading. In practice,
+alpha-if-item-removed nominations are often driven by
+multidimensionality, cross-loadings, or correlated residuals, cases in
+which the nominated item is a signal of model misspecification rather
+than of noise, and in which removing it changes what the scale measures
+rather than merely how precisely. Our conclusion that the table cannot
+distinguish a weak item from a sampling artefact therefore describes the
+\emph{best case} for the practice, the one in which the model the table
+implicitly assumes is correct. Simulation designs that build in
+realistic indicator distributions and deliberate misspecifications, in
+the manner of Greene et al. (\citeproc{ref-greene_are_2019}{2019}), who
+simulated binary and skewed indicators under a range of structural
+misspecifications precisely because fit-based model comparisons behave
+differently there, would test whether the harm rates reported here are
+under- or over-estimates for real data.
+
 More consequentially, the empirical loading distribution is a marginal,
 independent-item fit: each item's loading is drawn i.i.d. from the one
 pooled distribution, ignoring which items belong to which scale. Real
@@ -2058,10 +2316,23 @@ distinguish them, and the nested follow-up can. Combining that analysis
 with the bias and harm-rate results here would complete the picture this
 pair of simulations is building toward.
 
-A second extension would evaluate sample \(\omega\) as an alternative
+A second extension would make the generated data more realistic on the
+two dimensions identified in the Limitations: ordinal indicators,
+generated by thresholding the latent responses at empirically calibrated
+cut points, and deliberately misspecified structures, such as minor
+secondary factors, cross-loadings, or correlated residuals, following
+the approach of Greene et al. (\citeproc{ref-greene_are_2019}{2019}) of
+simulating realistic indicator distributions under a range of structural
+misspecifications. The misspecified case is the more informative one,
+because it is the only setting in which an alpha-if-item-removed
+nomination can be \emph{right for the wrong reason}, flagging an item
+that genuinely does not belong while the analyst's unidimensional
+reading of the scale is itself in error.
+
+A third extension would evaluate sample \(\omega\) as an alternative
 reporting statistic, since the present study uses \(\omega\) only as the
 population target against which sample \(\alpha\) is judged rather than
-as a competing sample-based estimator. A third would add an external
+as a competing sample-based estimator. A fourth would add an external
 criterion, which would let the validity consequences of dropping be
 estimated directly rather than inferred from the reliability change.
 Finally, whether the specific practices simulated here reflect how item
@@ -2168,6 +2439,15 @@ Flake, J. K., Pek, J., \& Hehman, E. (2017). Construct {Validation} in
 {Social} and {Personality} {Research}: {Current} {Practice} and
 {Recommendations}. \emph{Social Psychological and Personality Science},
 \emph{8}(4), 370--378. \url{https://doi.org/10.1177/1948550617693063}
+
+\bibitem[\citeproctext]{ref-greene_are_2019}
+Greene, A. L., Eaton, N. R., Li, K., Forbes, M. K., Krueger, R. F.,
+Markon, K. E., Waldman, I. D., Cicero, D. C., Conway, C. C., Docherty,
+A. R., Fried, E. I., Ivanova, M. Y., Jonas, K. G., Latzman, R. D.,
+Patrick, C. J., Reininghaus, U., Tackett, J. L., Wright, A. G. C., \&
+Kotov, R. (2019). Are fit indices used to test psychopathology structure
+biased? {A} simulation study. \emph{Journal of Abnormal Psychology},
+\emph{128}(7), 740--764. \url{https://doi.org/10.1037/abn0000434}
 
 \bibitem[\citeproctext]{ref-heggestad_scale_2019}
 Heggestad, E. D., Scheaf, D. J., Banks, G. C., Monroe Hausfeld, M.,
