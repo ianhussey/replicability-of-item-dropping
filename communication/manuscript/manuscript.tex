@@ -274,167 +274,177 @@ distinguishes a genuinely weak item from a sampling artefact.
 
 \section{Introduction}\label{introduction}
 
-Cronbach's \(\alpha\) provides a lower bound of the internal consistency
-of a multi-item scale under the assumption of tau equivalence
-(\citeproc{ref-cronbach_coefficient_1951}{Cronbach, 1951}). It is the
-most widely reported metric of structural validity in psychology
-(\citeproc{ref-flake_construct_2017}{Flake et al., 2017}) and also sees
-wide use in related fields, despite longstanding critique of its use and
-interpretation (\citeproc{ref-cortina_what_1993}{Cortina, 1993};
-\citeproc{ref-sijtsma_use_2009}{Sijtsma, 2009}). Although conventions
-for acceptable reliability are less universal for \(\alpha\) than for
-other metrics (e.g., the \emph{p} \textless{} .05 convention for
-statistical significance), there is commonly pressure to meet a
-threshold of reliability. Indeed, Hussey et al.
-(\citeproc{ref-hussey_aberrant_2025}{2025}) extracted more than 180,000
-reported \(\alpha\) values from three very large corpora, covering the
-general psychology literature, the industrial and organizational
-psychology literature, and the American Psychological Association's
-PsycTests database, and found robust excesses of values sitting just
-above the .70 rule-of-thumb threshold that could not be explained by
-justifiable measurement practices. They give this the name
-\(\alpha\)-hacking, defined as altering a measure ad hoc after seeing
-the results, with the goal or effect of raising the in-sample
-\(\alpha\), thereby conditioning the analytic choices on the results and
-overfitting to the data at hand. Because their approach can detect only
-those distortions that land an \(\alpha\) at one of the thresholds, and
-not the presumably far more common ones that land it anywhere else, they
-describe what they observe as an extreme lower bound on the true
-prevalence.
+Cronbach's \(\alpha\) is the most widely reported metric of structural
+validity in psychology (\citeproc{ref-flake_construct_2017}{Flake et
+al., 2017}). It provides a lower bound of the internal consistency of a
+multi-item measurement scale under the assumption of tau equivalence
+(\citeproc{ref-cronbach_coefficient_1951}{Cronbach, 1951}) and sees wide
+use in many fields. However, \(\alpha\) also has longstanding critiques
+of its use and interpretation, including that it is often erroneously
+used by researchers to test tau equivalence when it in fact assumes it
+(\citeproc{ref-cortina_what_1993}{Cortina, 1993};
+\citeproc{ref-sijtsma_use_2009}{Sijtsma, 2009}). Although there have
+been repeated calls to employ other metrics such as McDonald's
+\(\omega\) (\citeproc{ref-mcdonald_test_1999}{McDonald, 1999}),
+\(\alpha\) is so widely used that it is useful to examine and encourage
+its appropriate usage.
 
-There have been calls for an increased focus on measurement when
-considering the validity of study conclusions
-(\citeproc{ref-flake_measurement_2020}{Flake \& Fried, 2020}). Flake and
-Fried emphasise the need for transparency in order to assess
-questionable measurement practices, that is, decisions researchers make
-that raise doubts about the validity of the measures in a study and
-ultimately about its conclusions. Item dropping on the basis of
-Cronbach's \(\alpha\) is a particularly clear instance, because it is
-both ubiquitous and actively prompted by the software researchers use,
-and because the same sample supplies both the decision and the number
-subsequently reported.
+\subsection{Item dropping: measurement refinement or Questionable
+Measurement
+Practice?}\label{item-dropping-measurement-refinement-or-questionable-measurement-practice}
 
-Improving psychological measurement is desirable, and much work is done
-on scale development and refinement to precisely measure constructs of
-interest (e.g., \citeproc{ref-clark_constructing_1995}{Clark \& Watson,
-1995}, \citeproc{ref-clark_constructing_2019}{2019};
+Improving psychological measurement is, of course, desirable, and much
+work is done on scale development and refinement to reliably and validly
+measure constructs of interest (e.g.,
+\citeproc{ref-clark_constructing_1995}{Clark \& Watson, 1995},
+\citeproc{ref-clark_constructing_2019}{2019};
 \citeproc{ref-jebb_review_2021}{Jebb et al., 2021};
-\citeproc{ref-rodriguez_applying_2016}{Rodriguez et al., 2016}). In the
-pursuit of more reliable scales, it is plausible that some modifications
-occurring after data collection (e.g., item dropping, reverse scoring)
-may be influenced by the pressure to report a sample \(\alpha\) that
-meets a common threshold. Such changes would reduce the validity of the
-scale's interpretation, since it is unclear that in-sample gains in
-reliability observed in a single sample would generalise to
-out-of-sample contexts. The flexible application of scale modification,
-such as through item dropping, can represent a questionable measurement
-practice (\citeproc{ref-flake_measurement_2020}{Flake \& Fried, 2020};
-\citeproc{ref-hussey_aberrant_2025}{Hussey et al., 2025};
-\citeproc{ref-hussey_hidden_2020}{Hussey \& Hughes, 2020}). It can be
-difficult to distinguish scientifically desirable cases of item dropping
-from undesirable ones. Cronbach's \(\alpha\) is partially a function of
-scale length, so shortening a scale exerts downward pressure on
-\(\alpha\). However, items are presumably dropped in studies when they
-worsen the full-scale \(\alpha\), which exerts upward pressure. The
-summative impact of these two opposing pressures on \(\alpha\) has not
-been investigated.
-
+\citeproc{ref-rodriguez_applying_2016}{Rodriguez et al., 2016}).
 Selection of items from an item pool is a key step in the development of
 a scale (\citeproc{ref-clark_constructing_2019}{Clark \& Watson, 2019}),
-and can be an important part of ongoing scale refinement. However, item
-dropping can also occur in more ad hoc contexts. It can be used in ways
-that cannot aid cumulative understanding of scale reliability, for
-example when it is not reported
-(\citeproc{ref-heggestad_scale_2019}{Heggestad et al., 2019}). Elson et
-al. (\citeproc{ref-elson_psychological_2023}{2023}) make this point
+and item dropping can be an important part of ongoing scale refinement.
+A review of the industrial-organisational psychology literature has
+shown that item dropping is one of the most commonly reported forms of
+scale modification (\citeproc{ref-heggestad_scale_2019}{Heggestad et
+al., 2019}).
+
+However, item dropping could also occur in ways that do not improve
+reliability or which undermine cumulative understanding, for example
+when the item dropping is not reported, or when the drop decisions are
+over-conditioned on the data at hand. Elson et al.
+(\citeproc{ref-elson_psychological_2023}{2023}) makes this point
 directly: researchers frequently drop items they argue to be poorly
 performing in order to boost a scale's reliability coefficient, but
-without an out-of-sample norm for the modified measure, or a replication
-showing that the same drop consistently improves measurement, doing so
-improves neither the present nor the future use of the measure, and the
-modification is often not fully reported in any case. Item dropping can
-serve to improve \(\alpha\) in a given sample, for example to meet a
-cut-off value for acceptable reliability, or as an experimenter degree
-of freedom that may influence the results of a subsequent hypothesis
-test using scores on the scale. Both represent instances of overfitting,
-or of conditioning analyses on their results, which reduces the
-replicability and validity of claims. Such overfitting is also unlikely
-to be caught. Psychological measures are overwhelmingly used once and
-then abandoned: 43\% appear only a single time in the APA PsycInfo
-record of tests used in studies
-(\citeproc{ref-elson_psychological_2023}{Elson et al., 2023}), and 79\%
-are not reused more than twice
-(\citeproc{ref-anvari_defragmenting_2025}{Anvari, Alsalti, Oehler,
-Hussey, et al., 2025}; \citeproc{ref-anvari_fragmented_2025}{Anvari,
-Alsalti, Oehler, Marion, et al., 2025}). For most measures there is
-therefore never a second sample in which an apparent in-sample gain
-could fail to replicate, and a researcher may be overfitting
-considerably more than they realise. Distortions in the \(\alpha\)
-values reported in articles serve to undermine the credibility of the
-broader literature.
+without assessing whether that drop decision and associated improvement
+in reliability replicates in new samples. Such overfitting reduces the
+replicability and validity of claims. The flexible application of scale
+modification through, for example, item dropping, can represent a
+Questionable Measurement Practice or an instance of `schmeasurement'
+(\citeproc{ref-flake_measurement_2020}{Flake \& Fried, 2020};
+\citeproc{ref-hussey_aberrant_2025}{Hussey et al., 2025};
+\citeproc{ref-hussey_hidden_2020}{Hussey \& Hughes, 2020};
+\citeproc{ref-stefan_big_2023}{Stefan \& Schönbrodt, 2023}).
 
-The downstream cost of this particular practice is already established.
-Stefan \& Schönbrodt (\citeproc{ref-stefan_big_2023}{2023}) show by
-simulation that item dropping based on Cronbach's \(\alpha\) inflates
-the false positive rate of subsequent hypothesis tests from the nominal
-5\% to as high as 30\%. What that result does not tell us is why, or how
-often. An inflated false positive rate downstream is consistent with
-several quite different upstream stories: that the reported \(\alpha\)
-is systematically too high, that the retained scale is genuinely worse
-than the one it replaced, or simply that the analyst has acquired an
-extra degree of freedom. These have different implications for practice,
-and distinguishing between them requires measuring what item dropping
-does to the measurement, not only to the test that follows it.
+There is currently a lack of clarity about whether, and under what
+conditions, item dropping from an established scale represents either a)
+a defendable and even desirable form of measure refinement or b) an
+instance of `schmeasurement' or Questionable Measurement Practices
+(\citeproc{ref-flake_measurement_2020}{Flake \& Fried, 2020}). That is,
+agnostic to researchers' intentions, whether a given research practice
+is aligned with improving reliability and validity, and our
+understanding of them, or not.
 
-The measurement side has one main precedent. Kopalle \& Lehmann
-(\citeproc{ref-kopalle_alpha_1997}{1997}) examined it with simulated
-data, using an alpha-if-item-removed selection method that drops
-whichever single item maximises sample \(\alpha\), and showed that
-selecting on the same sample used to report the resulting \(\alpha\)
-capitalises on chance. Their evaluation established the phenomenon, but
-the precision of their estimates is limited by the use of only 50
-iterations per condition, their loading distributions and pool sizes
-were chosen arbitrarily rather than estimated from real scales, and the
-reported \(\alpha\) was evaluated against the population \(\alpha\) of
-the retained items rather than against their true reliability, which is
-the quantity \(\alpha\) is reported as estimating. We therefore do not
-know the relative trade-off between the improvement in reliability from
-dropping bad items and the worsening caused by shortening the scale: the
-marginal cost of retaining a mediocre item may well be smaller than the
-benefit of the scale being longer.
+This is further complicated by the mathematical basis of \(\alpha\)
+itself, and the currently-unclear cumulative impact of item dropping on
+reliability. On the one hand, we can intuit that `bad' items worsen
+\(\alpha\) by definition, and so removing poorly performing items
+represents an upwards pressure on \(\alpha\). However, on the other
+hand, \(\alpha\) is a function of the number of items in the scale, so
+shortening a scale exerts downward pressure on \(\alpha\). The
+cumulative impact of these upwards and downwards pressures is currently
+not well understood: the marginal cost of retaining a mediocre item
+could be smaller than the benefit of the scale being longer, or vice
+versa.
 
-This article informs this discussion by asking whether item dropping, on
-average and in the individual case, improves or worsens estimation of
-the true reliability of a scale. We focus on one item-selection
-mechanism, maximising alpha-if-item-removed, because of its ubiquitous
-availability in statistical software: SPSS, JASP, jamovi, and the R
-packages \emph{psych} and \emph{performance} all present it
+Relatedly, the specific method of item dropping necessarily introduces
+researcher degrees of freedom, and therefore Questionable Measurement
+Practices by definition. For example, whether items are dropped or not,
+how many items, how iteratively, etc. Previous simulation studies have
+already demonstrated that flexible application of item dropping
+increases the false positive rate of subsequent hypothesis tests from
+the nominal 5\% to as high as 30\%
+(\citeproc{ref-stefan_big_2023}{Stefan \& Schönbrodt, 2023}). However,
+no research has examined the impact of (flexible) item dropping on the
+magnitude or bias of \(\alpha\) estimates themselves. The closest
+analogue to this research question that we are aware of, which
+influenced the conceptualisation and design of the current research, is
+provided by Kopalle \& Lehmann
+(\citeproc{ref-kopalle_alpha_1997}{1997}), who simulated the impact of
+item dropping based on factor loadings (via exploratory factor analysis)
+on the magnitude or bias of \(\alpha\) estimates. Notably, while the
+authors concluded that procedures which eliminate items from scales to
+improve \(\alpha\) may lead to an overestimation of a scale's
+\(\alpha\), the interpretability and credibility of this claim is
+undermined by a) the use of only 50 iterations per simulation, likely
+producing highly stable results, and b) the lack of details about what
+specific form of EFA was employed.
+
+\subsection{Potential influences on the research practice of item
+dropping}\label{potential-influences-on-the-research-practice-of-item-dropping}
+
+Researcher behavior is human behavior, and as such can be usefully
+understood as being subject to multiple sources of influence, and indeed
+bias. Measurement practices are, presumably, commonly influenced by
+researchers' scientific goal of obtaining reliable and valid
+measurements of their constructs of interest. The ongoing improvement of
+research practices is a part of science, and it is useful for the field
+to develop an understanding of where practices are imperfectly aligned
+with that scientific goal. One obvious moderator is access to sufficient
+training (\citeproc{ref-jans_social_2015}{Jans et al., 2015};
+\citeproc{ref-munafuxf2_manifesto_2017}{Munafò et al., 2017}).
+Researchers share the scientific goal of carefully measuring the
+construct of interest, but may lack sufficient training and expertise to
+pursue it effectively in practice.
+
+Other forms of influence or bias are worth considering, such as the
+development of heuristics that become conventions in a field. For
+example, item dropping is plausibly influenced by our rules-of-thumb for
+adequate reliability, which can themselves become targets (i.e., a case
+of Goodhart's Law, ``When a measure becomes a target, it ceases to be a
+good measure,'' \citeproc{ref-strathern_improving_1997}{Strathern,
+1997}). Although conventions for acceptable scale reliability are less
+universal for \(\alpha\) than for other metrics (e.g., the \emph{p}
+\textless{} .05 convention for statistical significance), there are
+commonly understood thresholds of reliability that are reflected in the
+literature (e.g., .70 or .80). Hussey et al.
+(\citeproc{ref-hussey_aberrant_2025}{2025}) recently tested this by
+extracting more than 180,000 reported \(\alpha\) values from three very
+large corpora to investigate the values reported, covering the general
+psychology literature, the industrial and organizational psychology
+literature, and the American Psychological Association's PsycTests
+database. Results demonstrated robust evidence of an excess of
+\(\alpha\) values at the .70 rule-of-thumb threshold. These \(\alpha\)
+values at the thresholds of conventional acceptability are best
+explained by publication bias and/or hacking. This may therefore
+represent an instance of Goodhart's Law, where the rule-of-thumb
+function not only as a rule for interpretation but also become a target
+to hit, and where reported \(\alpha\) values become a distorted picture
+of actual reliability.
+
+A second source of plausible influence on the research practice of item
+dropping can be found by viewing it through the lens of human-computer
+interaction. Many commonly used statistical analysis software packages
+for calculating \(\alpha\) also provide the user with feedback on
+\(\alpha\)-if-item-removed for each of the scale's items (e.g., SPSS,
+JASP, jamovi, and the R packages \emph{psych} and \emph{performance},
 (\citeproc{ref-ludecke_performance_2021}{Lüdecke et al., 2021};
-\citeproc{ref-revelle_psych_2024}{Revelle, 2024}). The user is shown the
-\(\alpha\) observed in the study sample alongside a table of what
-\(\alpha\) would be if each scale item were excluded in turn. Hussey et
-al. (\citeproc{ref-hussey_aberrant_2025}{2025}) argue that presenting
-this information may itself act as a cue that raises the probability of
-a researcher dropping an item post hoc, without prompting any deeper
-engagement with the relative performance of the items or with the
-appropriateness of removing one. The software highlights an action that
-would improve the reported \(\alpha\), and gives no indication of the
-bias that action could introduce.
+\citeproc{ref-revelle_psych_2024}{Revelle, 2024})). It is reasonable to
+assume that this feedback to the user influences the analytic choices
+made (i.e., the point of software feedback is to inform and influence
+subsequent user behavior), but less clear whether the improvement in
+in-sample \(\alpha\) and the potential analytic flexibility this choice
+introduces is conducive to desirable measurement practices in a more
+general sense.
 
-The same authors pose the question this simulation is built to answer:
-without replication in a new sample, how can researchers know whether a
-given item was genuinely performing poorly and should be dropped, or
-whether they are simply conditioning their analysis on their own
-results? In real data that question is unanswerable, because the truth
-is not observed. In a simulation it is answerable directly, because the
-population loadings are known, so the two cases can be distinguished
-within every simulated study and the rate at which they are confused can
-be estimated. By extending the simulation approach of Kopalle and
-Lehmann with an empirically grounded data-generating process,
-substantially more replications, and population targets that separate
-the reported number from the underlying decision, the current work
-quantifies the effects of item dropping on both what is reported and
-what is measured.
+\subsection{The current research}\label{the-current-research}
+
+This article examines whether item dropping based on Cronbach's
+\(\alpha\)-if-item-removed improves or worsens estimation of the true
+reliability of a scale. Item dropping procedures other than
+\(\alpha\)-if-item-removed are of course possible, and are discussed in
+in the context of measure refinement Clark \& Watson
+(\citeproc{ref-clark_constructing_2019}{2019}), we focus on this
+specific mechanism on the basis that feedback on
+\(\alpha\)-if-item-removed when calculating \(\alpha\) is nearly
+ubiquitous in commonly used statistics software whereas feedback on
+other mechanisms is rare (e.g., SPSS, JASP, jamovi, and the R packages
+\emph{psych} and \emph{performance}
+(\citeproc{ref-ludecke_performance_2021}{Lüdecke et al., 2021};
+\citeproc{ref-revelle_psych_2024}{Revelle, 2024})). Additionally, we
+examine the impact of a single dropped item rather than an iterative
+drop of multiple items on the basis that the latter requires a rapidly
+expanding multiverse of analytic choices whose realism is not currently
+known.
 
 \section{Method}\label{method}
 
@@ -444,27 +454,20 @@ data from a wide range of psychological scales, so that the simulated
 scales resemble the reliability properties of real trait scales rather
 than an arbitrary parametric grid.
 
-The ADEMP framework (Aims, Data-generating mechanisms, Estimands,
-Methods, and Performance measures) is a structured framework for
-designing and reporting simulation studies for maximum interpretability
-and interoperability. It was originally proposed for simulation studies
-in biostatistics (\citeproc{ref-morris_using_2019}{Morris et al., 2019})
-and has since been adapted and promoted for psychology, including a
-preregistration template (\citeproc{ref-siepe_simulation_2024}{Siepe et
-al., 2024}). We follow this structure throughout the remainder of this
-section, so that the design can be reused independently of the narrative
-text. The full research compendium, containing the complete ADEMP
-specification, the validation of the fast reliability functions against
-\texttt{psych::alpha()}, and per-condition tables for every quantity
-reported here, is available in the project repository (see \emph{Data
-and code availability}).
+We adopt the ADEMP framework (Aims, Data-generating mechanisms,
+Estimands, Methods, and Performance measures)for designing and reporting
+simulation studies for maximum interpretability and interoperability.
+This was originally proposed for simulation studies in biostatistics
+(\citeproc{ref-morris_using_2019}{Morris et al., 2019}) and has since
+been adapted and promoted for psychology, including a preregistration
+template (\citeproc{ref-siepe_simulation_2024}{Siepe et al., 2024}).
 
 \subsection{Aims}\label{aims}
 
-The statistical task is estimation. The estimator under study is the
-sample Cronbach's \(\alpha\) of the retained items, that is, the number
-the analyst actually reports, evaluated against two population targets
-defined for the specific items retained. The aims are:
+The estimator under study is the sample Cronbach's \(\alpha\) of the
+retained items, that is, the number the analyst actually reports,
+evaluated against two population targets defined for the specific items
+retained. The aims are:
 
 \begin{enumerate}
 \def\labelenumi{\arabic{enumi}.}
@@ -498,14 +501,15 @@ defined for the specific items retained. The aims are:
 
 \subsection{Data}\label{data}
 
-For the empirically fitted data-generating process we used
-\emph{granary}, a very large aggregation of other open datasets of
+For the population distribution of factor loadings, we employed a data
+generating process that was derived from empirical data . For this, we
+used \emph{granary}, a very large aggregation of other open datasets of
 granular item-level psychological traits and attitudes
 (\citeproc{ref-hussey_granary_2026}{Hussey, 2026}). Single-item measures
-do not yield a factor loading and were excluded. For each pairing of
-scale and study source, participants who completed fewer than 80\% of
-the items from that measure were excluded prior to any model fitting,
-using a threshold applied uniformly across datasets.
+do not yield a factor loading and were therefore excluded. For each
+pairing of scale and study source, participants who completed fewer than
+80\% of the items from that measure were excluded prior to any model
+fitting, using a threshold applied uniformly across datasets.
 
 \subsubsection{Fitted parametric distribution of
 loadings}\label{fitted-parametric-distribution-of-loadings}
@@ -557,10 +561,10 @@ lengths}\label{distribution-of-scale-lengths}
 
 The number of items per scale was recorded for each of the 206 (scale,
 source) units. This distribution was right-skewed, ranging from 3 to 90
-items. Rather than fixing the simulated item-pool size at one value, we
+items. Rather than fixing the simulated item pool size at one value, we
 took the 10th, 25th, 50th, 75th, and 90th percentiles of this empirical
 distribution (5, 9, 13, 21, and 39 items respectively, rounded to 5, 10,
-15, 20, 40 for even spacing) as the item-pool sizes to simulate. The
+15, 20, 40 for even spacing) as the item pool sizes to simulate. The
 range of scale lengths studied therefore reflects how long real trait
 scales tend to be in published research, from short screening
 instruments to long, multidimensional batteries.
@@ -588,7 +592,7 @@ Two factors were manipulated, crossed fully factorially:
 \begin{itemize}
 \tightlist
 \item
-  Item-pool size (\(k\)): five levels (5, 10, 15, 20, 40 items), taken
+  Item pool size (\(k\)): five levels (5, 10, 15, 20, 40 items), taken
   from the empirical percentiles described above.
 \item
   Sample size (\(N\)): five levels (20, 30, 50, 200, 1000), chosen to
@@ -605,7 +609,7 @@ There is no exclusion rule, since Cronbach's \(\alpha\) is a closed-form
 function of the sample covariance matrix and does not require a
 full-rank correlation matrix, so cells with \(N < k\) are retained.
 
-\subsection{Item-dropping methods}\label{item-dropping-methods}
+\subsection{Item dropping methods}\label{item-dropping-methods}
 
 Both strategies nominate the same candidate item from the sample data,
 
@@ -679,13 +683,13 @@ population from the one being sampled, and every bias estimand in the
 design would be displaced by a constant that looks exactly like
 finite-sample bias. The residual variances are therefore stated
 explicitly as \(\psi_i = 1 - \lambda_i^2\), and the validation confirms
-this worked: generating 100,000 observations from one pool at each
-item-pool size, the mean realised item variance departed from 1 by at
-most 0.0024, and the realised sample \(\alpha\) departed from the
-closed-form population \(\alpha\) by at most 0.0009, which is within
-Monte Carlo error at that sample size. The validation caches are keyed
-on a hash of the function file, so editing those functions invalidates
-the validation rather than allowing a stale pass to stand.
+this worked: generating 100,000 observations from one pool at each item
+pool size, the mean realised item variance departed from 1 by at most
+0.0024, and the realised sample \(\alpha\) departed from the closed-form
+population \(\alpha\) by at most 0.0009, which is within Monte Carlo
+error at that sample size. The validation caches are keyed on a hash of
+the function file, so editing those functions invalidates the validation
+rather than allowing a stale pass to stand.
 
 \subsection{Expectations prior to running the
 simulation}\label{expectations-prior-to-running-the-simulation}
@@ -705,13 +709,13 @@ unequal loadings. We expected to reproduce the Kopalle \& Lehmann
 (\citeproc{ref-kopalle_alpha_1997}{1997}) optimism result, with the
 reported \(\alpha\) biased upward relative to the population \(\alpha\)
 of the retained items, and we expected that bias to be larger at larger
-item-pool sizes, on the reasoning that more candidate items means a
+item pool sizes, on the reasoning that more candidate items means a
 larger expected maximum over noise. We expected the reliability-scale
 bias to be negative at large \(N\), where selection has little noise to
 exploit and only the structural gap remains, and possibly positive at
-small \(N\), where the winner's curse might dominate - where the sign
+small \(N\), where the winner's curse might dominate -- where the sign
 crossed, we treated as an open empirical question. We expected
-\(\Pr(\text{drop})\) to rise with item-pool size. We made no directional
+\(\Pr(\text{drop})\) to rise with item pool size. We made no directional
 prediction for the mean population-\(\alpha\) change or the mean
 reliability change, because the empirical loading distribution has a
 negative tail, so some pools contain a genuinely harmful item whose
@@ -945,7 +949,7 @@ distribution-free order-statistic method (the 95\% confidence interval
 for a population quantile lies between the order statistics whose ranks
 are the Binomial(\(K\), \(p\)) percentiles), cross-checked against a
 nonparametric bootstrap, with which it agrees to within roughly 30\% in
-every cell. The bounds turn out to be stable: across all 300
+every cell. The bounds turn out to be stable, as across all 300
 cell-by-quantity combinations, the larger of the two bound standard
 errors is at most 2.2\% of its interval's width (median 1.2\%), so every
 interval in Table~\ref{tbl-pi} and Figure~\ref{fig-pi} is accurate to
@@ -1072,19 +1076,19 @@ design chosen here rather than over any population of real studies.
 \subsection{Calibration and the structural
 gap}\label{calibration-and-the-structural-gap}
 
-Estimating the full-pool Cronbach's \(\alpha\) shows a small downward
+Estimating the full pool Cronbach's \(\alpha\) shows a small downward
 calibration bias at small samples (Table~\ref{tbl-fullpool}, column 1a;
 Figure~\ref{fig-fullpool}, panel 1a). With small samples, the item
 covariances that \(\alpha\) is built from are estimated with high
 sampling noise. The bias decreases toward zero as \(N\) grows at every
-item-pool size, from -0.0423 at \(k = 5\), \(N = 20\) to -0.0008 at
+item pool size, from -0.0423 at \(k = 5\), \(N = 20\) to -0.0008 at
 \(N = 1000\), and is smaller for larger item pools even at fixed \(N\)
 (-0.0074 at \(k = 40\), \(N = 20\)).
 
 The structural gap between population \(\alpha\) and true reliability
 behaves quite differently. It is a property of the loadings alone and
 does not depend on the sample at all, so its estimate is essentially
-invariant to \(N\): within a fixed item-pool size it varies by no more
+invariant to \(N\): within a fixed item pool size it varies by no more
 than 0.0004 across the full \(N\) = 20 to 1000 range, a residual
 difference attributable to Monte Carlo error in the loadings drawn
 rather than to sample size. The gap does shrink as pool size increases,
@@ -1093,7 +1097,7 @@ population \(\alpha\) and true reliability approach a ceiling near 1 as
 scales lengthen, compressing the distance between them even though the
 underlying inequality among item loadings is unchanged.
 
-These two components sum to the total full-pool bias (column 1c), which
+These two components sum to the total full pool bias (column 1c), which
 is negative everywhere: with no item dropping at all, the reported
 \(\alpha\) understates the true reliability of the scale in every
 condition examined, by between 0.0042 and 0.0665.
@@ -1523,7 +1527,7 @@ Harm falls steeply as either factor increases, but it does not vanish
 with sample size alone. At \(N = 1000\) the forced strategy still
 reduces true reliability in 25.3\% of replications at \(k = 5\), and the
 rate reaches 0.0\% only in the largest scale and sample combination.
-Long scales and large samples are both needed - neither alone is
+Long scales and large samples are both needed -- neither alone is
 sufficient.
 
 The harm rate counts sign only, so it must be read alongside the harm
@@ -1775,8 +1779,8 @@ encounter}\label{what-a-single-study-can-encounter}
 
 Every quantity above is a long-run average over 10,000 replications. The
 prediction intervals in Table~\ref{tbl-pi} and Figure~\ref{fig-pi}
-describe the spread instead: the range of outcomes a single study, run
-once under this rule, can encounter.
+describe the spread instead, which is to say the range of outcomes that
+a single study, run once using this rule, can encounter.
 
 The intervals narrow sharply as either design factor grows. For the bias
 in the reported \(\alpha\) against true reliability, the interval spans
@@ -1809,16 +1813,17 @@ additional simulation narrows what they face.
 \subsection{Post hoc analysis: can a stricter decision rule fix the
 decision?}\label{post-hoc-analysis-can-a-stricter-decision-rule-fix-the-decision}
 
-The conditional strategy's gate, any apparent improvement at all, is the
-most permissive rule available, so an obvious practical question is
-whether a stricter gate rescues the practice: drop only if the apparent
-gain exceeds some threshold \(t\). Because the simulation cache records
-the full-pool and dropped-pool sample alphas and both population targets
-for every replication, any such rule is computable from the same 250,000
-replications without new simulation, with \(t = 0\) reproducing the
-conditional strategy exactly. This analysis was not part of the planned
-design and should be read as post hoc. Table~\ref{tbl-rules} reports,
-for \(t \in \{0, 0.01, 0.02, 0.05\}\), how often each rule fires and the
+The conditional strategy's gate of any apparent improvement at all is
+the most permissive rule available. An obvious practical question is
+whether a stricter gate rescues the practice, such that an item is
+dropped only if the apparent gain exceeds some threshold \(t\). Because
+the simulation cache records the full-pool and dropped-pool sample
+alphas and both population targets for every replication, any such rule
+is computable from the same 250,000 replications without new simulation,
+with \(t = 0\) reproducing the conditional strategy exactly. This
+analysis was not part of the planned design and should be read as post
+hoc. Table~\ref{tbl-rules} reports, for
+\(t \in \{0, 0.01, 0.02, 0.05\}\), how often each rule fires and the
 probability that firing harmed true reliability.
 
 % Start this table at the top of a fresh page so it cannot split (see the note above the
@@ -1913,22 +1918,22 @@ k & N & t = 0 & t = .01 & t = .02 & t = .05 & t = 0 & t = .01 & t = .02 & t = .0
 \endgroup{}
 
 The pattern splits cleanly on sample size. At \(N \geq 200\), thresholds
-work: requiring an apparent gain of at least .02 keeps the
-harm-given-fire probability at or below 7.0\% at \(N = 200\) wherever
-the rule fires at all (7.0\% at \(k = 5\), 0.3\% at \(k = 10\)), and
-near zero at \(N = 1000\). At the longest scales the .02 gate simply
-never fires, because a single item out of 40 cannot move \(\alpha\) by
-that much; abstention is the correct behaviour there, since those are
-also the cells where dropping has the least to offer. At small samples,
-thresholds fail: at \(k = 5\), \(N = 20\), even demanding an apparent
-gain of .05, which more than halves how often the rule fires, still
-leaves a 38.2\% chance that the drop harms true reliability, and at
-\(N = 50\) the strictest gate examined still carries 18.2\%. The reason
-is the one documented under Aim 4: at small \(N\) the apparent gain is
-dominated by selection over noise, so conditioning on a \emph{larger}
-apparent gain selects for more extreme noise nearly as often as for
-genuinely worse items, and no threshold on an in-sample quantity can
-separate the two.
+work to maintain reliability: requiring an apparent gain of at least .02
+keeps the harm-given-fire probability at or below 7.0\% at \(N = 200\)
+wherever the rule fires at all (7.0\% at \(k = 5\), 0.3\% at
+\(k = 10\)), and near zero at \(N = 1000\). At the longest scales the
+.02 gate simply never fires, because a single item out of 40 cannot move
+\(\alpha\) by that much; abstention of dropping an item is the correct
+behaviour there, since those are also the cells where dropping has the
+least to offer. At small samples, thresholds fail: at \(k = 5\),
+\(N = 20\), even demanding an apparent gain of .05, which more than
+halves how often the rule fires, still leaves a 38.2\% chance that the
+drop harms true reliability, and at \(N = 50\) the strictest gate
+examined still carries 18.2\%. The reason is the one documented under
+Aim 4: at small \(N\) the apparent gain is dominated by selection over
+noise, so conditioning on a \emph{larger} apparent gain selects for more
+extreme noise nearly as often as for genuinely worse items, and no
+threshold on an in-sample quantity can separate the two.
 
 As a rule of thumb, an alpha-if-item-removed recommendation should not
 be acted on at all in small samples (\(N \leq 50\)), whatever the
@@ -1958,157 +1963,186 @@ the differing y-axis scales between rows.}
 
 \section{Discussion}\label{discussion}
 
-Four things follow from these results. First, \(\alpha\) has two
-independent reasons to be untrustworthy before any item is dropped at
-all: ordinary small-sample noise, which fades with \(N\) (from -0.042 at
-\(N = 20\) to -0.0008 at \(N = 1000\) for \(k = 5\)), and a structural
-ceiling on what \(\alpha\) can measure relative to true reliability,
-which does not fade with \(N\) at all, only with \(k\) (from -0.024 at
-\(k = 5\) to -0.004 at \(k = 40\)). Second, introducing the selection
-step adds a third source of distortion that interacts with the first two
-and flips the overall sign of the bias depending on where in the design
-a study sits. Third, the bias in the number is almost beside the point:
-the decision itself is frequently wrong in the sense that matters,
-degrading true reliability. Fourth, none of these averages is a safe
-guide to what any one real study will observe.
+Dropping items to improve Cronbach's \(\alpha\) involves two competing
+pressures: shorter scales produce lower \(\alpha\), but removing poorly
+performing items raises it. The aggregate impact of these pressures on
+the reliability of the reported \(\alpha\) was not previously known, nor
+was the impact of conditioning item dropping decisions on the same data
+used to report \(\alpha\). Our results show that the practice is more
+consequential, and in more directions at once, than prior work
+suggested.These results demonstrate that item dropping can limit
+interpretability of a study's reported \(\alpha\) estimates. We provide
+four specific findings using real-world psychological scale responses as
+a basis for simulation. First, \(\alpha\) has two independent reasons to
+be untrustworthy before any item is dropped at all: ordinary
+small-sample noise, which fades with \(N\) (from -0.042 at \(N = 20\) to
+-0.0008 at \(N = 1000\) for \(k = 5\)), and a structural ceiling on what
+\(\alpha\) can measure relative to true reliability, which does not fade
+with \(N\) at all, only with \(k\) (from -0.024 at \(k = 5\) to -0.004
+at \(k = 40\)). Second, introducing the selection step adds a third
+source of distortion that interacts with the first two and flips the
+overall sign of the bias depending on where in the design a study sits.
+Third, the bias in the number is almost beside the point: the decision
+itself is frequently inadvisable in the sense that it degrades the true
+reliability of the scale. Fourth, none of these averages is a safe guide
+as to what any one real study will observe. We show that there is a
+divergence between \(\alpha\) and true reliability of a scale when items
+are dropped from a scale, and that researchers who draw different
+samples from the same population cannot know whether they are removing
+an item based on signal of its poor reliability, or noise.
 
 \subsection{What we expected, and what we
 found}\label{what-we-expected-and-what-we-found}
 
 Because this simulation was not preregistered, the expectations recorded
-in the Method are priors rather than tests, and we set them against the
-results explicitly so that the reader can see which parts of the account
-were anticipated and which were not.
+in the Method represent our broad intuitions prior to running the
+simulation rather than precisely preregistered predictions.
 
-Three expectations held straightforwardly. The full-pool calibration
-bias was small, negative, and shrank toward zero with \(N\) at every
-item-pool size. The structural gap was negative in every one of the 25
-conditions. And the prediction intervals were wide relative to the means
-wherever selection had room to operate, narrowing as either design
-factor grew.
+Three expectations were confirmed. The full-pool calibration bias was
+small and negative, and shrank toward zero with \(N\) at every item pool
+size. The structural gap was negative in every one of the 25 conditions.
+Prediction intervals were wide relative to the means in conditions with
+short scales and small samples, narrowing as either design factor
+increased.
 
-One expectation was clearly wrong, and its being wrong is informative.
-We expected selection optimism to be larger at larger item-pool sizes,
-reasoning that more candidate items gives a larger expected maximum over
-noise. The opposite holds: the bias against the population \(\alpha\) of
-the retained items is largest at \(k = 5\) (0.0435 at \(N = 20\)) and is
-already slightly negative at \(k \geq 15\) with small samples. Our
-reasoning counted the number of candidates and ignored their individual
-leverage. With more items each contributes proportionally less to
-\(\alpha\), so the maximum is taken over a larger set of individually
-smaller perturbations, and the second effect dominates. It is also
-swamped, at longer pools, by the small-sample downward calibration bias
-pulling in the opposite direction. The practical implication runs
-opposite to the intuition: long scales are not more exploitable by this
-rule, they are less so.
+One expectation was clearly wrong, and its disconfirmation is
+informative. We had expected selection optimism to increase with item
+pool size, on the reasoning that more candidate items in a given scale
+yields a larger expected maximum over noise. In fact, the opposite is
+the case. The bias against the population \(\alpha\) of the retained
+items is largest at \(k = 5\) (0.0435 at \(N = 20\)) and is already
+slightly negative at \(k \geq 15\) with small samples. Our original
+reasoning counted the number of candidate items in a scale but not their
+individual leverage. As the pool of items grows, each contributes
+proportionally less to \(\alpha\), so the maximum is taken over more
+items with smaller individual effects, and the second effect dominates.
+At longer pools it is further offset by the small-sample downward
+calibration bias seen in Cronbach's \(\alpha\), working in the opposite
+direction. The practical implication runs opposite to the original
+intuition, in that longer scales are not more exploitable by this rule,
+but less so.
 
-A second expectation was right in direction but badly wrong in emphasis.
-We expected the reliability-scale bias to be negative at large \(N\) and
+A second expectation was right in direction, but overstated. We had
+expected the reliability-scale bias to be negative at large \(N\) and
 possibly positive at small \(N\), and treated the location of the sign
-change as the open question. It is positive in only 3 of 25 conditions,
-all at the shortest pool size, so the sign change is real but confined
-to a corner of the design. Framing the study around it, as an ``alpha
-inflation'' account would, would have been a mistake. Across most of the
-grid the reported number is only slightly wrong, and had we stopped at
-the estimands we thought would carry the paper, we would have concluded
-that item dropping is a minor problem. The harm rate, for which we
+change as the open question. In fact, it is positive in only 3 of 25
+conditions, all at the shortest pool size. The sign change is present,
+but it is confined to a narrow corner of the design. Building the
+results around this reversal, as an ``alpha inflation'' account would,
+would have overstated the scope of this finding. Across most of the grid
+the reported number is only slightly wrong, and had we stopped at the
+estimands we thought would carry the paper, we would have concluded that
+item dropping is a minor problem. The harm rate, for which we
 deliberately made no directional prediction because we could not
 anticipate the balance between genuinely bad items and pure length
-penalties, is what shows otherwise: up to 49.6\% of replications made
-worse. The finding we did not predict is the one that matters, and it is
-measured by an estimand we included precisely because we did not know
-what it would show.
+penalties, is what shows otherwise. Up to 49.6\% of replications made
+worse. The result we did not predict is the one that matters for
+practical impact, and it was captured only because we included an
+estimand we included precisely because we did not know what it would
+show.
 
-Finally, \(\Pr(\text{drop})\) rose with item-pool size as expected, but
-its behaviour in \(N\) was the informative part and we had not thought
-it through in advance. It falls as \(N\) grows at short pool sizes, from
-91.0\% to 77.9\%, because noise-driven drops die out with sampling
-precision and only genuinely harmful items are left to remove. The rule
-therefore fires most often exactly where its firing means least.
+Finally, \(\Pr(\text{drop})\) rose with item pool size as expected, but
+its behaviour in \(N\) was not anticipated and proved to be the more
+informative pattern. At short pool sizes it falls as \(N\) increases,
+from 91.0\% to 77.9\%, because noise-driven drops become rarer with
+sampling precision and only genuinely harmful items are left to remove.
+The rule therefore fires most often exactly where its firing means
+least.
 
 \subsection{Reconciling with the simulation
 literature}\label{reconciling-with-the-simulation-literature}
 
-Kopalle \& Lehmann (\citeproc{ref-kopalle_alpha_1997}{1997}) established
-that item selection based on the same sample subsequently used to report
-the resulting \(\alpha\) capitalises on chance. The present work
-reproduces that finding where the item pool and sample are both small,
-and qualifies it elsewhere. Measured against the population \(\alpha\)
-of the retained items, the optimism is unambiguous at \(k = 5\) but has
-essentially vanished by \(k = 15\), where it is outweighed by the
-opposing small-sample calibration bias. Measured against true
-reliability, which is the quantity researchers care about, the sign
-reverses across most of the design. The direction of bias in an
-\(\alpha\) reported after item dropping is therefore not fixed, and an
-unqualified ``alpha inflation'' framing does not survive contact with a
-design that varies scale length and sample size over realistic ranges
-and evaluates against reliability rather than against \(\alpha\) itself.
+In previous work, smaller simulation studies have been conducted that
+investigate the practical impacts of item dropping. Kopalle \& Lehmann
+(\citeproc{ref-kopalle_alpha_1997}{1997}) examined the effect of
+selecting scale items based on observed correlations in the same sample
+used to report the \(\alpha\) of the scale, framing the resulting
+overestimation in \(\alpha\) as ``alpha inflation''. They argue against
+data-driven item selection without theoretical justification or
+cross-validation, showing that the biased \(\alpha\) values are most
+frequently seen when sample sizes are small, when a large number of
+items are dropped, and when inter-item correlations are low. Their
+simulation was constrained to two sample sizes, three item pool sizes,
+and 50 replications per cell, representing a considerably smaller
+simulation than the present study. Kopalle \& Lehmann
+(\citeproc{ref-kopalle_alpha_1997}{1997}) dropped items based on factor
+loadings from an EFA and define bias relative to the \(\alpha\) that
+would result from retaining the same number of items chosen at random.
+This benchmark captures over-conditioning on the sample at hand, but
+does not speak to how well the reported \(\alpha\) relates to the true
+reliability of the measure. By contrast, the present simulation drops
+items based on \(\alpha\)-if-item-removed, and evaluates bias against
+two distinct targets: the population \(\alpha\) of whichever items were
+retained, and the true reliability of those items. The present study
+demonstrates these findings robustly, extending beyond those of Kopalle
+\& Lehmann (\citeproc{ref-kopalle_alpha_1997}{1997}).
 
-The finding that \(\alpha\) and true reliability diverge even with no
-item selection at all is consistent with a separate, long-running
-critique of Cronbach's \(\alpha\). Sijtsma
-(\citeproc{ref-sijtsma_use_2009}{2009}) argued that \(\alpha\) cannot in
-general equal the true reliability of a scale given its inter-item
-covariance structure, a point developed in the \(\alpha\)/\(\omega\)
-literature (\citeproc{ref-mcdonald_test_1999}{McDonald, 1999};
+The divergence between \(\alpha\) and true reliability, even with no
+item selection at all, is consistent with a long-running critique of
+Cronbach's \(\alpha\). Sijtsma (\citeproc{ref-sijtsma_use_2009}{2009})
+argued that \(\alpha\) cannot in general equal the true reliability of a
+scale given its inter-item covariance structure, a point developed in
+the \(\alpha\)/\(\omega\) literature
+(\citeproc{ref-mcdonald_test_1999}{McDonald, 1999};
 \citeproc{ref-revelle_coefficients_2009}{Revelle \& Zinbarg, 2009};
 \citeproc{ref-zinbarg_cronbachs_2005}{Zinbarg et al., 2005}), which
 shows the two coefficients are equal only under the restrictive
 condition of essentially equal item loadings. Our structural-gap result
 is a direct simulation demonstration of that theoretical point under an
 empirically calibrated loading distribution, and shows its magnitude is
-not negligible relative to the biases usually discussed in the
-item-dropping literature. At the shortest scale examined it is 0.024,
-which exceeds the selection optimism observed anywhere in the design
-outside the \(k = 5\) column.
+not negligible relative to the biases usually discussed in the item
+dropping literature. At the shortest scale examined it is 0.024, which
+exceeds the selection optimism observed anywhere in the design outside
+the \(k = 5\) column.
 
 \subsection{Bias in the reported number versus harm to the
 scale}\label{bias-in-the-reported-number-versus-harm-to-the-scale}
 
-The most consequential finding is not that the reported number is wrong.
-Across most of the design it is only slightly wrong, with magnitudes
-mostly under 0.01. It is that the decision itself is frequently
-detrimental. In the worst condition, the forced rule reduced true
-reliability in 49.6\% of replications while its mean apparent in-sample
-gain was 0.090. The conditional rule, which acts only on an apparent
-improvement, still did so in 46.7\% of the replications in which it
-acted.
+The most consequential finding is not that the reported reliability
+number is wrong. Across most of the design it is only slightly wrong,
+with magnitudes mostly under 0.01. It is the decision itself to drop
+items that is frequently detrimental. In the worst condition, the forced
+item drop rule reduced true reliability in 49.6\% of replications while
+its mean apparent in-sample gain was 0.090. The conditional item drop
+rule, which acts only on an apparent improvement, still did so in 46.7\%
+of the replications in which it acted.
 
-A modest average bias can coexist with a near-coin-flip probability of a
-harmful outcome, because the bias measure averages over both helpful and
-harmful replications while the harm rate isolates how often the harmful
-case occurs. Nothing about the reported \(\alpha\) itself distinguishes
-the two scenarios.
+A modest average bias can coexist with a near-chance probability of an
+outcome that reduces the reliability, because the bias measure averages
+over both helpful and harmful instances of item dropping while the harm
+rate isolates how often the harmful case occurs. Nothing about the
+reported \(\alpha\) itself distinguishes the two scenarios. This bears
+on how the downstream result should be read. Stefan \& Schönbrodt
+(\citeproc{ref-stefan_big_2023}{2023}) show that item dropping on
+\(\alpha\) inflates the false positive rate of the subsequent hypothesis
+test to as high as 30\%, and it would be natural to attribute that to
+the reported reliability of a measure being overstated. The present
+results suggest that is largely not the mechanism: instead, across most
+of the design, the reported \(\alpha\) is close to correct. In the
+majority of conditions, it is too low rather than too high.
 
-This bears on how the downstream result should be read. Stefan \&
-Schönbrodt (\citeproc{ref-stefan_big_2023}{2023}) show that item
-dropping on \(\alpha\) inflates the false positive rate of the
-subsequent hypothesis test to as high as 30\%, and it would be natural
-to attribute that to the reported reliability being overstated. These
-results suggest that is largely not the mechanism: across most of the
-design the reported \(\alpha\) is close to correct, and in the majority
-of conditions it is too low rather than too high. What the practice
-supplies instead is a decision point at which the analyst may retain
-either of two scales, taken after seeing the data, in conditions where
-the two are close to indistinguishable on the evidence available. The
-inflation is better understood as an experimenter degree of freedom than
-as a mis-estimated reliability, which matters because the two call for
-different remedies: reporting \(\omega\) instead of \(\alpha\) would
-address the second and not the first. This is also why the average is
-the wrong summary to lead with for practice: a mean \(\Delta_\rho\) of
--0.0007 at \(k = 5\), \(N = 20\) reads as ``no effect'' but is the
-average of a distribution in which roughly half of studies are made
-worse and roughly half are made better.
+What item dropping entails is a decision point, after seeing the data,
+at which the researcher may retain either of two scales that are almost
+indistinguishable on the available evidence. The inflation of \(\alpha\)
+via item dropping is therefore better understood as a researcher degree
+of freedom than as a mis-estimated reliability. This distinction is
+valuable, because the two call for different remedies: reporting
+\(\omega\) instead of \(\alpha\) would address the second, and not the
+first. This is also why the average is the wrong summary to lead with
+for practice, as a mean \(\Delta_\rho\) of -0.0007 at \(k = 5\),
+\(N = 20\) implies there is ``no effect'', but in reality is the average
+of a distribution in which roughly half of studies are made less
+reliable and roughly half are made more reliable.
 
 \subsection{Mean bias understates practical
 risk}\label{mean-bias-understates-practical-risk}
 
 A mean bias near zero is compatible either with every study landing
-close to zero or with studies scattered across a wide range that happens
-to average out there. Table~\ref{tbl-pi} shows the design is
+close to zero, or with studies scattered across a wide range that
+happens to average around zero. Table~\ref{tbl-pi} shows the design is
 unambiguously the second case for short scales: the \(k = 5\),
 \(N = 20\) cell alone spans {[}-0.267, 0.243{]}. Additional Monte Carlo
-replications would narrow the standard error on the mean further but
+replications would narrow the standard error on the mean further, but
 would not narrow this interval by anything, since it is a property of
 the distribution rather than of how many times we sampled from it.
 Reporting means with Monte Carlo standard errors alone, which is common
@@ -2119,16 +2153,16 @@ factor still in any simulation run with more replications.
 \subsection{Practical implications}\label{practical-implications}
 
 In short scales and small samples, precisely where the reported number
-is most likely to be optimistically biased, the underlying decision is
-most likely to be actively wrong. Previous simulation findings have
-shown that unbiased estimation of \(\alpha\) at small \(N\) is possible
-when the largest eigenvalue of the item covariance matrix is large
+is most likely to be optimistically biased, the decision to drop a scale
+item is most likely to be wrong. Prior simulation work have shown that
+unbiased estimation of \(\alpha\) at small \(N\) is possible when the
+largest eigenvalue of the item covariance matrix is large
 (\citeproc{ref-yurdugul_minimum_2008}{Yurdugül, 2008}), indicating that
 bias in \(\alpha\) depends on how strongly unidimensional the items are
-as well as on sample size. Every pool generated here is unidimensional
-by construction (see Limitations), so this moderator could not vary
-within our design; scales with weaker general factors than ours would
-likely fare worse, not better.
+as well as on sample size. Every pool generated in the current
+simulation is unidimensional by construction (see Limitations), so this
+moderator could not vary within our design; scales with weaker general
+factors than ours would likely fare worse, not better.
 
 The key distinction for measurement practice is between what is knowable
 before a study is run and what is knowable after. Scale length and
@@ -2138,18 +2172,33 @@ rate, and the width of the prediction interval, is a function of those
 two design choices and of nothing about the data subsequently collected,
 holding the loading distribution fixed at the trait-scale-typical one
 simulated here. The risk can therefore be known in advance for scales
-resembling that corpus: a researcher could take a proposed \(k\) and
-\(N\), find the corresponding row of Table~\ref{tbl-proportions}, and
-know before collecting data roughly how much to trust a future
-item-dropping decision from that study. This is an unusual property for
-a bias to have. Many statistical biases depend on unknown population
-parameters that the researcher cannot inspect in advance. This one
-depends only on design choices that are already written down in the
-preregistration or method section, together with the assumption that the
-scale in hand is exchangeable with the trait-scale pool that calibrated
-the simulation; a scale with unusually strong and uniform loadings faces
-lower risk at the same \(k\) and \(N\), and a weaker one higher (see the
-clustering limitation below).
+resembling the corpus used here. A researcher could take a proposed
+\(k\) and \(N\), find the corresponding row of
+Table~\ref{tbl-proportions}, and know before collecting data roughly how
+much to trust a future item dropping decision from that study. This is
+an unusual property for a bias to have; many statistical biases depend
+on unknown population parameters that the researcher cannot inspect in
+advance. This one depends only on design choices that are already
+written down in the preregistration or method section, together with the
+assumption that the scale at hand is exchangeable with the trait-scale
+pool that calibrated the simulation. A scale with unusually strong and
+uniform loadings faces lower risk at the same \(k\) and \(N\), and a
+weaker one higher (see the clustering limitation below).
+
+Psychological measures are overwhelmingly used once and then abandoned:
+43\% appear only a single time in the APA PsycInfo record of tests used
+in studies (\citeproc{ref-elson_psychological_2023}{Elson et al.,
+2023}), and 79\% are not reused more than twice
+(\citeproc{ref-anvari_defragmenting_2025}{Anvari, Alsalti, Oehler,
+Hussey, et al., 2025}; \citeproc{ref-anvari_fragmented_2025}{Anvari,
+Alsalti, Oehler, Marion, et al., 2025}). For most measures there is
+therefore never a second sample in which an apparent in-sample gain
+could fail to replicate, and a researcher may be overfitting
+considerably more than they realise. Understanding the risk profile of a
+scale in advance of data collection, and classifying scale adjustment as
+a researcher degree of freedom, could reduce the likelihood of this
+single-use model of adjusted measures and improve interoperability of
+measurement scales across psychology.
 
 The post hoc decision-rule analysis sharpens this advice. Where a large
 sample is available, a simple threshold works: act on an
@@ -2171,18 +2220,17 @@ is close to a coin flip.
 
 What cannot be known in advance is anything from inside the
 alpha-if-item-removed table itself. The table that
-\texttt{psych::alpha()}, or any equivalent, produces looks exactly the
-same whether the item it nominates is genuinely the weakest link in the
-scale or is the item that happened to draw an unfavourable sample of
-participants this time. It carries no confidence interval and no
-indication of ranking instability. Two researchers who drew two
-different samples of the same size from the same true scale would each
-see a complete, definitive-looking table, possibly nominating different
-items for removal, and each would have exactly the same apparent
-justification for acting on it, even though at most one of them has
-observed real signal. The safeguard has to come from knowing where \(k\)
-and \(N\) sit in a risk table such as Table~\ref{tbl-proportions},
-because nothing internal to the analysis will indicate the risk level.
+\texttt{psych::alpha()}, or any equivalent, like SPSS, produces looks
+exactly the same whether the item it nominates is genuinely the weakest
+link in the scale or is the item that happened to draw an unfavourable
+sample of participants this time. Two researchers who drew two different
+samples of the same size from the same true scale would each see a
+complete, definitive-looking table, possibly nominating different items
+for removal, and each would have exactly the same apparent justification
+for acting on it, even though at most one of them has observed real
+signal. The safeguard has to come from knowing where \(k\) and \(N\) sit
+in a risk table such as Table~\ref{tbl-proportions}, because nothing
+internal to the analysis will indicate the risk level.
 
 \subsection{Limitations}\label{limitations}
 
@@ -2191,16 +2239,35 @@ one item, in one step. Neither iterates nor targets a final scale
 length, so multi-item dropping is not simulated but is instead noted as
 a future direction below.
 
-The population targets are realised rather than idealised subset
-targets: they are the true properties of whichever items a given
-replication's procedure retained, not of the best possible subset. This
-is the right target for the applied question, but it means the targets
-vary by strategy and by replication rather than being a single fixed
-value per condition, a deliberate departure from the classical
-estimation setup that we flag so it is not mistaken for an oversight.
-Relatedly, only sample \(\alpha\) is evaluated as the reported
-estimator. Sample \(\omega\) is never estimated from data anywhere in
-this design, it is used only as a population-level target.
+This simulation shows multiple consequences of item dropping when
+reliability of a scale is under consideration, but says nothing about
+whether an item dropping recommendation would \emph{replicate} in
+practice. Each replication draws one sample per pool, so the design can
+estimate how often a drop harms true reliability, but not whether the
+same item would be nominated again in a new sample from the same scale,
+nor whether an apparent in-sample gain would survive out of sample. A
+recommendation replicates exactly when it is driven by the stable,
+scale-level component of the loadings rather than by sampling noise, and
+that is precisely the component the marginal fit flattens away. A future
+simulation that parametrises the loading distribution hierarchically, so
+that scales genuinely differ from one another, and that splits each
+pool's data into training and testing samples, would investigate this
+point. Nominating the item in the training sample and assessing the
+decision's out-of-sample performance in the testing sample would examine
+whether the same item is nominated again, whether the reported
+\(\alpha\) holds up, and whether the apparent gain in reliability is
+realised. The Future directions below sketch this design.
+
+The population targets in the present study are realised rather than
+idealised subset targets. That is, they are the true properties of
+whichever items a given replication's procedure retained, not of the
+best possible subset. This is the right target for the applied question,
+but it means the targets vary by strategy and by replication rather than
+being a single fixed value per condition, a deliberate departure from
+the classical estimation setup that we flag so it is not mistaken for an
+oversight. Relatedly, only sample \(\alpha\) is evaluated as the
+reported estimator. Sample \(\omega\) is never estimated from data
+anywhere in this design, it is used only as a population-level target.
 
 The 95\% prediction intervals conflate two sources of variation, a fresh
 item pool and a fresh sample in each replication, so they support a
@@ -2216,7 +2283,7 @@ studies, and identifying where ours limits our conclusions is worthwhile
 despite its being empirically grounded rather than speculative. The
 corpus used to fit the loading distribution consists of
 individual-differences and personality measures, which may differ
-considerably from the scales on which item-dropping decisions are made
+considerably from the scales on which item dropping decisions are made
 in clinical psychology or in contexts where psychometric properties
 carry more consequential weight.
 
@@ -2226,12 +2293,12 @@ whereas almost every \(\alpha\) in the motivating literature is computed
 on ordinal Likert responses. Categorical items attenuate inter-item
 covariances, \(\alpha\) computed on them behaves differently at small
 samples, and item dropping could interact with asymmetric response
-thresholds in ways a continuous DGP cannot exhibit. Second, every
-generated pool is exactly unidimensional: the single-factor model that
-\(\alpha\) presupposes, short of tau-equivalence, is true by
-construction, so the only kind of genuinely weak item that can exist
-here is one with a low or negative loading. In practice,
-alpha-if-item-removed nominations are often driven by
+thresholds in ways a continuous data-generating process cannot exhibit.
+Second, every generated pool is exactly unidimensional: the
+single-factor model that \(\alpha\) presupposes, short of
+tau-equivalence, is true by construction, so the only kind of genuinely
+weak item that can exist here is one with a low or negative loading. In
+practice, alpha-if-item-removed nominations are often driven by
 multidimensionality, cross-loadings, or correlated residuals, cases in
 which the nominated item is a signal of model misspecification rather
 than of noise, and in which removing it changes what the scale measures
@@ -2252,37 +2319,19 @@ pooled distribution, ignoring which items belong to which scale. Real
 loadings cluster within scales. Some scales are uniformly well
 constructed, while weak and negative loadings concentrate within
 particular, often multidimensional, scales. Under the i.i.d. fit that
-clustering is erased: genuinely weak items are sprinkled uniformly at
+clustering is erased as genuinely weak items are sprinkled uniformly at
 random across generated pools, every sufficiently long pool contains
 some droppable item, and no pool is systematically better constructed
 than any other. The fit reproduces the marginal distribution of loadings
 faithfully, but it understates how much pools differ from one another,
 because clustering concentrates item quality within scales and the
 i.i.d. draw spreads it evenly. This matters for the estimands most
-central to this article: the harm rate and the probability of dropping
-both turn on whether the nominated item is a stable property of the
-scale or an accident of the sample, and a DGP that understates
-between-scale heterogeneity misstates the balance between those two
-ingredients, and with it how the marginal harm rate is composed.
-
-The same flattening bears directly on a second limitation, noted above:
-this simulation says nothing about whether an item-dropping
-recommendation would \emph{replicate}. Each replication draws one sample
-per pool, so the design can estimate how often a drop harms true
-reliability, but not whether the same item would be nominated again in a
-new sample from the same scale, nor whether an apparent in-sample gain
-would survive out of sample. These two limitations are not independent,
-because a recommendation replicates exactly when it is driven by the
-stable, scale-level component of the loadings rather than by sampling
-noise, and that is precisely the component the marginal fit flattens
-away. Both therefore point at the same future simulation: one that
-parametrises the loading distribution hierarchically, so that scales
-genuinely differ from one another, and that splits each pool's data into
-training and testing samples, nominating the item in the training sample
-and assessing the decision's out-of-sample performance in the testing
-sample: whether the same item is nominated again, whether the reported
-\(\alpha\) holds up, and whether the apparent gain in reliability is
-realised. The Future directions below sketch this design.
+central to this article, which is that the harm rate and the probability
+of dropping both turn on whether the nominated item is a stable property
+of the scale or an accident of the sample, and a data-generating
+procedure that understates between-scale heterogeneity misstates the
+balance between those two components, and with it how the marginal harm
+rate is composed.
 
 \subsection{Future directions}\label{future-directions}
 
@@ -2296,9 +2345,9 @@ pool, it would also decompose the harm rate reported here. A marginal
 harm rate of close to one half is compatible with two quite different
 worlds: one in which every short scale is a coin flip, and one which
 mixes scales with no genuinely weak item, where dropping is near-certain
-to harm, with scales containing one, where it is near-certain to help.
-These carry opposite practical advice, the present design cannot
-distinguish them, and the nested follow-up can. Combining that analysis
+to harm, with scales containing one, where it is almost certain to help.
+These carry opposite practical advice -- the present design cannot
+distinguish them, but the nested follow-up can. Combining that analysis
 with the bias and harm-rate results here would complete the picture this
 pair of simulations is building toward.
 
@@ -2328,16 +2377,22 @@ empirical question.
 \subsection{Conclusion}\label{conclusion}
 
 Item dropping to improve Cronbach's \(\alpha\) introduces bias into
-psychological measurement, and in more than one direction at once. In
-short scales and small samples it reduces true reliability in close to
-half of simulated studies, including when the rule acts only on an
-apparent in-sample improvement. In longer scales and larger samples it
-produces the opposite distortion, making the scale's reliability appear
-slightly lower than it truly is. Neither distortion is visible from
-inside the analysis that produces it. What is visible in advance is the
-study design, and researchers planning short scales with small samples
-should treat an alpha-if-item-removed recommendation from such a study
-as close to uninformative.
+psychological measurement in ways that depend on the scale length and
+sample size. In short scales and small samples, item dropping reduces
+true reliability in close to half of simulated studies, including when
+the rule acts only on an apparent in-sample improvement. In longer
+scales and larger samples, it produces the opposite distortion, making
+the scale's reliability appear slightly lower than it truly is. Neither
+distortion is visible from inside the analysis that produces it. What is
+visible in advance is the study design, and researchers planning short
+scales with small samples should treat an alpha-if-item-removed
+recommendation from such a study as close to uninformative. In longer
+scales with more items, the true reliability change is close to zero,
+making item dropping unlikely to help reliability. Item dropping can
+therefore be understood as a researcher degree of freedom that ranges
+from actively lowering the reliability of a scale, to one that makes an
+essentially inconsequential change to reliability while
+over-conditioning on the sample at hand.
 
 \section*{Author notes}\label{author-notes}
 \addcontentsline{toc}{section}{Author notes}
@@ -2460,6 +2515,12 @@ used measures in social and personality psychology. \emph{Advances in
 Methods and Practices in Psychological Science}, \emph{3}(2), 166--184.
 \url{https://doi.org/10.1177/2515245919882903}
 
+\bibitem[\citeproctext]{ref-jans_social_2015}
+Jans, M., Meyers, M., \& Fricker, S. (2015). Social science survey
+methodology training: {Understanding} the past and assessing the present
+to shape our future. \emph{Survey Practice}, \emph{8}(2), 1--15.
+\url{https://doi.org/10.29115/SP-2015-0007}
+
 \bibitem[\citeproctext]{ref-jebb_review_2021}
 Jebb, A. T., Ng, V., \& Tay, L. (2021). A review of key {Likert} scale
 development advances: 1995--2019. \emph{Frontiers in Psychology},
@@ -2490,6 +2551,13 @@ Lawrence Erlbaum.
 Morris, T. P., White, I. R., \& Crowther, M. J. (2019). Using simulation
 studies to evaluate statistical methods. \emph{Statistics in Medicine},
 \emph{38}(11), 2074--2102. \url{https://doi.org/10.1002/sim.8086}
+
+\bibitem[\citeproctext]{ref-munafuxf2_manifesto_2017}
+Munafò, M. R., Nosek, B. A., Bishop, D. V. M., Button, K. S., Chambers,
+C. D., Percie du Sert, N., Simonsohn, U., Wagenmakers, E.-J., Ware, J.
+J., \& Ioannidis, J. P. A. (2017). A manifesto for reproducible science.
+\emph{Nature Human Behaviour}, \emph{1}(1), 0021.
+\url{https://doi.org/10.1038/s41562-016-0021}
 
 \bibitem[\citeproctext]{ref-revelle_psych_2024}
 Revelle, W. (2024). \emph{Psych: {Procedures} for psychological,
@@ -2529,6 +2597,11 @@ Stefan, A. M., \& Schönbrodt, F. D. (2023). Big little lies: A
 compendium and simulation of p-hacking strategies. \emph{Royal Society
 Open Science}, \emph{10}(2), 220346.
 \url{https://doi.org/10.1098/rsos.220346}
+
+\bibitem[\citeproctext]{ref-strathern_improving_1997}
+Strathern, M. (1997). {``{Improving} ratings''}: Audit in the {British}
+{University} system. \emph{European Review}, \emph{5}(3), 305--321.
+\url{https://doi.org/10.1002/(SICI)1234-981X(199707)5:3\%3C305::AID-EURO184\%3E3.0.CO;2-4}
 
 \bibitem[\citeproctext]{ref-yurdugul_minimum_2008}
 Yurdugül, H. (2008). Minimum sample size for {Cronbach}'s coefficient

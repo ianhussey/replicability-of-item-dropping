@@ -66,13 +66,22 @@ It'll open a browser window and give you "Google hasn’t verified this app", yo
 
 Place this trackdown.qmd file in the same dir as your `manuscript.qmd` file in your repo.
 
-## Initial upload of a new file from local qmd to to google docs 
+trackdown resolves `file` relative to R's working directory, not this document's location. When chunks are run in the console, the working directory is usually the repo root, so a bare `"manuscript.qmd"` fails with `file does not exist`. Build the path with {here} so it works from anywhere in the repo.
 
 ```{r}
 
 library(trackdown)
+library(here)
 
-upload_file(file = "manuscript.qmd", hide_code = TRUE)
+manuscript <- here("communication", "manuscript", "manuscript.qmd")
+
+```
+
+## Initial upload of a new file from local qmd to to google docs 
+
+```{r}
+
+upload_file(file = manuscript, hide_code = TRUE)
 
 ```
 
@@ -80,15 +89,17 @@ upload_file(file = "manuscript.qmd", hide_code = TRUE)
 
 ```{r}
 
-update_file(file = "manuscript.qmd", hide_code = TRUE)
+update_file(file = manuscript, hide_code = TRUE)
 
 ```
 
 ## Downloading changes from google docs to overwrite the local qmd
 
+NB NAME OF DOCUMENT ON GOOGLE DOCS HAS TO BE CHANGED BACK TO “manuscript” FOR trackdown DOWNLOAD TO WORK 
+
 ```{r}
 
-download_file(file = "manuscript.qmd")
+download_file(file = manuscript)
 
 ```
 
