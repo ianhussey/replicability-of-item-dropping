@@ -1,0 +1,97 @@
+---
+title: "Trackdown github-google transfer"
+author: "Ian Hussey"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    highlight: haddock
+    theme: flatly
+    toc: yes
+    toc_float: yes
+---
+
+# General principles 
+
+- Edit code chunks via git. Git(hub) is very good for collaborative coding and not good for collaborative writing
+- Edit text via google docs. Google docs is very good for collaborative writing and not good for collaborative coding or version control
+- Use trackdown to move text sections to and from the local github repo and google docs
+
+
+# Privacy concerns
+
+Trackdown works via Google Drive API access. Giving it access to let it works means it technically has access to all your google drive files. The developers of trackdown say they can't support any more users, and so you have to set up your own google cloud app to mediate this access. I (Ian) have done this, which means it is *me* you are granting access to your google drive to. Whether that is better or worse than granting access to unknown strangers is for you to say. I would recommend that you use a separate google account for this that doesn't contain your private files etc. Obviously I promise not to access anyone's files via this (nor do I know how to), but that promise requires no trust if there's simply nothing to access on the account. This solution might also just be untenable for you, let me know if so.
+
+Immediate mitigation I can think of: the privacy concern is raised by actually using {trackdown} to move files to and from your repo to google docs, not from simply using the created shared google doc, which is just a normal google doc that is shared with other users but grants no access to their other files. So, if only I (Ian) do the uploading and downloading, and I control the google cloud app doing the uploading and downloading, no privacy issue is raised as I trust myself not to misuse my own private data. I think.
+
+In principle, this could be extended to others who want to use this workflow. Setting up the google cloud app took me about 15 mins and the instructions to do it are pretty good. Each user of this workflow could have their own google cloud app that is exclusively under their control, so you'd only be granting privacy access to yourself. Gets a bit more unwieldy though. 
+
+Medium to long term, this is still not a great solution given these privacy concerns. It will be at least 6 months until quarto2 is out with collaborative editing, commenting, etc. Hopefully that provides the workflow we realy want.
+
+
+# First time setup
+
+Following the instructions here, using the app Ian set up: https://claudiozandonella.github.io/trackdown/articles/oauth-client-configuration.html
+
+Get a json file with the secret from Ian.
+
+Put this json at somewhere like `TRACKDOWN_CLIENT=/Users/Ian-Hussey/.config/trackdown/client_secret.json`, where the `Ian-Hussey` part is your user account's name.
+
+Update your `.Renviron` to be able to access this secret. Open the file with:
+
+```{r}
+
+usethis::edit_r_environ()
+
+```
+
+Add `TRACKDOWN_CLIENT=/Users/Ian-Hussey/.config/trackdown/client_secret.json` or whatever location you put the json file with the secret.
+
+Save, close, restart RStudio.
+
+Run:
+
+```{r}
+
+library(trackdown)
+
+upload_file(file = "manuscript.Rmd", hide_code = TRUE)
+
+```
+
+It'll open a browser window and give you "Google hasn’t verified this app", you have to click “Advanced” and "Go to trackdown (unsafe)", then give it permissions to read your google drive files.
+
+
+# Usage
+
+Place this trackdown.qmd file in the same dir as your `manuscript.qmd` file in your repo.
+
+## Initial upload of a new file from local qmd to to google docs 
+
+```{r}
+
+library(trackdown)
+
+upload_file(file = "manuscript.qmd", hide_code = TRUE)
+
+```
+
+## Updating the google docs file using changes to the local qmd
+
+```{r}
+
+update_file(file = "manuscript.qmd", hide_code = TRUE)
+
+```
+
+## Downloading changes from google docs to overwrite the local qmd
+
+```{r}
+
+download_file(file = "manuscript.qmd")
+
+```
+
+
+
+
