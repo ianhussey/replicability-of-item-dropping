@@ -1,7 +1,7 @@
 ---
 title: "Replicability of Cronbach's-alpha-if-removed item dropping decisions"
 subtitle: "Does the gain, and the item choice, survive an independent sample?"
-author: "Ian Hussey & Ze Freeman"
+author: "Ian Hussey"
 date: today
 format:
   html:

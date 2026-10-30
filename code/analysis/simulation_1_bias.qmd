@@ -1,7 +1,7 @@
 ---
 title: "Bias in in-sample reliability from Cronbach's-alpha-if-removed item dropping recommendations"
 subtitle: "Forced vs. conditional dropping of a single-item"
-author: "Ian Hussey & Ze Freeman"
+author: "Ian Hussey"
 date: today
 format:
   html:
