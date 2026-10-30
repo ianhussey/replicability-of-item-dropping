@@ -1,6 +1,6 @@
 # Item-dropping to improve in-sample Cronbach’s alpha can harm true reliability: A Monte Carlo simulation
 
-Drafts of [Hussey et al. (2025)](https://doi.org/10.1177/25152459241287123) grappled with the idea that researchers often argue that poorly performing items should be dropped before calculating scale mean scores. I would counter by arguing that the our ability to precisely detect poorly performing items is poor, and that the recommendations of item-drop methods have poor replicability in small samples. It turned that we had misread and miscited some of the studies in this area, and so removed it from the final manuscript. My impression was that there is not much evidence either way regarding the replicability of item dropping in realistic sample sizes. This repo therefore examines this in real and simluated data. This includes a replication of Kopalle and Lehman (1997). 
+Drafts of [Hussey et al. (2025)](https://doi.org/10.1177/25152459241287123) grappled with the idea that researchers often argue that poorly performing items should be dropped before calculating scale mean scores. I would counter by arguing that the our ability to precisely detect poorly performing items is poor, and that the recommendations of item-drop methods have poor replicability in small samples. It turned that we had misread and miscited some of the studies in this area, and so removed it from the final manuscript. My impression was that there is not much evidence either way regarding the replicability of item dropping in realistic sample sizes. This repo therefore examines this in two Monte Carlo simulations. Simulation 1 estimates the bias that item dropping introduces into the reported alpha and its effect on true reliability, including a replication of Kopalle and Lehman (1997). Simulation 2 estimates whether the apparent gain from dropping an item, and the choice of item, replicate in an independent sample of the same size. Earlier analyses of real data are retained in the git history and in the gitignored `old/` folder. 
 
 
 
@@ -19,8 +19,9 @@ code/analysis/
   simulation_functions.R          Data-generating process, closed-form population targets
                                   (population alpha and omega from loadings), fast sample
                                   alpha and leave-one-out alphas from one covariance
-                                  matrix. Sourced by BOTH files below, so the functions
-                                  validated are provably the ones the simulation runs.
+                                  matrix. Sourced by validation.qmd and by both
+                                  simulations, so the functions validated are provably the
+                                  ones the simulations run.
   validation.qmd / .html          Validates those functions before use: agreement with
                                   psych::alpha(), the closed-form targets against the
                                   model-implied covariance matrix, and that
@@ -33,13 +34,27 @@ code/analysis/
                                   250,000 generated datasets. Reports every estimand
                                   per condition at more precision, and over more
                                   quantities, than the manuscript has room for.
-  simulation_2_nested_starter.R   Scaffold for the planned follow-up (nested design:
-                                  several samples per item pool). NOT used by the
-                                  manuscript or by simulation_1_bias.qmd.
+  simulation_2_replicability.qmd  Simulation 2, with its ADEMP specification: does the
+    / .html                       gain from dropping an item, and the item chosen,
+                                  replicate in an independent sample of the same size?
+                                  Same 25 conditions x 10,000 replications, each with a
+                                  discovery and a replication sample (500,000 generated
+                                  datasets). Reuses simulation 1's random-number streams,
+                                  so each discovery sample IS simulation 1's sample for
+                                  that replication (see Reproducibility).
+  simulation_2_functions.R        Pair-level analysis for simulation 2. Wraps
+                                  simulation_functions.R without modifying it, so the
+                                  validation cache hash is unaffected.
+  simulation_2_replicability_plan.md
+                                  Design rationale for simulation 2: research questions,
+                                  denominators, baselines, and what was deliberately
+                                  not estimated (including RQ3 and RQ4, deferred).
+  simulation_2_nested_starter.R   Unrun scaffold for a nested design (several samples per
+                                  item pool), kept for the deferred RQ3. NOT used by the
+                                  manuscript or by either simulation.
   results/                        Cached simulation output (.rds). See Reproducibility.
   templates/                      Generic simulation templates, not specific to this study.
   illustrate_cronbachs_alpha.Rmd  Standalone teaching illustration.
-  ideas for sim2 ....md           Design notes for the follow-up simulation.
 
 communication/manuscript/
   manuscript.qmd                  The manuscript. Every number, table and figure in its
@@ -49,11 +64,6 @@ communication/manuscript/
   bibliography.bib, apa.csl       References and APA 7th citation style.
   _extensions/, elsarticle.cls    Quarto Elsevier template.
 
-data/                             Real item-level datasets, for the planned analyses of
-                                  empirical data. The simulation reported in the
-                                  manuscript does not read from here: its data-generating
-                                  process is parameterised by a loading distribution
-                                  fitted in a separate repository (see below).
 literature/                       Bibliography files for cited works (PDFs gitignored).
 old/                              Superseded work, retained for provenance (gitignored).
 ```
@@ -76,13 +86,17 @@ information is printed at the end of each rendered `.html`.
 1. `validation.qmd` — must pass before the simulation is run. It `stop()`s on failure
    rather than warning, so a broken function cannot silently propagate.
 2. `simulation_1_bias.qmd` — runs the simulation, or loads it from cache if present.
-3. `communication/manuscript/manuscript.qmd` — reads both caches and rebuilds the whole
-   Results section.
+3. `simulation_2_replicability.qmd` — runs simulation 2, or loads it from cache. Needs
+   simulation 1's cache in `results/`, and must run on the same platform and package
+   versions as simulation 1 (see Reproducible parallelism). Its first validation check
+   halts the render if its discovery samples are not identical to simulation 1's.
+4. `communication/manuscript/manuscript.qmd` — reads the caches and rebuilds the whole
+   Results section. (It does not yet read simulation 2.)
 
 **Caching.** Every expensive step writes an `.rds` to `code/analysis/results/` and is
 skipped if that file already exists, so the manuscript and reports can be re-rendered in
 seconds without re-running anything. Delete a cache to force recomputation. The intended
-workflow is to run steps 1--2 on an HPC cluster, download `results/`, and re-render
+workflow is to run steps 1--3 on an HPC cluster, download `results/`, and re-render
 locally.
 
 **Cache keys.** Validation caches embed an md5 hash of `simulation_functions.R` in their
@@ -93,15 +107,26 @@ caches, and fails to render if they are missing — it cannot quote validation r
 functions that have since changed. Files carrying a different hash (e.g. `..._fns27c7fd3b.rds`)
 are orphans from an earlier version of the functions and are safe to delete.
 
-**Reproducible parallelism.** Both `validation.qmd` and `simulation_1_bias.qmd` use
-`furrr` with `furrr_options(seed = TRUE)`, which advances an L'Ecuyer-CMRG stream per
-task rather than per worker. Results are therefore **identical regardless of how many
-cores are used**, so a cluster run and a laptop re-run produce the same numbers. Worker
-count is auto-detected with `parallelly::availableCores()`, which honours SLURM
-allocations and cgroup quotas; override it via `n_workers_override` at the top of each
-file. Note that both files also shuffle their task grid (fixed seed) for load balancing;
-this is reproducible but does change which stream each row draws, so results differ from
-an unshuffled run.
+**Reproducible parallelism.** `validation.qmd` and both simulations use `furrr` with
+`furrr_options(seed = TRUE)`, which advances an L'Ecuyer-CMRG stream per task rather than
+per worker. Results are therefore **identical regardless of how many cores are used**.
+They are **not** guaranteed identical across machines: from the same random-number state,
+`lavaan::simulateData()` can produce different data on different platforms (most likely
+through the linear-algebra library). A test on 12 rows of simulation 1 found the drawn
+loadings identical on a Mac but about half of the generated samples different from the
+cluster run. Re-running a simulation on another machine therefore reproduces its results
+within Monte Carlo error, not bit for bit. Worker count is auto-detected with
+`parallelly::availableCores()`, which honours SLURM allocations and cgroup quotas;
+override it via `n_workers_override` at the top of each file. All files also shuffle their
+task grid (fixed seed) for load balancing; this is reproducible but does change which
+stream each row draws, so results differ from an unshuffled run.
+
+Simulation 2 relies on this stream structure deliberately: it uses simulation 1's task
+grid, shuffle and master seed, and draws each replication's loadings and discovery sample
+before its replication sample. Its discovery samples are therefore simulation 1's samples,
+row for row, when run on the same platform as simulation 1. If that platform is no longer
+available, set `reuse_study_1 <- FALSE` in `simulation_2_replicability.qmd` to run an
+independent simulation that is compared with simulation 1 within Monte Carlo error.
 
 ## License
 

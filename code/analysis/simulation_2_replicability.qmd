@@ -1,0 +1,821 @@
+---
+title: "Replicability of Cronbach's-alpha-if-removed item dropping decisions"
+subtitle: "Does the gain, and the item choice, survive an independent sample?"
+author: "Ian Hussey & Ze Freeman"
+date: today
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc_float: true
+    code-fold: false
+    code-overflow: wrap
+    code-tools: true
+    warning: false
+    df-print: kable
+    theme:
+      light: cosmo
+      dark: darkly
+    highlight-style:
+      light: breeze
+      dark: dracula
+    include-in-header:
+      text: |
+        <style>
+          .kable-table table { width: 70%; margin: 0 auto; }
+          .quarto-color-scheme-toggle::after { content: " Dark mode"; font-family: sans-serif; font-size: 0.85em; }
+        </style>
+---
+
+```{r}
+#| include: false
+
+# set default chunk options
+knitr::opts_chunk$set(message = FALSE,
+                      warning = FALSE)
+
+# disable scientific notation
+options(scipen = 999)
+
+```
+
+# Introduction
+
+This introduction follows the ADEMP framework (Morris, White, & Crowther, 2019; Siepe et al., 2024), as in `simulation_1_bias.qmd`, whose notation, data-generating process and item-dropping rule are reused here without change. The full design rationale, including the decisions about what is and is not estimated, is in `simulation_2_replicability_plan.md`.
+
+## Project description
+
+Simulation 1 asked what the alpha-if-item-removed rule does to the reported alpha and to the true reliability of a scale, using one sample per replication and comparing against closed-form population targets. Simulation 2 asks the question a researcher can act on without knowing the population: **if I applied the rule to a second, independent sample of the same size, would I see the same thing?**
+
+- **RQ1. Does the gain replicate?** When an item is dropped because doing so raised sample alpha, how much of that gain is seen again when the *same* item is dropped in an independent sample, and how often is any gain seen at all?
+- **RQ2. Does the item choice replicate?** When the rule drops an item in both samples, does it drop the same one?
+
+Both are answered from the same generated data: one item pool and two independent samples per replication.
+
+**Realism framing.** A replicator who uses a published, shortened scale never has the dropped item and cannot evaluate the drop. The scenario in which RQ1 and RQ2 apply is the original researcher's own next sample, or a held-out part of their own data: cross-validation of the drop decision. Because both samples have the same size, the split-half version is read directly off the grid: a researcher with 100 participants who splits 50/50 is in the *N* = 50 row.
+
+**What is not new.** With the item chosen in one sample and held fixed, the second sample's alpha is an ordinary estimate of the population alpha of that fixed item set. The *mean* out-of-sample shrinkage of the gain is therefore simulation 1's selection optimism (its estimand 3d) by another route. It is used here as a validation check (Validation 2, below), not as a finding. What is new are the quantities that only exist once a second sample is drawn: how often and how much of the gain is seen again, whether a replication can tell harmful drops from helpful ones, and whether the item choice itself replicates.
+
+## Aims
+
+1. **RQ1, replication of the gain.** Among pairs in which the discovery sample dropped an item: the replication gain; the share of the discovery gain retained; the proportion of pairs in which any gain is seen again; whether that proportion differs between drops that truly harmed and truly helped reliability; and the spread of the replication gain.
+2. **RQ2, replication of the item choice.** Among pairs in which both samples dropped an item: the proportion dropping the same item, against the 1/*k* floor.
+
+**Auxiliary check, not a research question: does the rule act?** Both research questions condition on drops, so the drop rate is reported per condition as context. Simulation 1 already shows that the rule drops an item in the large majority of samples, and almost always for *k* ≥ 10. In practice "drop the item only if alpha improves" then behaves as "always drop the worst-looking item". Whether the drop/no-drop decision itself replicates is uninformative wherever the drop rate is near 1, so it is not a research question; the joint distribution of the two samples' decisions is tabulated for completeness.
+
+## Data-generating process
+
+Identical to simulation 1: standardised single-factor congeneric model; loadings $\lambda_i \sim 2\,\mathrm{Beta}(11.77, 3.84) - 1$ (`draw_lambda()`); item data from `generate_data()`. See `simulation_1_bias.qmd` for the derivation.
+
+**Per replication:** draw one loading vector $\lambda$ of length *k*, then **two** independent samples from it, each of size *N*: the discovery sample $D$ and the replication sample $R$.
+
+**Factors:** `k_indicators` ∈ {5, 10, 15, 20, 40} × `n_participants` ∈ {20, 30, 50, 200, 1000}, fully crossed, 25 conditions. `n_participants` is the size of **each** sample, matching simulation 1's per-study *N*; a pair uses 2*N* participants. `niter` = 10000 pairs per condition.
+
+**Reuse of simulation 1's replications.** Simulation 2 is generated as an extension of simulation 1: the same task grid, the same load-balancing shuffle, the same master seed, and one L'Ecuyer stream per task. Within each task the loadings and the discovery sample are drawn first, in exactly simulation 1's order, and the replication sample afterwards. Each discovery sample is therefore **simulation 1's sample for that replication**. Every simulation 1 replication gains a replication sample, and the harmful/helpful classification in RQ1 is row-for-row the same as simulation 1's harm rate. This identity holds only on the same platform and package versions as the simulation 1 run, because `lavaan::simulateData()` produces platform-dependent draws from the same random-number state (a test on 12 rows found the loadings identical on a different machine but about half of the samples different). It is verified exactly before anything is summarised (Validation 1). If it fails, set `reuse_study_1 <- FALSE` to run an independent simulation with its own seed and a tolerance-based comparison instead.
+
+## Estimands
+
+### Notation
+
+Per pair, with the pool $F$ and loadings $\lambda$ shared by both samples:
+
+- $\hat\alpha_D(S)$, $\hat\alpha_R(S)$: sample alpha of item set $S$ in the discovery and replication samples.
+- $J^{*}_D = \arg\max_j \hat\alpha_D(-j)$, $J^{*}_R = \arg\max_j \hat\alpha_R(-j)$: each sample's own nominated item.
+- $\delta_D = \mathbf{1}\{\hat\alpha_D(-J^{*}_D) > \hat\alpha_D(F)\}$, $\delta_R$ likewise: whether the rule drops in each sample.
+- $G_D = \hat\alpha_D(-J^{*}_D) - \hat\alpha_D(F)$: the discovery gain, positive whenever $\delta_D = 1$.
+- $G_R = \hat\alpha_R(-J^{*}_D) - \hat\alpha_R(F)$: the gain from dropping **the discovery sample's item** in the replication sample.
+- $\Delta_\rho = \rho(F \setminus \{J^{*}_D\}) - \rho(F)$: the true reliability change from that drop. $\Delta_{\text{pop}}$ likewise for population alpha (validation only).
+
+### Denominators
+
+| Question | Pairs used | Why |
+|---|---|---|
+| RQ1 | $\delta_D = 1$ (discovery dropped) | There is no gain to replicate otherwise. $R$ makes no decision in RQ1; it only evaluates $J^{*}_D$. |
+| RQ2 | $\delta_D = \delta_R = 1$ (both dropped) | Same-item agreement is only defined when both samples dropped something. |
+
+The number of pairs in each denominator ($K_D$, $K_{DR}$) is random and is reported next to every estimate.
+
+### RQ1 estimands (pairs with $\delta_D = 1$)
+
+| # | Quantity | Definition | Role |
+|---|---|---|---|
+| 1a | Discovery gain | $\mathbb{E}[G_D]$ | what the researcher saw |
+| 1b | Replication gain | $\mathbb{E}[G_R]$ | what the next sample shows for the same drop |
+| 1c | **Share of gain retained** | $\mathbb{E}[G_R] / \mathbb{E}[G_D]$ | **headline**: what fraction of the gain survives |
+| 1d | **Replication success rate** | $\Pr(G_R > 0)$ | **headline**: how often any gain is seen again |
+| 1e | Endorsement of a harmful drop | $\Pr(G_R > 0 \mid \Delta_\rho < 0)$ | 1 − specificity of replication as a check |
+| 1f | Endorsement of a helpful drop | $\Pr(G_R > 0 \mid \Delta_\rho > 0)$ | sensitivity of replication as a check |
+| 1g | Prediction interval | $[q_{2.5}, q_{97.5}]$ of $G_R$ | what one replication can show |
+
+**1c is a ratio of means**, not a mean of per-pair ratios: $G_D$ can be arbitrarily close to zero, which makes per-pair ratios unstable. It complements 1d: at large *k* the gains are tiny, and a "success" of 0.001 counts the same as one of 0.05 in 1d but not in 1c.
+
+**Operating characteristics.** Treating a replication as a test of "this drop truly helps" ($\Delta_\rho > 0$), with a positive result meaning $G_R > 0$, 1f is the sensitivity and 1 − 1e the specificity. A replication is a useful check only if 1f is high and 1e is low.
+
+**Comparator for 1d.** A replication of unlimited size would endorse exactly the drops that truly help, so its success rate is $\Pr(\Delta_\rho > 0 \mid \delta_D = 1)$, one minus simulation 1's harm rate given drop. The gap between 1d and this comparator is the contribution of the replication sample's own noise.
+
+**Why true reliability rather than population alpha.** Everything reader-facing in RQ1 is in sample alphas except the harmful/helpful classification, which uses $\Delta_\rho$ so that "harmful" means exactly what it means in simulation 1's harm rate. Classifying by $\Delta_{\text{pop}}$ instead would change almost nothing: in simulation 1, drops that raise population alpha while lowering true reliability are at most 1.5% of drops in any condition.
+
+### RQ2 estimand (pairs with $\delta_D = \delta_R = 1$)
+
+| # | Quantity | Definition | Floor |
+|---|---|---|---|
+| 2 | **Item agreement** | $A = \Pr(J^{*}_D = J^{*}_R)$ | $1/k$ |
+
+Item labels are exchangeable across pools, so $1/k$ is the agreement expected if the nominated item were unrelated to the pool; within any one pool agreement is at least $1/k$. It is reported with the chance-corrected form $A^{*} = (A - 1/k)/(1 - 1/k)$: 0 is no better than picking an item at random, 1 is always the same item. Because the estimand conditions on both samples dropping, pools with a higher drop propensity count slightly more; with drop rates near 1 for *k* ≥ 10 this matters only at *k* = 5.
+
+## Methods and extracted quantities
+
+**Rule.** Simulation 1's conditional rule only: nominate $J^{*} = \arg\max_j \hat\alpha(-j)$ and drop it if and only if $\hat\alpha(-J^{*}) > \hat\alpha(F)$. Simulation 1's forced rule is not a separate strategy here: it almost coincides with the conditional rule (see the auxiliary check), and its only additional contribution to RQ1 would be drops whose discovery gain was not positive, which nobody would make.
+
+`analyse_pair()` (in `simulation_2_functions.R`) returns, per pair:
+
+- From $D$, named exactly as in simulation 1: `alpha_full_sample`, `alpha_dropped_sample`, `candidate_item` ($J^{*}_D$), `dropped_conditional` ($\delta_D$).
+- From $R$: `alpha_full_r`, `alpha_dropped_r_at_d` ($\hat\alpha_R(-J^{*}_D)$), `alpha_dropped_r_own` ($\hat\alpha_R(-J^{*}_R)$), `item_r` ($J^{*}_R$), `dropped_r` ($\delta_R$).
+- Population targets for $F$ and $F \setminus \{J^{*}_D\}$: `alpha_full_pop`, `omega_full_pop`, `alpha_dropped_pop`, `omega_dropped_pop`.
+
+## Performance and uncertainty
+
+Means are reported with MCSE $S_d/\sqrt{K}$; proportions with the binomial MCSE $\sqrt{\hat p(1-\hat p)/K}$; the ratio 1c with a delta-method MCSE; prediction-interval bounds with the distribution-free order-statistic MCSE used in the manuscript. $K$ is the realised denominator for that question. These are written out directly rather than through `simhelpers`, because the conditional denominators and the ratio do not fit its helpers; for means and proportions the formulas are the same ones simulation 1 obtains through `simhelpers`.
+
+## Expectations prior to running
+
+- **1d** is well below 1 at small *N* and rises toward its comparator as *N* grows.
+- **1c** is well below 1 at small *N* (most of the apparent gain is noise) and approaches 1 at large *N*.
+- **1e and 1f** are close to each other at *k* = 5 and small *N*, where simulation 1 found the rule harms true reliability in roughly half of its drops, and separate as *N* grows. No prediction about where they become usefully different.
+- **2** sits near $1/k$ at small *N* and large *k*, and rises with *N* as the genuinely weakest item becomes identifiable.
+
+No inferential models are fitted; results are summarised descriptively.
+
+# Methods
+
+## Dependencies
+
+```{r}
+
+library(furrr)
+library(readr)
+library(tidyr)
+library(dplyr)
+library(purrr)
+library(ggplot2)
+library(scales)
+library(knitr)
+library(kableExtra)
+
+dir.create("results", showWarnings = FALSE)
+
+# simulation_2_functions.R sources simulation_functions.R, so the DGP, population targets
+# and fast alpha functions are the same validated objects simulation 1 runs.
+source("simulation_2_functions.R")
+
+# --- How many workers does THIS session/allocation actually have? -----------
+# parallelly::availableCores() honours SLURM allocations, cgroup CPU quotas and affinity
+# masks. Set the override to pin a count manually; leave NULL to auto-detect.
+n_workers_override <- NULL
+detected_cores <- unname(parallelly::availableCores())
+n_workers <- if (is.null(n_workers_override)) detected_cores else as.integer(n_workers_override)
+n_workers <- max(1L, as.integer(n_workers))
+message(sprintf("Parallel plan: %d workers (parallelly detected %d).", n_workers, detected_cores))
+
+# multisession (separate R processes), as RStudio Server is not fork-safe. furrr_options(seed
+# = TRUE) assigns one L'Ecuyer-CMRG stream per task, so results do not depend on the number
+# of workers. They DO depend on the platform: lavaan::simulateData() gives different draws
+# from the same stream on different machines/linear-algebra libraries (see Validation 1).
+plan(multisession, workers = n_workers)
+
+```
+
+## Functions
+
+Defined in `simulation_2_functions.R` (sourced above), on top of `simulation_functions.R`:
+
+- `analyse_pair()` — extract every quantity the estimands require from a discovery sample, a replication sample, and their shared known loadings; returns a one-row tibble.
+- `generate_and_analyse_pair()` — draw loadings, then the discovery sample, then the replication sample, and analyse them. The order of draws is what makes the discovery sample identical to simulation 1's.
+- `generate_and_analyse_pair_exchangeable()` — the same with all loadings equal (Validation 4).
+
+## Define experiment
+
+```{r}
+
+n_iterations <- 10000
+
+# TRUE: reuse simulation 1's random-number streams, so each discovery sample IS simulation
+# 1's sample for that replication (requires the same platform as the simulation 1 run;
+# verified exactly in Validation 1). FALSE: an independent run with its own master seed,
+# compared with simulation 1 within Monte Carlo error instead.
+reuse_study_1 <- TRUE
+
+# --- everything from here to the shuffle must stay identical to simulation_1_bias.qmd ---
+# The stream each row draws is fixed by its POSITION in this data frame, so the grid, its
+# order, and the shuffle seed must match simulation 1 exactly for the reuse to hold.
+k_levels <- c(5, 10, 15, 20, 40)
+
+experiment_parameters <- expand_grid(
+  k_indicators = k_levels,
+  n_participants = c(20, 30, 50, 200, 1000),
+  iteration = seq_len(n_iterations)
+) |>
+  mutate(condition = paste0("k = ", k_indicators, ", N = ", n_participants))
+
+set.seed(101)
+experiment_parameters <- experiment_parameters[sample(nrow(experiment_parameters)), ]
+# --- end of the block that must match simulation 1 ---
+
+master_seed <- if (reuse_study_1) 42 else 4242   # 42 is simulation 1's master seed
+
+```
+
+## Run simulation
+
+Results are cached to disk; if the `.rds` exists it is loaded rather than recomputed.
+
+```{r}
+
+simulation_path <- paste0("results/simulation_2_replicability_niter", n_iterations,
+                          if (reuse_study_1) "" else "_independent", ".rds")
+
+if (file.exists(simulation_path)) {
+
+  simulation <- read_rds(simulation_path)
+
+} else {
+
+  set.seed(master_seed)
+
+  simulation <- experiment_parameters |>
+    mutate(results = future_pmap(.l = list(k_indicators = k_indicators,
+                                           n_participants = n_participants),
+                                 .f = generate_and_analyse_pair,
+                                 .progress = TRUE,
+                                 .options = furrr_options(seed = TRUE))) |>
+    unnest(results) |>
+    arrange(k_indicators, n_participants, iteration)
+
+  write_rds(x = simulation, file = simulation_path, compress = "gz")
+
+}
+
+```
+
+## Derive per-pair quantities
+
+```{r}
+
+pairs <- simulation |>
+  mutate(gain_d    = alpha_dropped_sample - alpha_full_sample,   # G_D
+         gain_r    = alpha_dropped_r_at_d - alpha_full_r,        # G_R (discovery item held fixed)
+         delta_pop = alpha_dropped_pop - alpha_full_pop,         # validation only
+         delta_rho = omega_dropped_pop - omega_full_pop,
+         same_item = candidate_item == item_r)
+
+# RQ1 denominator: the discovery sample dropped
+pairs_dropped_d <- pairs |> filter(dropped_conditional)
+
+# RQ2 denominator: both samples dropped
+pairs_dropped_both <- pairs |> filter(dropped_conditional, dropped_r)
+
+```
+
+## Summary helpers
+
+```{r}
+
+# binomial MCSE of a proportion
+proportion_mcse <- function(x) sqrt(mean(x) * (1 - mean(x)) / length(x))
+
+# MCSE of a mean
+mean_mcse <- function(x) sd(x) / sqrt(length(x))
+
+# delta-method MCSE of a ratio of means, mean(y) / mean(x), from paired draws:
+# Var(R) ~= [Var(y) - 2 R Cov(x, y) + R^2 Var(x)] / (K * mean(x)^2)
+ratio_of_means_mcse <- function(y, x) {
+  ratio <- mean(y) / mean(x)
+  sqrt((var(y) - 2 * ratio * cov(x, y) + ratio^2 * var(x)) / length(x)) / abs(mean(x))
+}
+
+# distribution-free MCSE of an empirical quantile, as used in the manuscript: the 95% CI for
+# the population p-quantile runs between the order statistics whose ranks are the
+# Binomial(K, p) 2.5th and 97.5th percentiles; the implied SE is that width / (2 * 1.96).
+quantile_mcse <- function(x, p) {
+  sorted <- sort(x)
+  K <- length(x)
+  ranks <- pmin(pmax(qbinom(c(0.025, 0.975), K, p), 1), K)
+  (sorted[ranks[2]] - sorted[ranks[1]]) / (2 * 1.96)
+}
+
+# "estimate (MCSE)" strings for tables; "NA" where an estimate does not exist (e.g. no harmful
+# drops at all in a condition). Keep R strings ASCII-only: chunks run under a C locale that
+# renders non-ASCII characters such as an em-dash as the literal text "<U+2014>".
+format_estimate <- function(estimate, mcse, accuracy = 0.001) {
+  if_else(is.na(estimate), "NA",
+          paste0(scales::number(estimate, accuracy = accuracy),
+                 " (", scales::number(mcse, accuracy = accuracy), ")"))
+}
+
+# long format for plotting: one row per condition x quantity, with columns estimate and mcse
+# taken from the summary columns <quantity> and <quantity>_mcse
+stack_estimates <- function(data, quantities) {
+  map_dfr(quantities, \(q) data |>
+            transmute(k_indicators, n_participants, quantity = q,
+                      estimate = .data[[q]], mcse = .data[[paste0(q, "_mcse")]]))
+}
+
+# ordered sample-size labels, so "N = 1000" does not sort before "N = 20"
+label_sample_sizes <- function(data) {
+  data |> mutate(n_label = factor(paste0("N = ", n_participants),
+                                  levels = paste0("N = ", sort(unique(n_participants)))))
+}
+
+# the per-condition quantities that are compared against simulation 1. Written against
+# simulation 1's column names, which analyse_pair() reuses for the discovery sample, so the
+# same function summarises both caches.
+summarise_against_study_1 <- function(data) {
+  data |>
+    mutate(gain_d = alpha_dropped_sample - alpha_full_sample,
+           harmed = omega_dropped_pop < omega_full_pop) |>
+    group_by(k_indicators, n_participants) |>
+    summarize(drop_rate            = mean(dropped_conditional),
+              drop_rate_mcse       = proportion_mcse(dropped_conditional),
+              gain_given_drop      = mean(gain_d[dropped_conditional]),
+              gain_given_drop_mcse = mean_mcse(gain_d[dropped_conditional]),
+              harm_given_drop      = mean(harmed[dropped_conditional]),
+              harm_given_drop_mcse = proportion_mcse(harmed[dropped_conditional]),
+              .groups = "drop")
+}
+
+```
+
+# Validation
+
+These checks run before any result is summarised. Checks 1, 3 and 4 halt the render on failure.
+
+## 1. The discovery samples are simulation 1's samples
+
+```{r}
+
+study_1_path <- paste0("results/simulation_1_bias_niter", n_iterations, ".rds")
+study_1_available <- file.exists(study_1_path)
+
+discovery_columns <- c("alpha_full_sample", "alpha_dropped_sample", "candidate_item",
+                       "dropped_conditional", "alpha_full_pop", "omega_full_pop",
+                       "alpha_dropped_pop", "omega_dropped_pop")
+
+if (!study_1_available) {
+
+  validation_1_result <- paste0("NOT CHECKED: no simulation 1 cache at ", study_1_path,
+                                " (expected for a smoke test with a different niter).")
+
+} else if (reuse_study_1) {
+
+  # exact identity, row for row
+  study_1 <- read_rds(study_1_path)
+  joined <- inner_join(study_1 |> select(k_indicators, n_participants, iteration,
+                                         all_of(discovery_columns)),
+                       simulation |> select(k_indicators, n_participants, iteration,
+                                            all_of(discovery_columns)),
+                       by = c("k_indicators", "n_participants", "iteration"),
+                       suffix = c("_s1", "_s2"))
+
+  n_rows_mismatched <- joined |>
+    mutate(mismatch =
+             alpha_full_sample_s1    != alpha_full_sample_s2    |
+             alpha_dropped_sample_s1 != alpha_dropped_sample_s2 |
+             candidate_item_s1       != candidate_item_s2       |
+             dropped_conditional_s1  != dropped_conditional_s2  |
+             alpha_full_pop_s1       != alpha_full_pop_s2       |
+             omega_full_pop_s1       != omega_full_pop_s2       |
+             alpha_dropped_pop_s1    != alpha_dropped_pop_s2    |
+             omega_dropped_pop_s1    != omega_dropped_pop_s2) |>
+    summarize(n = sum(mismatch)) |>
+    pull(n)
+
+  if (nrow(joined) != nrow(simulation) || n_rows_mismatched > 0) {
+    stop(sprintf(paste0(
+      "Validation 1 failed: %d of %d rows differ from simulation 1 (%d rows matched by id). ",
+      "The discovery samples are not simulation 1's. Most likely this is not the platform ",
+      "and package versions simulation 1 was run on (lavaan::simulateData() draws differ ",
+      "across machines). Either run on that platform, or set reuse_study_1 <- FALSE for an ",
+      "independent run, and delete %s first."),
+      n_rows_mismatched, nrow(simulation), nrow(joined), simulation_path))
+  }
+
+  validation_1_result <- sprintf(
+    "PASSED: all %d discovery samples are identical to simulation 1's, row for row.",
+    nrow(joined))
+
+} else {
+
+  # independent run: compare per-condition summaries within Monte Carlo error. With 25
+  # conditions x 3 quantities, a +/-2 SE rule would flag several cells by chance alone, so
+  # the threshold is |z| > 4 and the whole distribution of z is shown.
+  study_1 <- read_rds(study_1_path)
+  comparison <- inner_join(summarise_against_study_1(study_1),
+                           summarise_against_study_1(simulation),
+                           by = c("k_indicators", "n_participants"),
+                           suffix = c("_s1", "_s2")) |>
+    mutate(z_drop_rate = (drop_rate_s2 - drop_rate_s1) /
+             sqrt(drop_rate_mcse_s1^2 + drop_rate_mcse_s2^2),
+           z_gain      = (gain_given_drop_s2 - gain_given_drop_s1) /
+             sqrt(gain_given_drop_mcse_s1^2 + gain_given_drop_mcse_s2^2),
+           z_harm      = (harm_given_drop_s2 - harm_given_drop_s1) /
+             sqrt(harm_given_drop_mcse_s1^2 + harm_given_drop_mcse_s2^2))
+
+  z_values <- with(comparison, c(z_drop_rate, z_gain, z_harm))
+  z_values <- z_values[is.finite(z_values)]
+
+  print(summary(z_values))
+
+  if (any(abs(z_values) > 4)) {
+    stop("Validation 1 failed: an independent-run summary differs from simulation 1 by more than 4 combined MCSEs.")
+  }
+
+  validation_1_result <- sprintf(
+    "PASSED (independent run): all %d comparisons with simulation 1 within 4 combined MCSEs; max |z| = %.2f.",
+    length(z_values), max(abs(z_values)))
+}
+
+validation_1_result
+
+```
+
+## 2. The replication gain is an unbiased estimate of the population alpha change
+
+Holding the discovery item fixed, the replication sample has not been used to choose anything, so $G_R$ should estimate $\Delta_{\text{pop}}$ without selection bias. Equivalently, the out-of-sample shrinkage $G_D - G_R$ should match simulation 1's selection optimism $\widehat\Delta_{\text{obs}} - \Delta_{\text{pop}}$: per pair, the two differ by exactly $\Delta_{\text{pop}} - G_R$. A residual difference of the order of sample alpha's known small finite-sample bias is expected at the smallest *N*; a large or *k*-dependent one would mean the replication sample is not evaluating the fixed item correctly.
+
+```{r}
+
+validation_2 <- pairs_dropped_d |>
+  mutate(difference = gain_r - delta_pop) |>
+  group_by(k_indicators, n_participants) |>
+  summarize(K_D = n(),
+            mean_difference = mean(difference),
+            mcse = mean_mcse(difference),
+            optimism = mean(gain_d - delta_pop),
+            .groups = "drop") |>
+  mutate(z = mean_difference / mcse)
+
+validation_2 |>
+  mutate(across(c(mean_difference, mcse, optimism), \(x) scales::number(x, accuracy = 0.0001)),
+         z = scales::number(z, accuracy = 0.01)) |>
+  kable(col.names = c("k", "N", "K_D", "Mean G_R - Delta_pop", "MCSE",
+                      "Selection optimism (G_D - Delta_pop)", "z"),
+        caption = "Validation 2: mean difference between the replication gain and the population alpha change it estimates, among pairs in which the discovery sample dropped. Expected near zero; for scale, the selection optimism of the same drops is shown alongside.") |>
+  kable_classic(full_width = TRUE)
+
+```
+
+## 3. Internal consistency
+
+When both samples nominate the same item, the replication sample's alpha with the discovery item removed must equal its alpha with its own item removed.
+
+```{r}
+
+n_inconsistent <- pairs |>
+  filter(same_item, alpha_dropped_r_at_d != alpha_dropped_r_own) |>
+  nrow()
+
+if (n_inconsistent > 0) {
+  stop(sprintf("Validation 3 failed: %d pairs nominate the same item but report different alphas.",
+               n_inconsistent))
+}
+
+sprintf("PASSED: %d pairs nominate the same item in both samples, all with identical alphas.",
+        sum(pairs$same_item))
+
+```
+
+## 4. Exchangeable calibration cell
+
+With all loadings equal, every item is equally likely to be nominated, so item agreement must equal 1/*k*. This is checked for all pairs (the nomination step alone) and for pairs in which both samples dropped (estimand 2 as computed), at the extremes of the design. With equal loadings, removing any item lowers population alpha, so drops are rare at large *N*; the both-dropped check is reported only where at least 100 such pairs exist.
+
+```{r}
+
+n_iterations_exchangeable <- 2000
+
+exchangeable_path <- paste0("results/simulation_2_exchangeable_niter",
+                            n_iterations_exchangeable, ".rds")
+
+if (file.exists(exchangeable_path)) {
+
+  exchangeable <- read_rds(exchangeable_path)
+
+} else {
+
+  set.seed(4343)
+
+  exchangeable <- expand_grid(k_indicators = c(5, 40),
+                              n_participants = c(20, 1000),
+                              iteration = seq_len(n_iterations_exchangeable)) |>
+    slice_sample(prop = 1) |>
+    mutate(results = future_pmap(.l = list(k_indicators = k_indicators,
+                                           n_participants = n_participants),
+                                 .f = generate_and_analyse_pair_exchangeable,
+                                 .options = furrr_options(seed = TRUE))) |>
+    unnest(results) |>
+    arrange(k_indicators, n_participants, iteration)
+
+  write_rds(x = exchangeable, file = exchangeable_path, compress = "gz")
+
+}
+
+validation_4 <- exchangeable |>
+  mutate(same_item = candidate_item == item_r,
+         both_dropped = dropped_conditional & dropped_r) |>
+  group_by(k_indicators, n_participants) |>
+  summarize(floor = 1 / first(k_indicators),
+            K_all = n(),
+            agreement_all = mean(same_item),
+            K_both = sum(both_dropped),
+            agreement_both = if (K_both > 0) mean(same_item[both_dropped]) else NA_real_,
+            .groups = "drop") |>
+  # tolerance: 4 binomial SEs under the null agreement = 1/k
+  mutate(z_all  = (agreement_all - floor) / sqrt(floor * (1 - floor) / K_all),
+         z_both = if_else(K_both >= 100,
+                          (agreement_both - floor) / sqrt(floor * (1 - floor) / K_both),
+                          NA_real_))
+
+if (any(abs(validation_4$z_all) > 4) || any(abs(validation_4$z_both) > 4, na.rm = TRUE)) {
+  stop("Validation 4 failed: item agreement under exchangeable loadings differs from 1/k by more than 4 SEs.")
+}
+
+validation_4 |>
+  mutate(across(c(floor, agreement_all, agreement_both), \(x) scales::number(x, accuracy = 0.001)),
+         across(c(z_all, z_both), \(x) scales::number(x, accuracy = 0.01))) |>
+  kable(col.names = c("k", "N", "Floor 1/k", "K (all pairs)", "Agreement (all pairs)",
+                      "K (both dropped)", "Agreement (both dropped)", "z (all)", "z (both)"),
+        caption = "Validation 4: item agreement with all loadings equal to 0.5. Must equal 1/k within Monte Carlo error. The both-dropped z is omitted where fewer than 100 pairs dropped in both samples.") |>
+  kable_classic(full_width = TRUE)
+
+```
+
+# Results
+
+## Auxiliary check — how often does the rule drop an item?
+
+```{r}
+
+decision_summary <- pairs |>
+  group_by(k_indicators, n_participants) |>
+  summarize(K = n(),
+            drop_rate       = mean(dropped_conditional),
+            drop_rate_mcse  = proportion_mcse(dropped_conditional),
+            both_keep       = mean(!dropped_conditional & !dropped_r),
+            both_same       = mean(dropped_conditional & dropped_r & same_item),
+            both_different  = mean(dropped_conditional & dropped_r & !same_item),
+            one_drops       = mean(dropped_conditional != dropped_r),
+            .groups = "drop")
+
+decision_summary |>
+  mutate(drop_rate = format_estimate(drop_rate, drop_rate_mcse)) |>
+  select(k_indicators, n_participants, K, drop_rate) |>
+  pivot_wider(names_from = n_participants, values_from = drop_rate,
+              id_cols = k_indicators, names_prefix = "N = ") |>
+  rename(k = k_indicators) |>
+  kable(caption = "Proportion of samples in which the rule drops an item (MCSE), by item-pool size (rows) and sample size (columns). Under the reuse design this is identical to simulation 1's P(drop).") |>
+  kable_classic(full_width = TRUE)
+
+```
+
+### Supplementary: joint decisions in the two samples
+
+Whether the drop/no-drop decision replicates is uninformative wherever the drop rate is near 1. The full joint distribution is given here for completeness; only the *k* = 5 rows carry information.
+
+```{r}
+
+decision_summary |>
+  mutate(across(c(both_keep, both_same, both_different, one_drops),
+                \(x) scales::number(x, accuracy = 0.001))) |>
+  select(k_indicators, n_participants, K, both_keep, both_same, both_different, one_drops) |>
+  kable(col.names = c("k", "N", "K", "Both keep all items", "Both drop the same item",
+                      "Both drop different items", "Only one drops"),
+        caption = "Joint distribution of the two samples' decisions, all pairs. Rows sum to 1.") |>
+  kable_classic(full_width = TRUE)
+
+```
+
+## RQ1 — does the gain replicate?
+
+```{r}
+
+rq1_summary <- pairs_dropped_d |>
+  group_by(k_indicators, n_participants) |>
+  # output names differ from the input columns on purpose: summarize() evaluates in order,
+  # so naming an output `gain_d` would overwrite the column the later lines still need
+  summarize(K_D = n(),
+            share_retained      = mean(gain_r) / mean(gain_d),               # 1c
+            share_retained_mcse = ratio_of_means_mcse(gain_r, gain_d),
+            gain_d_mean         = mean(gain_d),                              # 1a
+            gain_d_mcse         = mean_mcse(gain_d),
+            gain_r_mean         = mean(gain_r),                              # 1b
+            gain_r_mcse         = mean_mcse(gain_r),
+            success             = mean(gain_r > 0),                          # 1d
+            success_mcse        = proportion_mcse(gain_r > 0),
+            truly_helps         = mean(delta_rho > 0),                       # comparator for 1d
+            truly_helps_mcse    = proportion_mcse(delta_rho > 0),
+            .groups = "drop")
+
+rq1_summary |>
+  mutate(gain_d_mean    = format_estimate(gain_d_mean, gain_d_mcse, 0.0001),
+         gain_r_mean    = format_estimate(gain_r_mean, gain_r_mcse, 0.0001),
+         share_retained = format_estimate(share_retained, share_retained_mcse),
+         success        = format_estimate(success, success_mcse),
+         truly_helps    = format_estimate(truly_helps, truly_helps_mcse)) |>
+  select(k_indicators, n_participants, K_D, gain_d_mean, gain_r_mean, share_retained,
+         success, truly_helps) |>
+  kable(col.names = c("k", "N", "K_D", "1a. Discovery gain", "1b. Replication gain",
+                      "1c. Share of gain retained", "1d. P(gain seen again)",
+                      "Comparator: P(drop truly helps)"),
+        caption = "RQ1, among pairs in which the discovery sample dropped an item: estimate (MCSE). The comparator is the success rate a replication of unlimited size would show.") |>
+  kable_classic(full_width = TRUE)
+
+```
+
+```{r}
+#| fig-height: 4
+#| fig-width: 11
+
+rq1_summary |>
+  stack_estimates(c("share_retained", "success")) |>
+  mutate(quantity = factor(quantity, levels = c("share_retained", "success"),
+                           labels = c("1c. Share of discovery gain retained",
+                                      "1d. P(gain seen again)"))) |>
+  ggplot(aes(x = k_indicators, y = estimate, color = as.factor(n_participants))) +
+  geom_hline(yintercept = c(0, 1), linetype = "dashed") +
+  geom_linerange(aes(ymin = estimate - mcse, ymax = estimate + mcse), color = "black") +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~ quantity) +
+  scale_x_continuous(name = "Item-pool size (k)", breaks = k_levels) +
+  scale_y_continuous(name = "Estimate", breaks = breaks_pretty(n = 6)) +
+  theme_linedraw() +
+  guides(color = guide_legend(title = "N per sample"))
+
+```
+
+### Can a replication tell harmful drops from helpful ones?
+
+```{r}
+
+rq1_operating <- pairs_dropped_d |>
+  group_by(k_indicators, n_participants) |>
+  summarize(K_harmful      = sum(delta_rho < 0),
+            endorse_harmful = if (K_harmful > 0) mean(gain_r[delta_rho < 0] > 0) else NA_real_,   # 1e
+            endorse_harmful_mcse = if (K_harmful > 0) proportion_mcse(gain_r[delta_rho < 0] > 0) else NA_real_,
+            K_helpful      = sum(delta_rho > 0),
+            endorse_helpful = if (K_helpful > 0) mean(gain_r[delta_rho > 0] > 0) else NA_real_,   # 1f
+            endorse_helpful_mcse = if (K_helpful > 0) proportion_mcse(gain_r[delta_rho > 0] > 0) else NA_real_,
+            .groups = "drop")
+
+rq1_operating |>
+  mutate(endorse_harmful = format_estimate(endorse_harmful, endorse_harmful_mcse),
+         endorse_helpful = format_estimate(endorse_helpful, endorse_helpful_mcse)) |>
+  select(k_indicators, n_participants, K_harmful, endorse_harmful, K_helpful, endorse_helpful) |>
+  kable(col.names = c("k", "N", "K (harmful drops)", "1e. P(endorsed | harmful)",
+                      "K (helpful drops)", "1f. P(endorsed | helpful)"),
+        caption = "RQ1 operating characteristics: how often a same-size replication shows a gain (endorses the drop), separately for drops that truly reduced and truly increased reliability. 1f is the sensitivity of replication as a check; 1 - 1e is its specificity. A dash marks conditions with no drops of that kind.") |>
+  kable_classic(full_width = TRUE)
+
+```
+
+```{r}
+#| fig-height: 4
+#| fig-width: 11
+
+rq1_operating |>
+  stack_estimates(c("endorse_helpful", "endorse_harmful")) |>
+  rename(drop_type = quantity) |>
+  filter(!is.na(estimate)) |>
+  mutate(drop_type = factor(drop_type, levels = c("endorse_helpful", "endorse_harmful"),
+                            labels = c("1f. Drop truly helped", "1e. Drop truly harmed"))) |>
+  label_sample_sizes() |>
+  ggplot(aes(x = n_label, y = estimate, color = drop_type, group = drop_type)) +
+  geom_linerange(aes(ymin = estimate - mcse, ymax = estimate + mcse), color = "black") +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~ paste0("k = ", k_indicators), nrow = 1) +
+  scale_y_continuous(name = "P(replication shows a gain)", limits = c(0, 1),
+                     breaks = breaks_pretty(n = 6)) +
+  xlab("N per sample") +
+  theme_linedraw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(color = guide_legend(title = NULL))
+
+```
+
+### What a single replication can show
+
+The spread of $G_R$ across pairs, not the precision of its mean: each pair is an independently simulated discovery-and-replication study, so the 2.5th and 97.5th percentiles estimate the range a single replication can show. As in simulation 1, the interval marginalises over both the item pool and the samples drawn from it. The discovery gain is shown alongside for comparison.
+
+```{r}
+
+rq1_spread <- pairs_dropped_d |>
+  select(k_indicators, n_participants, gain_d, gain_r) |>
+  pivot_longer(cols = c(gain_d, gain_r), names_to = "quantity", values_to = "value") |>
+  group_by(k_indicators, n_participants, quantity) |>
+  summarize(median        = median(value),
+            pi_lower      = unname(quantile(value, 0.025)),
+            pi_lower_mcse = quantile_mcse(value, 0.025),
+            pi_upper      = unname(quantile(value, 0.975)),
+            pi_upper_mcse = quantile_mcse(value, 0.975),
+            .groups = "drop") |>
+  mutate(quantity = factor(quantity, levels = c("gain_d", "gain_r"),
+                           labels = c("Discovery gain (G_D)", "1g. Replication gain (G_R)")))
+
+rq1_spread |>
+  mutate(interval = paste0("[", format_estimate(pi_lower, pi_lower_mcse, 0.0001), ", ",
+                           format_estimate(pi_upper, pi_upper_mcse, 0.0001), "]"),
+         median = scales::number(median, accuracy = 0.0001)) |>
+  select(k_indicators, n_participants, quantity, median, interval) |>
+  pivot_wider(names_from = quantity, values_from = c(median, interval)) |>
+  select(k_indicators, n_participants,
+         `median_Discovery gain (G_D)`, `interval_Discovery gain (G_D)`,
+         `median_1g. Replication gain (G_R)`, `interval_1g. Replication gain (G_R)`) |>
+  kable(col.names = c("k", "N", "G_D median", "G_D 95% PI",
+                      "G_R median", "1g. G_R 95% PI"),
+        caption = "95% prediction intervals (bound MCSE in parentheses) and medians of the discovery and replication gains, among pairs in which the discovery sample dropped an item.") |>
+  kable_classic(full_width = TRUE)
+
+```
+
+```{r}
+#| fig-height: 4
+#| fig-width: 11
+
+rq1_spread |>
+  label_sample_sizes() |>
+  ggplot(aes(x = n_label, y = median, color = quantity)) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_pointrange(aes(ymin = pi_lower, ymax = pi_upper),
+                  position = position_dodge(width = 0.5)) +
+  facet_wrap(~ paste0("k = ", k_indicators), nrow = 1) +
+  scale_y_continuous(name = "Gain in sample alpha (median and 95% PI)",
+                     breaks = breaks_pretty(n = 6)) +
+  xlab("N per sample") +
+  theme_linedraw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom") +
+  guides(color = guide_legend(title = NULL))
+
+```
+
+## RQ2 — does the item choice replicate?
+
+```{r}
+
+rq2_summary <- pairs_dropped_both |>
+  group_by(k_indicators, n_participants) |>
+  summarize(K_DR = n(),
+            agreement      = mean(same_item),
+            agreement_mcse = proportion_mcse(same_item),
+            .groups = "drop") |>
+  mutate(floor = 1 / k_indicators,
+         chance_corrected      = (agreement - floor) / (1 - floor),
+         chance_corrected_mcse = agreement_mcse / (1 - floor))
+
+rq2_summary |>
+  mutate(agreement        = format_estimate(agreement, agreement_mcse),
+         chance_corrected = format_estimate(chance_corrected, chance_corrected_mcse),
+         floor            = scales::number(floor, accuracy = 0.001)) |>
+  select(k_indicators, n_participants, K_DR, agreement, floor, chance_corrected) |>
+  kable(col.names = c("k", "N", "K_DR", "2. P(same item)", "Floor 1/k",
+                      "Chance-corrected (A - 1/k) / (1 - 1/k)"),
+        caption = "RQ2, among pairs in which both samples dropped an item: proportion dropping the same item (MCSE), its floor, and the chance-corrected agreement (0 = no better than random, 1 = always the same item).") |>
+  kable_classic(full_width = TRUE)
+
+```
+
+```{r}
+#| fig-height: 4
+#| fig-width: 11
+
+rq2_plot_data <- rq2_summary |>
+  stack_estimates(c("agreement", "chance_corrected")) |>
+  mutate(quantity = factor(quantity, levels = c("agreement", "chance_corrected"),
+                           labels = c("2. P(same item); dotted line = floor 1/k",
+                                      "Chance-corrected agreement")))
+
+floor_line <- tibble(k_indicators = k_levels, estimate = 1 / k_levels,
+                     quantity = factor("2. P(same item); dotted line = floor 1/k",
+                                       levels = levels(rq2_plot_data$quantity)))
+
+ggplot(rq2_plot_data, aes(x = k_indicators, y = estimate, color = as.factor(n_participants))) +
+  geom_line(data = floor_line, aes(x = k_indicators, y = estimate),
+            inherit.aes = FALSE, linetype = "dotted") +
+  geom_linerange(aes(ymin = estimate - mcse, ymax = estimate + mcse), color = "black") +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~ quantity) +
+  scale_x_continuous(name = "Item-pool size (k)", breaks = k_levels) +
+  scale_y_continuous(name = "Estimate", limits = c(0, 1), breaks = breaks_pretty(n = 6)) +
+  theme_linedraw() +
+  guides(color = guide_legend(title = "N per sample"))
+
+```
+
+# Session info
+
+```{r}
+
+sessionInfo()
+
+```
