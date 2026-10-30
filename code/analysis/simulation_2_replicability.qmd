@@ -264,7 +264,7 @@ if (file.exists(simulation_path)) {
 pairs <- simulation |>
   mutate(gain_d    = alpha_dropped_sample - alpha_full_sample,   # G_D
          gain_r    = alpha_dropped_r_at_d - alpha_full_r,        # G_R (discovery item held fixed)
-         delta_pop = alpha_dropped_pop - alpha_full_pop,         # validation only
+         delta_pop = alpha_dropped_pop - alpha_full_pop,         # validation and robustness checks
          delta_rho = omega_dropped_pop - omega_full_pop,
          same_item = candidate_item == item_r)
 
@@ -699,6 +699,113 @@ rq1_operating |>
   theme_linedraw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   guides(color = guide_legend(title = NULL))
+
+```
+
+#### What a replication's verdict tells the researcher
+
+1e and 1f condition on the truth, which the researcher never sees. The researcher sees the verdict, so the question they face is the reverse one: given that the replication did (or did not) show a gain, how likely is it that the drop was harmful? That depends on 1e and 1f and on how common harmful drops are to begin with, which is set by *k* and *N*. These are the predictive values of the replication as a check.
+
+```{r}
+
+rq1_verdict <- pairs_dropped_d |>
+  mutate(harmful = delta_rho < 0,
+         endorsed = gain_r > 0) |>
+  group_by(k_indicators, n_participants) |>
+  summarize(K_D                = n(),
+            harm_overall       = mean(harmful),
+            harm_overall_mcse  = proportion_mcse(harmful),
+            K_endorsed         = sum(endorsed),
+            harm_if_endorsed   = if (K_endorsed > 0) mean(harmful[endorsed]) else NA_real_,
+            harm_if_endorsed_mcse = if (K_endorsed > 0) proportion_mcse(harmful[endorsed]) else NA_real_,
+            K_not_endorsed     = sum(!endorsed),
+            harm_if_not        = if (K_not_endorsed > 0) mean(harmful[!endorsed]) else NA_real_,
+            harm_if_not_mcse   = if (K_not_endorsed > 0) proportion_mcse(harmful[!endorsed]) else NA_real_,
+            .groups = "drop")
+
+rq1_verdict |>
+  mutate(harm_overall     = format_estimate(harm_overall, harm_overall_mcse),
+         harm_if_endorsed = format_estimate(harm_if_endorsed, harm_if_endorsed_mcse),
+         harm_if_not      = format_estimate(harm_if_not, harm_if_not_mcse)) |>
+  select(k_indicators, n_participants, K_D, harm_overall,
+         K_endorsed, harm_if_endorsed, K_not_endorsed, harm_if_not) |>
+  kable(col.names = c("k", "N", "K_D", "P(harmful), all drops",
+                      "K (endorsed)", "P(harmful | endorsed)",
+                      "K (not endorsed)", "P(harmful | not endorsed)"),
+        caption = "Probability that a drop truly reduced reliability, among all drops (equal to simulation 1's harm rate given drop), among drops a same-size replication endorsed (showed a gain), and among drops it did not, with +/-1 MCSE. NA marks cells with no drops in that group.") |>
+  kable_classic(full_width = TRUE)
+
+```
+
+#### Why the endorsement rate of harmful drops does not fall with sample size
+
+If a replication's ability to catch a harmful drop were fixed by the size of the harm, 1e would fall as *N* grows, because the replication's sampling error shrinks. It does not, because the harmful drops are themselves selected by the rule: as *N* grows the rule stops making large harmful drops, and the ones it still makes are small. The table compares the mean true change in population alpha among harmful drops with the replication sample's own sampling error of the gain, $\mathrm{SD}(G_R - \Delta_{\text{pop}})$. If their ratio is roughly constant across the design, the harmful drops that remain at any *N* sit at about the same distance from that *N*'s noise floor, and 1e should be roughly constant too. Population alpha is used here rather than true reliability because $G_R$ estimates the population alpha change, so that is the scale on which its noise is measured.
+
+```{r}
+
+rq1_harm_vs_noise <- pairs_dropped_d |>
+  group_by(k_indicators, n_participants) |>
+  summarize(K_harmful         = sum(delta_rho < 0),
+            harm_alpha        = if (K_harmful > 0) mean(delta_pop[delta_rho < 0]) else NA_real_,
+            harm_alpha_mcse   = if (K_harmful > 1) mean_mcse(delta_pop[delta_rho < 0]) else NA_real_,
+            replication_noise = sd(gain_r - delta_pop),
+            .groups = "drop") |>
+  # descriptive ratio; no MCSE is given for it, since it is reported to show that it is
+  # roughly constant across the design rather than as an estimate in its own right
+  mutate(harm_to_noise = abs(harm_alpha) / replication_noise)
+
+rq1_harm_vs_noise |>
+  mutate(harm_alpha        = format_estimate(harm_alpha, harm_alpha_mcse, 0.0001),
+         replication_noise = scales::number(replication_noise, accuracy = 0.0001),
+         harm_to_noise     = if_else(is.na(harm_to_noise), "NA",
+                                     scales::number(harm_to_noise, accuracy = 0.01))) |>
+  select(k_indicators, n_participants, K_harmful, harm_alpha, replication_noise, harm_to_noise) |>
+  kable(col.names = c("k", "N", "K (harmful drops)",
+                      "Mean Delta_pop among harmful drops",
+                      "Replication noise SD(G_R - Delta_pop)", "|Harm| / noise"),
+        caption = "Size of the harm among harmful drops, on the population-alpha scale (+/-1 MCSE), against the sampling error of the replication gain at the same sample size, and their ratio. A roughly constant ratio means the harmful drops the rule still makes at any N are about equally hard for a same-size replication to detect. NA marks the condition with no harmful drops.") |>
+  kable_classic(full_width = TRUE)
+
+```
+
+#### Classifying drops by population alpha instead of true reliability
+
+Harmful and helpful drops are classified above by the true reliability change, so that "harmful" means what it means in simulation 1. Classifying by the population alpha change instead is the natural alternative, since $G_R$ estimates that change. The two signs disagree for few drops overall, but harmful drops become rare at large *N*, so the disagreements make up a larger share of the harmful drops there. The table reports that share and the endorsement rates under the alternative classification, to show whether it changes 1e and 1f.
+
+```{r}
+
+rq1_by_population_alpha <- pairs_dropped_d |>
+  group_by(k_indicators, n_participants) |>
+  summarize(disagree_all_drops      = mean(sign(delta_pop) != sign(delta_rho)),
+            K_harmful               = sum(delta_rho < 0),
+            harmful_raising_alpha   = if (K_harmful > 0) mean(delta_pop[delta_rho < 0] > 0) else NA_real_,
+            K_alpha_down            = sum(delta_pop < 0),
+            endorse_alpha_down      = if (K_alpha_down > 0) mean(gain_r[delta_pop < 0] > 0) else NA_real_,
+            endorse_alpha_down_mcse = if (K_alpha_down > 0) proportion_mcse(gain_r[delta_pop < 0] > 0) else NA_real_,
+            K_alpha_up              = sum(delta_pop > 0),
+            endorse_alpha_up        = if (K_alpha_up > 0) mean(gain_r[delta_pop > 0] > 0) else NA_real_,
+            endorse_alpha_up_mcse   = if (K_alpha_up > 0) proportion_mcse(gain_r[delta_pop > 0] > 0) else NA_real_,
+            .groups = "drop") |>
+  left_join(rq1_operating |> select(k_indicators, n_participants, endorse_harmful, endorse_helpful),
+            by = c("k_indicators", "n_participants"))
+
+rq1_by_population_alpha |>
+  mutate(disagree_all_drops    = scales::percent(disagree_all_drops, accuracy = 0.1),
+         harmful_raising_alpha = if_else(is.na(harmful_raising_alpha), "NA",
+                                         scales::percent(harmful_raising_alpha, accuracy = 0.1)),
+         endorse_alpha_down    = format_estimate(endorse_alpha_down, endorse_alpha_down_mcse),
+         endorse_alpha_up      = format_estimate(endorse_alpha_up, endorse_alpha_up_mcse),
+         endorse_harmful       = if_else(is.na(endorse_harmful), "NA",
+                                         scales::number(endorse_harmful, accuracy = 0.001)),
+         endorse_helpful       = scales::number(endorse_helpful, accuracy = 0.001)) |>
+  select(k_indicators, n_participants, disagree_all_drops, harmful_raising_alpha,
+         endorse_harmful, endorse_alpha_down, endorse_helpful, endorse_alpha_up) |>
+  kable(col.names = c("k", "N", "Signs disagree (% of drops)",
+                      "Harmful drops that raise population alpha (%)",
+                      "1e (by reliability)", "1e (by population alpha)",
+                      "1f (by reliability)", "1f (by population alpha)"),
+        caption = "Sensitivity of 1e and 1f to how drops are classified. 'Signs disagree' is the share of all drops whose population alpha change and true reliability change have opposite signs. The endorsement rates are shown under the main classification (true reliability) and the alternative (population alpha), the latter with +/-1 MCSE. NA marks the condition with no harmful drops.") |>
+  kable_classic(full_width = TRUE)
 
 ```
 
